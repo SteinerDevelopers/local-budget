@@ -12,6 +12,7 @@ import '../bills/bills_tab.dart';
 import '../goals/goals_service.dart';
 import '../goals/goals_tab.dart';
 import '../ledger/ledger_screen.dart' show monthTitle;
+import '../reports/reports_screen.dart';
 import 'budgets_service.dart';
 import 'budgets_tab.dart';
 import 'limit_editor_sheet.dart';
@@ -208,6 +209,21 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
                   icon: Icons.chevron_right,
                   semantic: 'Next month',
                   onTap: () => _shiftMonth(1),
+                ),
+                // E4 §1: second Reports entrance — from the sheet that owns
+                // the limits, landing on Budget vs actual (e4-reports.md §1).
+                _Chevron(
+                  keyName: 'reports-open-actual',
+                  icon: Icons.insights_outlined,
+                  semantic: 'Reports',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ReportsScreen(
+                        repository: widget.repository,
+                        initialSegment: ReportSegment.actual,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

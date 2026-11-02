@@ -1,22 +1,42 @@
-import 'package:budget/budget.dart' show CategoryTotal;
+import 'package:budget/budget.dart' show BudgetStatus, CategoryTotal;
 import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../budgets/budgets_service.dart';
+import '../budgets/budgets_sheet.dart';
 import '../ledger/ledger_screen.dart' show monthIndexOf, monthTitle, tileFor;
 import '../ledger/transaction_row.dart';
 import '../manage/icon_registry.dart';
 import 'reports_service.dart';
 
-/// The Reports screen (E4 spec §2.1). B3 ships the Month segment: header
-/// stepper, KPI strip, category donut with a drill sheet, top merchants.
-/// Year and Budget-vs-actual segments join the same scaffold in B4 (§9).
+/// The three analytics surfaces (§1) — the segmented control's values.
+enum ReportSegment {
+  month('Month'),
+  year('Year'),
+  actual('Actual');
+
+  const ReportSegment(this.label);
+  final String label;
+}
+
+/// The Reports screen (E4 spec §2). Month is the default segment (§2.1);
+/// Year shows twelve expense bars plus the year's top categories (§2.2);
+/// Actual renders the Budgets tab's own statuses as bar-vs-marker rows
+/// (§2.3). B4 ships all three on the scaffold B3 built.
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key, required this.repository});
+  const ReportsScreen({
+    super.key,
+    required this.repository,
+    this.initialSegment = ReportSegment.month,
+  });
 
   final LedgerRepository repository;
+
+  /// Entrance 2 (§1): the Budgets sheet opens Reports on [actual].
+  final ReportSegment initialSegment;
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -24,52 +44,197 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   late final ReportsService _service = ReportsService(widget.repository);
+  late final BudgetsService _budgets = BudgetsService(widget.repository);
 
   /// Index of the visible month in the shared 2000-based calendar grid.
   int _monthIndex = monthIndexOf(DateTime.now());
   late Future<MonthReport> _report = _load();
 
-  Future<MonthReport> _load() => _service.loadMonth(_monthStart(_monthIndex));
+  late ReportSegment _segment = widget.initialSegment;
 
-  /// Shifts the stepper; `+1` is unreachable from the current month (the
-  /// button is disabled — the future is not navigable, §2.1).
+  /// Calendar year of the Year segment (§2.2) — absolute, not grid-indexed.
+  late int _year = DateTime.now().year;
+
+  /// Year and Actual load lazily — opening a segment pays for its queries,
+  /// and switching back shows the same finished snapshot, not a spinner.
+  Future<YearReport>? _yearReport;
+  Future<BudgetsSnapshot>? _actual;
+
+  @override
+  void initState() {
+    super.initState();
+    // The laziness above must not strand the ENTRANCE segment (§1: the
+    // Budgets sheet lands on actual) — prime whatever we open on.
+    if (widget.initialSegment == ReportSegment.year) _yearReport = _loadYear();
+    if (widget.initialSegment == ReportSegment.actual) _actual = _loadActual();
+  }
+
+  Future<MonthReport> _load() => _service.loadMonth(_monthStart(_monthIndex));
+  Future<YearReport> _loadYear() => _service.loadYear(_year);
+  Future<BudgetsSnapshot> _loadActual() => _budgets.load(_monthIndex);
+
+  void _select(ReportSegment segment) {
+    setState(() {
+      _segment = segment;
+      if (segment == ReportSegment.year) _yearReport ??= _loadYear();
+      if (segment == ReportSegment.actual) _actual ??= _loadActual();
+    });
+  }
+
+  /// Shifts the month stepper (Month and Actual segments share it);
+  /// `+1` is unreachable from the current month (the button is disabled —
+  /// the future is not navigable, §2.1).
   void _shift(int delta) {
     setState(() {
       _monthIndex += delta;
       _report = _load();
+      if (_actual != null) _actual = _loadActual();
     });
+  }
+
+  void _shiftYear(int delta) {
+    setState(() {
+      _year += delta;
+      _yearReport = _loadYear();
+    });
+  }
+
+  /// A bar tap jumps the Month segment to that month (§2.2 state handoff).
+  void _openMonth(int year, int month0) {
+    setState(() {
+      _monthIndex = monthIndexOf(DateTime(year, month0 + 1));
+      _segment = ReportSegment.month;
+      _report = _load();
+    });
+  }
+
+  /// Empty-state CTA (§2.3): pop this page and open the Budgets sheet the
+  /// user actually needs — one gesture from "no budgets" to setting limits.
+  void _openBudgets() {
+    final context = this.context;
+    Navigator.of(context).pop();
+    showBudgetsSheet(
+      context,
+      repository: widget.repository,
+      monthIndex: _monthIndex,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final nowIndex = monthIndexOf(DateTime.now());
+    final nowYear = DateTime.now().year;
     return Scaffold(
       appBar: AppBar(title: const Text('Reports')),
       body: SafeArea(
         child: Column(
           children: [
-            _Stepper(
-              title: monthTitle(_monthIndex),
-              canGoNext: _monthIndex < nowIndex,
-              onPrev: () => _shift(-1),
-              onNext: () => _shift(1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Tokens.space4,
+                0,
+                Tokens.space4,
+                Tokens.space1,
+              ),
+              child: SegmentedButton<ReportSegment>(
+                segments: [
+                  for (final s in ReportSegment.values)
+                    ButtonSegment(
+                      value: s,
+                      // ButtonSegment carries no key of its own — the label
+                      // is the widget; keys ride there for tests & e2e.
+                      label: Text(s.label, key: Key('segment-${s.name}')),
+                    ),
+                ],
+                selected: {_segment},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => _select(s.first),
+              ),
             ),
+            if (_segment == ReportSegment.year)
+              _Stepper(
+                title: '$_year',
+                prevKey: const Key('year-prev'),
+                nextKey: const Key('year-next'),
+                prevTooltip: 'Previous year',
+                nextTooltip: 'Next year',
+                canGoNext: _year < nowYear,
+                onPrev: () => _shiftYear(-1),
+                onNext: () => _shiftYear(1),
+              )
+            else
+              _Stepper(
+                title: monthTitle(_monthIndex),
+                prevKey: const Key('month-prev'),
+                nextKey: const Key('month-next'),
+                prevTooltip: 'Previous month',
+                nextTooltip: 'Next month',
+                canGoNext: _monthIndex < nowIndex,
+                onPrev: () => _shift(-1),
+                onNext: () => _shift(1),
+              ),
             Expanded(
-              child: FutureBuilder<MonthReport>(
-                future: _report,
-                builder: (context, snap) {
-                  if (snap.hasError) {
-                    return _LoadError(
-                      onRetry: () => setState(() => _report = _load()),
-                    );
-                  }
-                  if (!snap.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return _MonthView(
-                    report: snap.data!,
-                    repository: widget.repository,
-                  );
+              // 200 ms fade-through between segments (§6) — data reloads
+              // inside a segment swap futures, not the switcher's child.
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: switch (_segment) {
+                  ReportSegment.month => FutureBuilder<MonthReport>(
+                    key: const ValueKey(ReportSegment.month),
+                    future: _report,
+                    builder: (context, snap) {
+                      if (snap.hasError) {
+                        return _LoadError(
+                          onRetry: () => setState(() => _report = _load()),
+                        );
+                      }
+                      if (!snap.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return _MonthView(
+                        report: snap.data!,
+                        repository: widget.repository,
+                      );
+                    },
+                  ),
+                  ReportSegment.year => FutureBuilder<YearReport>(
+                    key: const ValueKey(ReportSegment.year),
+                    future: _yearReport,
+                    builder: (context, snap) {
+                      if (snap.hasError) {
+                        return _LoadError(
+                          onRetry: () =>
+                              setState(() => _yearReport = _loadYear()),
+                        );
+                      }
+                      if (!snap.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return _YearView(
+                        report: snap.data!,
+                        onPickMonth: _openMonth,
+                      );
+                    },
+                  ),
+                  ReportSegment.actual => FutureBuilder<BudgetsSnapshot>(
+                    key: const ValueKey(ReportSegment.actual),
+                    future: _actual,
+                    builder: (context, snap) {
+                      if (snap.hasError) {
+                        return _LoadError(
+                          onRetry: () =>
+                              setState(() => _actual = _loadActual()),
+                        );
+                      }
+                      if (!snap.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return _ActualView(
+                        snapshot: snap.data!,
+                        onSetBudgets: _openBudgets,
+                      );
+                    },
+                  ),
                 },
               ),
             ),
@@ -109,12 +274,20 @@ class _LoadError extends StatelessWidget {
 class _Stepper extends StatelessWidget {
   const _Stepper({
     required this.title,
+    required this.prevKey,
+    required this.nextKey,
+    required this.prevTooltip,
+    required this.nextTooltip,
     required this.canGoNext,
     required this.onPrev,
     required this.onNext,
   });
 
   final String title;
+  final Key prevKey;
+  final Key nextKey;
+  final String prevTooltip;
+  final String nextTooltip;
   final bool canGoNext;
   final VoidCallback onPrev;
   final VoidCallback onNext;
@@ -130,8 +303,8 @@ class _Stepper extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            key: const Key('month-prev'),
-            tooltip: 'Previous month',
+            key: prevKey,
+            tooltip: prevTooltip,
             onPressed: onPrev,
             icon: const Icon(Icons.chevron_left),
           ),
@@ -147,8 +320,8 @@ class _Stepper extends StatelessWidget {
             ),
           ),
           IconButton(
-            key: const Key('month-next'),
-            tooltip: 'Next month',
+            key: nextKey,
+            tooltip: nextTooltip,
             onPressed: canGoNext ? onNext : null,
             icon: const Icon(Icons.chevron_right),
           ),
@@ -547,6 +720,445 @@ class _Donut extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Year segment (§2.2): twelve expense bars with a year-average line, then
+/// the year's top five categories. A bar tap hands the Month segment that
+/// month — the screen swaps segments in place, no second route.
+class _YearView extends StatelessWidget {
+  const _YearView({required this.report, required this.onPickMonth});
+
+  final YearReport report;
+  final void Function(int year, int month0) onPickMonth;
+
+  static const _monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June', //
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final r = report;
+    var maxMinor = r.averageMinor;
+    for (final b in r.buckets) {
+      if (b.spentMinor > maxMinor) maxMinor = b.spentMinor;
+    }
+    if (maxMinor <= 0) maxMinor = 1;
+    // §6: the bars read as a table to TalkBack — "November, $1,204.00".
+    final spoken = [
+      for (var i = 0; i < 12; i++)
+        if (r.buckets[i].spentMinor > 0)
+          '${_monthNames[i]}, ${Money(r.buckets[i].spentMinor, r.currency).format()}',
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(Tokens.space4),
+      children: [
+        _SectionCard(
+          title: 'Monthly spending',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total ${Money(r.totalSpentMinor, r.currency).format()}'
+                '  ·  ${Money(r.averageMinor, r.currency).format()} avg',
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: Tokens.space3),
+              Semantics(
+                label: spoken.isEmpty
+                    ? 'No spending in ${r.year}.'
+                    : '${r.year}: ${spoken.join('; ')}',
+                excludeSemantics: true,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 190,
+                      child: RepaintBoundary(
+                        child: BarChart(
+                          BarChartData(
+                            minY: 0,
+                            maxY: maxMinor * 1.15,
+                            alignment: BarChartAlignment.spaceAround,
+                            gridData: const FlGridData(show: false),
+                            borderData: FlBorderData(show: false),
+                            titlesData: const FlTitlesData(show: false),
+                            // The average is drawn, not just meant (§2.2).
+                            extraLinesData: r.averageMinor > 0
+                                ? ExtraLinesData(
+                                    horizontalLines: [
+                                      HorizontalLine(
+                                        y: r.averageMinor.toDouble(),
+                                        color: scheme.onSurfaceVariant,
+                                        strokeWidth: 1,
+                                        dashArray: const [4, 4],
+                                      ),
+                                    ],
+                                  )
+                                : const ExtraLinesData(),
+                            barTouchData: BarTouchData(
+                              touchCallback: (event, response) {
+                                if (event is! FlTapUpEvent) return;
+                                final idx =
+                                    response?.spot?.touchedBarGroupIndex;
+                                if (idx == null || idx < 0 || idx > 11) return;
+                                onPickMonth(r.year, idx);
+                              },
+                            ),
+                            barGroups: [
+                              for (var i = 0; i < 12; i++)
+                                BarChartGroupData(
+                                  x: i,
+                                  barRods: [
+                                    BarChartRodData(
+                                      toY: r.buckets[i].spentMinor.toDouble(),
+                                      // The current month gets the accent
+                                      // shade; complete months stay primary.
+                                      color: r.isCurrent && i == r.currentMonth
+                                          ? scheme.secondary
+                                          : scheme.primary,
+                                      width: 18,
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(3),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                          duration: const Duration(milliseconds: 200),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: Tokens.space1),
+                    // Month letters below the bars — the only axis v1 needs.
+                    Row(
+                      children: [
+                        for (var i = 0; i < 12; i++)
+                          Expanded(
+                            child: Text(
+                              _monthNames[i][0],
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Tokens.space3),
+        _SectionCard(
+          title: 'Top categories',
+          child: r.topCategories.isEmpty
+              ? _EmptyNote(
+                  key: const Key('year-cats-empty'),
+                  text: 'Nothing spent in ${r.year}.',
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < r.topCategories.length; i++)
+                      _CategoryShareRow(
+                        index: i,
+                        total: r.topCategories[i],
+                        name:
+                            r.categoryNames[r.topCategories[i].categoryId] ??
+                            '—',
+                        currency: r.currency,
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One top-5 row: name + money on one line, the share-of-year bar below.
+class _CategoryShareRow extends StatelessWidget {
+  const _CategoryShareRow({
+    required this.index,
+    required this.total,
+    required this.name,
+    required this.currency,
+  });
+
+  final int index;
+  final CategoryTotal total;
+  final String name;
+  final Currency currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final money = Money(total.spentMinor, currency).format();
+    final pct = total.shareBp / 100;
+    final fraction = (total.shareBp / 10000).clamp(0.02, 1.0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Tokens.space2),
+      child: Semantics(
+        label: '$name, $money, ${pct.toStringAsFixed(0)}% of the year',
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Tokens.body(context),
+                  ),
+                ),
+                const SizedBox(width: Tokens.space2),
+                Text(
+                  money,
+                  style: Tokens.amount(context).copyWith(fontSize: 13),
+                ),
+                const SizedBox(width: Tokens.space2),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    '${pct.toStringAsFixed(0)}%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Tokens.space1),
+            SizedBox(
+              height: 8,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: fraction,
+                  child: ColoredBox(
+                    color: _Donut._palette[index % _Donut._palette.length],
+                    child: const SizedBox(height: 8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Budget-vs-actual segment (§2.3). The *statuses* are the Budgets tab's own
+/// `BudgetsService.load` snapshot — this view only re-paints them as bar +
+/// marker rows, so the two surfaces can never disagree (§2.3 single source).
+class _ActualView extends StatelessWidget {
+  const _ActualView({required this.snapshot, required this.onSetBudgets});
+
+  final BudgetsSnapshot snapshot;
+  final VoidCallback onSetBudgets;
+
+  @override
+  Widget build(BuildContext context) {
+    final overall = snapshot.overall;
+    // Zero-limit rows are placeholders in the editor; analytics hides them.
+    final rows = snapshot.lines
+        .where((l) => l.row.limitMinor > 0)
+        .toList(growable: false);
+    if (overall == null && rows.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const _EmptyNote(
+              key: Key('actual-empty'),
+              text: 'No budgets yet — set limits to compare.',
+            ),
+            const SizedBox(height: Tokens.space3),
+            FilledButton.tonal(
+              key: const Key('actual-open-budgets'),
+              onPressed: onSetBudgets,
+              child: const Text('Set budgets'),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: Tokens.space2),
+      children: [
+        if (overall != null)
+          _ActualRow(
+            key: const Key('actual-overall'),
+            keySuffix: 'overall',
+            label: 'All categories',
+            status: overall,
+            currency: snapshot.currency,
+            rollover: snapshot.rollover,
+          ),
+        for (final line in rows)
+          _ActualRow(
+            key: Key('actual-row-${line.row.categoryId ?? line.row.id}'),
+            keySuffix: '${line.row.categoryId ?? line.row.id}',
+            label: line.name,
+            status: line.status,
+            currency: snapshot.currency,
+            rollover: snapshot.rollover,
+          ),
+      ],
+    );
+  }
+}
+
+/// Bar = spent, solid marker = limit, ghost marker = carry-adjusted
+/// available — the ghost only when the device-wide rollover switch is on
+/// (§2.3). Colors are the Budgets tab's one expression, copied literally.
+class _ActualRow extends StatelessWidget {
+  const _ActualRow({
+    super.key,
+    required this.keySuffix,
+    required this.label,
+    required this.status,
+    required this.currency,
+    required this.rollover,
+  });
+
+  /// Shared suffix for the row's marker/ghost keys (`Key` carries no value
+  /// to derive it from at paint time).
+  final String keySuffix;
+  final String label;
+  final BudgetStatus status;
+  final Currency currency;
+  final bool rollover;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final overspent = status.isOverspent;
+    final barColor = overspent ? scheme.error : scheme.primary;
+    final spent = status.spent(currency).format();
+    final limit = Money(status.effectiveLimitMinor, currency).format();
+    var scale = 1;
+    for (final v in [
+      status.spentMinor,
+      status.limitMinor,
+      status.effectiveLimitMinor,
+    ]) {
+      if (v > scale) scale = v;
+    }
+    final showGhost = rollover && status.carryMinor != 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Tokens.space4,
+        vertical: Tokens.space3,
+      ),
+      child: Semantics(
+        label: '$spent of $limit for $label',
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Tokens.body(context),
+                  ),
+                ),
+                Text(
+                  'Spent $spent of $limit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: overspent ? scheme.error : scheme.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Tokens.space2),
+            SizedBox(
+              height: 8,
+              child: LayoutBuilder(
+                builder: (context, track) {
+                  final w = track.maxWidth;
+                  Widget marker(double fraction, Color color, {Key? key}) {
+                    return Positioned(
+                      key: key,
+                      left: (fraction * w - 1).clamp(0.0, w - 2),
+                      child: Container(width: 2, height: 12, color: color),
+                    );
+                  }
+
+                  return Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: scheme.onSurfaceVariant.withValues(
+                            alpha: 0.15,
+                          ),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: (status.spentMinor / scale).clamp(
+                            0.0,
+                            1.0,
+                          ),
+                          child: Container(height: 8, color: barColor),
+                        ),
+                      ),
+                      // Solid tick where the limit sits; the ghost shows the
+                      // carry-adjusted available next to it (rollover on).
+                      marker(
+                        status.limitMinor / scale,
+                        scheme.onSurface,
+                        key: Key('actual-marker-$keySuffix'),
+                      ),
+                      if (showGhost)
+                        marker(
+                          status.effectiveLimitMinor / scale,
+                          scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                          key: Key('actual-ghost-$keySuffix'),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

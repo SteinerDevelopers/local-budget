@@ -58,6 +58,17 @@ void main() {
     );
   }
 
+  /// Drift delivers on the real event loop; a lone `pumpAndSettle` can
+  /// return while a drill-down's future is still pending under CPU load
+  /// (parallel test files). Pump a ceiling so every awaiting chain flushes.
+  Future<void> settle(WidgetTester tester) async {
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pumpAndSettle();
+  }
+
   Future<void> pumpReports(WidgetTester tester, LedgerRepository repo) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -65,7 +76,7 @@ void main() {
         home: ReportsScreen(repository: repo),
       ),
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   /// Value text inside one KPI tile.
@@ -130,7 +141,7 @@ void main() {
     final center = tester.getCenter(find.byType(PieChart));
     final r = 78.0;
     await tester.tapAt(center + Offset(r * math.sin(0.2), -r * math.cos(0.2)));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     expect(find.byKey(Key('drill-list-$food')), findsOne);
     expect(find.byKey(Key('drill-total-$food')), findsOne);
@@ -174,6 +185,11 @@ void main() {
     );
     await pumpReports(tester, repo);
 
+    // The segments row joined the header, so the merchants card now sits
+    // past the 800×600 test viewport — scroll it into view before reading.
+    await tester.scrollUntilVisible(find.textContaining('Food Co'), 120);
+    await settle(tester);
+
     expect(find.textContaining('Food Co'), findsOne);
     expect(find.text('${Money(7500, usd).format()} · 2'), findsOne);
     expect(find.byKey(Key('merchants-empty')), findsNothing);
@@ -203,7 +219,7 @@ void main() {
     );
 
     await tester.tap(find.byKey(Key('month-prev')));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     expect(find.text(monthTitle(monthIndexOf(now) - 1)), findsOne);
     expect(

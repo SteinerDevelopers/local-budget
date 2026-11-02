@@ -11,10 +11,14 @@ paid analytics pack and must **not** leak into these screens as teaser stubs.
 
 - New **Reports screen**: full-screen page pushed with `MaterialPageRoute` (scrollable
   analytics wants a page, not a sheet; back gesture is the exit).
-- Entrance 1: home app-bar icon (`Icons.insights_outlined`, `Key('reports-open')`,
-  Tooltip "Reports") next to the existing two icon buttons.
-- Entrance 2: Budgets sheet header gains the same icon — opens Reports on the
-  **Budget vs actual** segment (constructor arg `initialSegment`).
+- Entrance 1: the home screen has **no app bar** (decision 10 predates this spec's
+  draft); its only persistent chrome is the month-header row. A trailing
+  `Icons.insights_outlined` icon button (`Key('reports-open')`, Tooltip "Reports")
+  joins that row after the forward chevron. The home light/dark goldens shift by
+  that icon — regenerated in CI like every ref, no exceptions.
+- Entrance 2: the Budgets sheet's month-header row gains the same icon after its
+  forward chevron — opens Reports on the **Budget vs actual** segment
+  (constructor arg `initialSegment`).
 - No bottom navigation bar. The app's identity is one ledger screen + sheets; an
   epic does not get to change that (§4.5 decision 10). Segmented control *inside*
   Reports carries Month / Year / Budget-vs-actual.
@@ -165,7 +169,7 @@ rows, no drift imports, fully unit-tested.
 - **B2** — repo `merchantsLike` + review-sheet suggestion chips + tests
   (`packages/data`, `app/capture`).
 - **B3** — Reports screen skeleton + Month segment (KPIs, donut, drill, top
-  merchants) + widget tests; home app-bar entrance.
+  merchants) + widget tests; home month-header entrance.
 - **B4** — Year segment + Budget-vs-actual segment + deep link from Budgets sheet +
   tests.
 - **B5** — Help article, goldens (+6 refs), e2e journey extension, tokens doc.

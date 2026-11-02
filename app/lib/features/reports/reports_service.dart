@@ -51,6 +51,45 @@ class MonthReport {
   int get totalSpentMinor => totals.spentMinor;
 }
 
+/// Everything the Year segment renders for one calendar year (E4 spec §2.2).
+/// Twelve explicit buckets — a year with two months of data still paints
+/// twelve bars; gaps are zeros, never absences.
+class YearReport {
+  const YearReport({
+    required this.year,
+    required this.currency,
+    required this.buckets,
+    required this.totalSpentMinor,
+    required this.averageMinor,
+    required this.topCategories,
+    required this.categoryNames,
+    required this.isCurrent,
+    required this.currentMonth,
+  });
+
+  final int year;
+  final Currency currency;
+
+  /// Jan→Dec expense buckets from [ReportEngine.yearTotals].
+  final List<MonthBucket> buckets;
+
+  final int totalSpentMinor;
+
+  /// The average line: year spend ÷ 12, integer (minor units).
+  final int averageMinor;
+
+  /// Top 5 categories of the year, shares of the *year's* spend (§2.2).
+  final List<CategoryTotal> topCategories;
+  final Map<int, String> categoryNames;
+
+  /// The visible year contains today; the stepper refuses future years.
+  final bool isCurrent;
+
+  /// 0-based month of today, meaningful only when [isCurrent] — the bar
+  /// chart paints it in the accent shade.
+  final int currentMonth;
+}
+
 /// Loads report periods: drift rows → engine inputs → finished aggregates.
 /// Pure reads; every exclusion rule lives in [EngineTx], not here.
 class ReportsService {
@@ -78,6 +117,29 @@ class ReportsService {
       isCurrent: todayDays >= month.startDay && todayDays < month.endDay,
       pace: _engine.pacing(month, txs, todayDays: todayDays),
       dailyAvgMinor: totals.spentMinor ~/ daysInMonth,
+    );
+  }
+
+  Future<YearReport> loadYear(int year, {DateTime? now}) async {
+    final clock = now ?? DateTime.now();
+    final base = Currency.resolve(await _repo.baseCurrency() ?? 'USD');
+    final from = dayOf(DateTime.utc(year));
+    final to = dayOf(DateTime.utc(year + 1)) - 1;
+    final txs = await _engineRows(from, to, base);
+    final buckets = _engine.yearTotals(year, txs);
+    final total = buckets.fold<int>(0, (sum, b) => sum + b.spentMinor);
+    // Same calendar-year anchor the yearly budget period uses (§2.2).
+    final yearPeriod = BudgetPeriod(BudgetPeriodType.yearly, DateTime(year));
+    return YearReport(
+      year: year,
+      currency: base,
+      buckets: buckets,
+      totalSpentMinor: total,
+      averageMinor: total ~/ 12,
+      topCategories: _engine.categoryTotals(yearPeriod, txs).take(5).toList(),
+      categoryNames: {for (final c in await _repo.categories()) c.id: c.name},
+      isCurrent: clock.year == year,
+      currentMonth: clock.month - 1,
     );
   }
 

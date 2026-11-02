@@ -14,6 +14,7 @@ import '../capture/review_sheet.dart';
 import '../manage/icon_registry.dart';
 import '../manage/manage_screen.dart';
 import '../quickadd/quick_add_sheet.dart';
+import '../reports/reports_screen.dart';
 import 'balance_strip.dart';
 import 'day_label.dart';
 import 'empty_month.dart';
@@ -415,6 +416,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// E4 §1: Reports sits behind one icon in the month header — the month
+  /// ledger stays the app's home; no nav entry, no chrome.
+  void _openReports() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ReportsScreen(repository: widget.repository),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -425,6 +436,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               title: monthTitle(_index),
               onPrevious: () => _animate(_index - 1),
               onNext: () => _animate(_index + 1),
+              onOpenReports: _openReports,
             ),
             Expanded(
               child: PageView.builder(
@@ -477,11 +489,13 @@ class _MonthHeader extends StatelessWidget {
     required this.title,
     required this.onPrevious,
     required this.onNext,
+    required this.onOpenReports,
   });
 
   final String title;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
+  final VoidCallback onOpenReports;
 
   @override
   Widget build(BuildContext context) {
@@ -525,6 +539,13 @@ class _MonthHeader extends StatelessWidget {
               tooltip: 'Next month',
               onPressed: onNext,
               icon: const Icon(Icons.chevron_right, size: 28),
+            ),
+            // E4 §1: the only entrance to Reports (e4-reports.md §1).
+            IconButton(
+              key: const Key('reports-open'),
+              tooltip: 'Reports',
+              onPressed: onOpenReports,
+              icon: const Icon(Icons.insights_outlined, size: 24),
             ),
           ],
         ),
