@@ -2831,20 +2831,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ];
 }
 
-typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
-  Value<int> id,
-  required String name,
-  required String currencyCode,
-  Value<bool> isArchived,
-  required int createdAtMs,
-});
-typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
-  Value<int> id,
-  Value<String> name,
-  Value<String> currencyCode,
-  Value<bool> isArchived,
-  Value<int> createdAtMs,
-});
+typedef $$AccountsTableCreateCompanionBuilder =
+    AccountsCompanion Function({
+      Value<int> id,
+      required String name,
+      required String currencyCode,
+      Value<bool> isArchived,
+      required int createdAtMs,
+    });
+typedef $$AccountsTableUpdateCompanionBuilder =
+    AccountsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String> currencyCode,
+      Value<bool> isArchived,
+      Value<int> createdAtMs,
+    });
 
 class $$AccountsTableFilterComposer
     extends Composer<_$AppDatabase, $AccountsTable> {
@@ -3023,22 +3025,24 @@ typedef $$AccountsTableProcessedTableManager =
       Account,
       PrefetchHooks Function()
     >;
-typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
-  Value<int> id,
-  required String name,
-  Value<int?> parentId,
-  Value<int> sortOrder,
-  Value<int?> colorHint,
-  Value<bool> isIncome,
-});
-typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
-  Value<int> id,
-  Value<String> name,
-  Value<int?> parentId,
-  Value<int> sortOrder,
-  Value<int?> colorHint,
-  Value<bool> isIncome,
-});
+typedef $$CategoriesTableCreateCompanionBuilder =
+    CategoriesCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int?> parentId,
+      Value<int> sortOrder,
+      Value<int?> colorHint,
+      Value<bool> isIncome,
+    });
+typedef $$CategoriesTableUpdateCompanionBuilder =
+    CategoriesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int?> parentId,
+      Value<int> sortOrder,
+      Value<int?> colorHint,
+      Value<bool> isIncome,
+    });
 
 class $$CategoriesTableFilterComposer
     extends Composer<_$AppDatabase, $CategoriesTable> {
@@ -3228,14 +3232,10 @@ typedef $$CategoriesTableProcessedTableManager =
       Category,
       PrefetchHooks Function()
     >;
-typedef $$MerchantsTableCreateCompanionBuilder = MerchantsCompanion Function({
-  Value<int> id,
-  required String name,
-});
-typedef $$MerchantsTableUpdateCompanionBuilder = MerchantsCompanion Function({
-  Value<int> id,
-  Value<String> name,
-});
+typedef $$MerchantsTableCreateCompanionBuilder =
+    MerchantsCompanion Function({Value<int> id, required String name});
+typedef $$MerchantsTableUpdateCompanionBuilder =
+    MerchantsCompanion Function({Value<int> id, Value<String> name});
 
 class $$MerchantsTableFilterComposer
     extends Composer<_$AppDatabase, $MerchantsTable> {
@@ -3319,14 +3319,14 @@ class $$MerchantsTableTableManager
               $$MerchantsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$MerchantsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String> name = const Value.absent(),
-          }) => MerchantsCompanion(id: id, name: name),
-          createCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            required String name,
-          }) => MerchantsCompanion.insert(id: id, name: name),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+              }) => MerchantsCompanion(id: id, name: name),
+          createCompanionCallback:
+              ({Value<int> id = const Value.absent(), required String name}) =>
+                  MerchantsCompanion.insert(id: id, name: name),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
@@ -3706,20 +3706,22 @@ typedef $$TransactionsTableProcessedTableManager =
       Transaction,
       PrefetchHooks Function()
     >;
-typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
-  Value<int> id,
-  Value<int?> categoryId,
-  required String yearMonth,
-  required int limitMinor,
-  required String currencyCode,
-});
-typedef $$BudgetsTableUpdateCompanionBuilder = BudgetsCompanion Function({
-  Value<int> id,
-  Value<int?> categoryId,
-  Value<String> yearMonth,
-  Value<int> limitMinor,
-  Value<String> currencyCode,
-});
+typedef $$BudgetsTableCreateCompanionBuilder =
+    BudgetsCompanion Function({
+      Value<int> id,
+      Value<int?> categoryId,
+      required String yearMonth,
+      required int limitMinor,
+      required String currencyCode,
+    });
+typedef $$BudgetsTableUpdateCompanionBuilder =
+    BudgetsCompanion Function({
+      Value<int> id,
+      Value<int?> categoryId,
+      Value<String> yearMonth,
+      Value<int> limitMinor,
+      Value<String> currencyCode,
+    });
 
 class $$BudgetsTableFilterComposer
     extends Composer<_$AppDatabase, $BudgetsTable> {
@@ -3898,24 +3900,26 @@ typedef $$BudgetsTableProcessedTableManager =
       Budget,
       PrefetchHooks Function()
     >;
-typedef $$LineItemsTableCreateCompanionBuilder = LineItemsCompanion Function({
-  Value<int> id,
-  required int transactionId,
-  Value<int> position,
-  required String name,
-  Value<double?> quantity,
-  Value<int?> unitPriceMinor,
-  required String currencyCode,
-});
-typedef $$LineItemsTableUpdateCompanionBuilder = LineItemsCompanion Function({
-  Value<int> id,
-  Value<int> transactionId,
-  Value<int> position,
-  Value<String> name,
-  Value<double?> quantity,
-  Value<int?> unitPriceMinor,
-  Value<String> currencyCode,
-});
+typedef $$LineItemsTableCreateCompanionBuilder =
+    LineItemsCompanion Function({
+      Value<int> id,
+      required int transactionId,
+      Value<int> position,
+      required String name,
+      Value<double?> quantity,
+      Value<int?> unitPriceMinor,
+      required String currencyCode,
+    });
+typedef $$LineItemsTableUpdateCompanionBuilder =
+    LineItemsCompanion Function({
+      Value<int> id,
+      Value<int> transactionId,
+      Value<int> position,
+      Value<String> name,
+      Value<double?> quantity,
+      Value<int?> unitPriceMinor,
+      Value<String> currencyCode,
+    });
 
 class $$LineItemsTableFilterComposer
     extends Composer<_$AppDatabase, $LineItemsTable> {
@@ -4134,16 +4138,18 @@ typedef $$LineItemsTableProcessedTableManager =
       LineItemRow,
       PrefetchHooks Function()
     >;
-typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
-  required String key,
-  required String value,
-  Value<int> rowid,
-});
-typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
-  Value<String> key,
-  Value<String> value,
-  Value<int> rowid,
-});
+typedef $$SettingsTableCreateCompanionBuilder =
+    SettingsCompanion Function({
+      required String key,
+      required String value,
+      Value<int> rowid,
+    });
+typedef $$SettingsTableUpdateCompanionBuilder =
+    SettingsCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> rowid,
+    });
 
 class $$SettingsTableFilterComposer
     extends Composer<_$AppDatabase, $SettingsTable> {
@@ -4227,16 +4233,22 @@ class $$SettingsTableTableManager
               $$SettingsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$SettingsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> key = const Value.absent(),
-            Value<String> value = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) => SettingsCompanion(key: key, value: value, rowid: rowid),
-          createCompanionCallback: ({
-            required String key,
-            required String value,
-            Value<int> rowid = const Value.absent(),
-          }) => SettingsCompanion.insert(key: key, value: value, rowid: rowid),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SettingsCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                Value<int> rowid = const Value.absent(),
+              }) => SettingsCompanion.insert(
+                key: key,
+                value: value,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),

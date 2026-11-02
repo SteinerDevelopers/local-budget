@@ -21,3 +21,4 @@ ios/.symlinks/
 *.keystore
 service-account*.json
 .env
+app/pubspec.lock

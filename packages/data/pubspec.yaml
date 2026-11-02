@@ -3,7 +3,9 @@ description: "Persistence layer — drift (SQLite) schema v1, repositories. Depe
 publish_to: none
 
 environment:
-  sdk: ^3.13.7
+  # CI validates against the supported floor (Flutter 3.44 / Dart 3.12 via
+  # ghcr.io/cirruslabs/flutter:stable); development runs current stable.
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   core:
