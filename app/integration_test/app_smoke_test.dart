@@ -158,6 +158,21 @@ void main() {
     await tester.tapAt(const Offset(5, 5));
     await settle(tester);
     expect(find.textContaining('Bill: $billName'), findsWidgets);
-    expect(find.text('\u2212\$20.00'), findsWidgets);
+    expect(find.text('−\$20.00'), findsWidgets);
+
+    // E4 #5: the header icon opens Reports on the live month — the KPI
+    // strip and donut are computed from what this very journey wrote,
+    // and the Year segment renders the same ledger at twelve-month scope.
+    await tester.tap(find.byKey(const Key('reports-open')));
+    await settle(tester);
+    expect(find.widgetWithText(AppBar, 'Reports'), findsOne);
+    expect(find.byKey(const Key('kpi-spent')), findsOne);
+    expect(find.byKey(const Key('donut-total')), findsOne);
+    await tester.tap(find.text('Year'));
+    await settle(tester);
+    expect(find.textContaining(' avg'), findsOne);
+    await tester.pageBack();
+    await settle(tester);
+    expect(find.text('EXPENSES'), findsWidgets);
   });
 }

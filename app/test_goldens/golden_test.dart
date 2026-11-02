@@ -27,6 +27,7 @@ import 'package:local_budget/features/ledger/balance_strip.dart';
 import 'package:local_budget/features/ledger/empty_month.dart';
 import 'package:local_budget/features/ledger/transaction_row.dart';
 import 'package:local_budget/features/ledger/view_models.dart';
+import 'package:local_budget/features/reports/reports_screen.dart';
 import 'package:local_budget/main.dart';
 import 'package:sqlite3/open.dart' as sqlite3_open;
 
@@ -574,6 +575,191 @@ void main() {
           await expectLater(
             find.byType(BottomSheet),
             matchesGoldenFile('goldens/goal_detail_$mode.png'),
+          );
+        } finally {
+          await db.close();
+        }
+      });
+    }
+  });
+
+  // E4 issue #5: the three Reports segments. Data sits on fixed calendar
+  // dates inside the previous or early current months, so every figure is
+  // stable between regenerations; the Month shot reads the PREVIOUS month
+  // deliberately — a finished month has no pace figure, so no KPI depends
+  // on how far into the month "today" happens to be.
+  group('Reports goldens (E4)', () {
+    for (final brightness in Brightness.values) {
+      final mode = modeName(brightness);
+
+      Future<void> openReports(WidgetTester tester) async {
+        await tester.tap(find.byKey(Key('reports-open')));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('month — $mode', (tester) async {
+        usePhoneViewport(tester);
+        final db = AppDatabase.inMemory();
+        final repo = LedgerRepository(db);
+        try {
+          await repo.ensureDefaults();
+          final now = DateTime.now();
+          final m = DateTime(now.year, now.month - 1);
+          final acc = await repo.defaultAccount();
+          final food = await repo.addCategory('Food');
+          final rent = await repo.addCategory('Rent');
+          final transport = await repo.addCategory('Transport');
+          await repo.addTransaction(
+            accountId: acc.id,
+            date: DateTime(m.year, m.month, 3),
+            amount: usd(120000),
+            source: TransactionSource.manual,
+            categoryId: rent,
+          );
+          await repo.addTransaction(
+            accountId: acc.id,
+            date: DateTime(m.year, m.month, 9),
+            amount: usd(4250),
+            source: TransactionSource.manual,
+            categoryId: food,
+            merchant: 'Green Grocer',
+          );
+          await repo.addTransaction(
+            accountId: acc.id,
+            date: DateTime(m.year, m.month, 12),
+            amount: usd(1825),
+            source: TransactionSource.manual,
+            categoryId: food,
+            merchant: 'Corner Cafe',
+          );
+          await repo.addTransaction(
+            accountId: acc.id,
+            date: DateTime(m.year, m.month, 20),
+            amount: usd(1240),
+            source: TransactionSource.manual,
+            categoryId: transport,
+            merchant: 'Metro Card',
+          );
+          await pumpFullApp(tester, brightness, repo);
+          await openReports(tester);
+          // A finished month: deterministic KPIs, honest denominators.
+          await tester.tap(find.byKey(Key('month-prev')));
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byType(ReportsScreen),
+            matchesGoldenFile('goldens/reports_month_$mode.png'),
+          );
+        } finally {
+          await db.close();
+        }
+      });
+
+      testWidgets('year — $mode', (tester) async {
+        usePhoneViewport(tester);
+        final db = AppDatabase.inMemory();
+        final repo = LedgerRepository(db);
+        try {
+          await repo.ensureDefaults();
+          final now = DateTime.now();
+          final y = now.year;
+          final acc = await repo.defaultAccount();
+          final food = await repo.addCategory('Food');
+          final rent = await repo.addCategory('Rent');
+          // Four settled months of the current year — the bar chart is
+          // twelve slots regardless, empty months render as zeros.
+          for (final (month, minor, cat) in [
+            (1, 98050, rent),
+            (3, 25000, food),
+            (5, 48125, food),
+            (7, 32480, food),
+          ]) {
+            await repo.addTransaction(
+              accountId: acc.id,
+              date: DateTime(y, month, 10),
+              amount: usd(minor),
+              source: TransactionSource.manual,
+              categoryId: cat,
+            );
+          }
+          await pumpFullApp(tester, brightness, repo);
+          await openReports(tester);
+          await tester.tap(find.text('Year'));
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byType(ReportsScreen),
+            matchesGoldenFile('goldens/reports_year_$mode.png'),
+          );
+        } finally {
+          await db.close();
+        }
+      });
+
+      testWidgets('actual — $mode', (tester) async {
+        usePhoneViewport(tester);
+        final db = AppDatabase.inMemory();
+        final repo = LedgerRepository(db);
+        try {
+          await repo.ensureDefaults();
+          final now = DateTime.now();
+          final ym = yearMonthOf(DateTime(now.year, now.month, 15));
+          final prevYm = yearMonthOf(DateTime(now.year, now.month - 1, 15));
+          final acc = await repo.defaultAccount();
+          final food = await repo.addCategory('Food');
+          final rent = await repo.addCategory('Rent');
+          await repo.setBudgetRollover(true);
+          // Food carries +$20 forward into a $200 limit; Rent runs over
+          // its tiny limit; the overall target frames the whole month.
+          await repo.setBudget(
+            categoryId: food,
+            yearMonth: prevYm,
+            limitMinor: 30000,
+            currencyCode: 'USD',
+          );
+          await repo.addTransaction(
+            accountId: acc.id,
+            date: DateTime(now.year, now.month - 1, 15),
+            amount: usd(10000),
+            source: TransactionSource.manual,
+            categoryId: food,
+          );
+          await repo.setBudget(
+            categoryId: food,
+            yearMonth: ym,
+            limitMinor: 20000,
+            currencyCode: 'USD',
+          );
+          await repo.addTransaction(
+            accountId: acc.id,
+            date: DateTime(now.year, now.month, 1),
+            amount: usd(5000),
+            source: TransactionSource.manual,
+            categoryId: food,
+          );
+          await repo.setBudget(
+            categoryId: rent,
+            yearMonth: ym,
+            limitMinor: 500,
+            currencyCode: 'USD',
+          );
+          await repo.addTransaction(
+            accountId: acc.id,
+            date: DateTime(now.year, now.month, 1),
+            amount: usd(700),
+            source: TransactionSource.manual,
+            categoryId: rent,
+          );
+          await repo.setBudget(
+            yearMonth: ym,
+            limitMinor: 40000,
+            currencyCode: 'USD',
+          );
+          await pumpFullApp(tester, brightness, repo);
+          await openReports(tester);
+          await tester.tap(find.text('Actual'));
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byType(ReportsScreen),
+            matchesGoldenFile('goldens/reports_actual_$mode.png'),
           );
         } finally {
           await db.close();

@@ -143,6 +143,36 @@ const List<HelpArticle> kHelpArticles = [
           'Nothing hinges on a notification arriving on time.',
     ],
   ),
+  HelpArticle(
+    icon: Icons.insights_outlined,
+    title: 'Reports & privacy',
+    paragraphs: [
+      'The small chart icon at the top of the month screen opens Reports: '
+          'three readings of the same ledger — Month, Year and Actual. '
+          'Everything on them is computed on this device from the entries '
+          'you already saved. Reports never send anything anywhere; there '
+          'is no account, no sync and nothing to opt out of.',
+      'Month shows what you spent, earned and kept, and — during the '
+          'current month — a projection: your pace so far carried to the '
+          'end of the month. It is arithmetic, not advice; a quiet week '
+          'or a big bill both move it. Tap a slice of the category donut '
+          'to see exactly the transactions behind it, in the same list '
+          'style as the ledger.',
+      'Year draws one bar per month and a dashed line at the average. Tap '
+          'any bar to jump straight to that month in the Month view. '
+          'Months with no spending count as zero in the average — a '
+          'honest denominator, not a flattering one.',
+      'Actual answers "how far into my limits am I?" with the very same '
+          'numbers the Budgets tab uses, drawn as bars with a marker at '
+          'the limit. When rollover is on, a faint ghost marker shows '
+          'the plain limit while the bar is measured against the carried, '
+          'adjusted one. A category without a limit stays out of the way.',
+      'Reports read only what is on this phone, so airplane mode changes '
+          'nothing about them. If a number looks wrong, the fix is always '
+          'in the ledger: tap through to the rows, correct or delete, and '
+          'every report updates the moment you go back.',
+    ],
+  ),
 ];
 
 /// Case-insensitive substring search over title and body — enough for a
