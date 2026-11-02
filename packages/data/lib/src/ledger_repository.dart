@@ -172,11 +172,11 @@ class LedgerRepository {
   /// [transactionsForMonth]; served by the v3 `tx_date` index.
   Future<List<Transaction>> transactionsInRange(int fromDays, int toDays) =>
       (db.select(db.transactions)
-        ..where((t) => t.dateDays.isBetweenValues(fromDays, toDays))
-        ..orderBy([
-          (t) => OrderingTerm.asc(t.dateDays),
-          (t) => OrderingTerm.asc(t.id),
-        ]))
+            ..where((t) => t.dateDays.isBetweenValues(fromDays, toDays))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.dateDays),
+              (t) => OrderingTerm.asc(t.id),
+            ]))
           .get();
 
   /// Spend (positive amounts) for a month, in one currency — refunds (negative
