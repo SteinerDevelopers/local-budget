@@ -1,6 +1,6 @@
 # Project Plan — LocalBudget (working name)
 
-**Companion doc:** [budgeting-app-feasibility.md](./budgeting-app-feasibility.md) — the full feasibility & requirements study (11 decisions). This plan operationalizes it.
+**Companion doc:** [feasibility.md](./feasibility.md) — the full feasibility & requirements study (11 decisions). This plan operationalizes it.
 **Status:** Planning · **Date:** 2026-11-02 · **Team:** solo dev (+ AI-assisted build sandbox)
 
 ---
