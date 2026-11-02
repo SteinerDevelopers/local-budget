@@ -133,6 +133,14 @@ class LedgerRepository {
     return [for (final row in await q.get()) row.read(db.merchants.name)!];
   }
 
+  /// id → name map over all merchants — the denormalization feed for the
+  /// report aggregates (E4 §3). The table only ever holds names minted by
+  /// capture/import, so loading it whole is cheap.
+  Future<Map<int, String>> merchantNames() async {
+    final rows = await db.select(db.merchants).get();
+    return {for (final r in rows) r.id: r.name};
+  }
+
   // ---- transactions -------------------------------------------------------
 
   /// Inserts one reviewed header. When [baseCurrencyCode] differs from the
