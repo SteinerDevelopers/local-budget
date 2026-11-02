@@ -1,0 +1,61 @@
+import 'dart:typed_data';
+
+import 'package:core/core.dart';
+
+import 'interfaces.dart';
+import 'merge.dart';
+
+/// Scan → Review orchestration (e2-capture.md §3).
+///
+/// The pipeline's *only* output is a [ReceiptDraft] for the review sheet —
+/// it never persists anything (never auto-commit, decision 5). Tiers:
+/// 1 [TextExtractor] (optional — absent on hosts without OCR),
+/// 2 [ReceiptHeuristics] from core (always on),
+/// 3 [LlmStructurer] (optional, fill-only merge, zero-cost short-circuit).
+class CapturePipeline {
+  CapturePipeline({
+    required this.currency,
+    this.extractor,
+    this.structurer,
+    DateTime? now,
+  }) : heuristics = ReceiptHeuristics(currency: currency, now: now);
+
+  final Currency currency;
+  final TextExtractor? extractor;
+  final LlmStructurer? structurer;
+  final ReceiptHeuristics heuristics;
+
+  /// Photo, camera scan or screenshot: Tier 1 → Tier 2 → optional Tier 3.
+  /// Without an extractor this degrades to an empty draft — the review sheet
+  /// still opens and the user types everything.
+  Future<ReceiptDraft> fromImage(Uint8List bytes) async {
+    final ex = extractor;
+    if (ex == null) return heuristics.extract(const []);
+    final lines = await ex.extractText(bytes);
+    return _withOptionalStructuring(bytes, lines);
+  }
+
+  /// A PDF with a real text layer skips Tier 1 entirely (its "lines" come
+  /// from `PdfText`, C2). [bytes] stay available for a future re-OCR.
+  Future<ReceiptDraft> fromTextLines(List<String> lines) =>
+      _withOptionalStructuring(null, lines);
+
+  Future<ReceiptDraft> _withOptionalStructuring(
+      Uint8List? bytes, List<String> lines) async {
+    final draft = heuristics.extract(lines);
+    final st = structurer;
+    if (st == null || !draft.needsStructuring || !st.isAvailable()) {
+      return draft; // confident or device-unsupported: zero Tier-3 cost
+    }
+    final llm = await st.structure(bytes ?? Uint8List(0), lines);
+    return mergeDraft(draft, llm);
+  }
+}
+
+/// Whether Tier 3 could still add anything: any field missing or low.
+extension DraftNeeds on ReceiptDraft {
+  bool get needsStructuring =>
+      needsFill(merchant, merchantConfidence) ||
+      needsFill(date, dateConfidence) ||
+      needsFill(total, totalConfidence);
+}
