@@ -1,20 +1,22 @@
 # LocalBudget CI — GitLab CI on self-hosted runners.
 # Probe stage is temporary: establishes runner capabilities (KVM, toolchains).
-stages: [probe, verify]
+stages: [probe]
 
 runner-probe:
   stage: probe
   tags: [SteinerRunner]
   script:
-    - echo "== identity =="; hostname; uname -a; cat /etc/os-release 2>/dev/null | head -2
-    - echo "== cpu/ram =="; nproc; free -h | head -2
-    - echo "== kvm =="; ls -l /dev/kvm 2>&1 || true; grep -cE 'vmx|svm' /proc/cpuinfo || true
-    - echo "== disk =="; df -h / | tail -1
-    - echo "== toolchains =="
-    - command -v git && git --version || echo "git: MISSING"
-    - command -v curl || echo "curl: MISSING"
-    - command -v docker && docker --version || echo "docker: MISSING"
-    - command -v java && java -version 2>&1 | head -1 || echo "java: MISSING"
-    - command -v flutter && flutter --version | head -1 || echo "flutter: MISSING"
-    - command -v node && node --version || echo "node: MISSING"
-    - echo "== executor hints =="; env | grep -E '^CI_(RUNNER|JOB)_|^CI_CONCURRENT' | head -5; echo "HOME=$HOME"; echo "PWD=$PWD"
+    - |
+      echo "== identity =="; hostname; uname -a; head -2 /etc/os-release 2>/dev/null
+      echo "== cpu-ram =="; nproc; free -h | head -2
+      echo "== kvm =="; ls -l /dev/kvm 2>&1 || true; grep -cE 'vmx|svm' /proc/cpuinfo || true
+      echo "== disk =="; df -h / | tail -1
+      echo "== toolchains =="
+      command -v git >/dev/null && git --version || echo "git MISSING"
+      command -v curl >/dev/null && echo "curl ok" || echo "curl MISSING"
+      command -v docker >/dev/null && docker --version || echo "docker MISSING"
+      command -v java >/dev/null && java -version 2>&1 | head -1 || echo "java MISSING"
+      command -v flutter >/dev/null && flutter --version | head -1 || echo "flutter MISSING"
+      command -v node >/dev/null && node --version || echo "node MISSING"
+      command -v sdkmanager >/dev/null && echo "android-sdk present" || echo "android-sdk MISSING"
+      echo "== executor =="; echo "HOME=$HOME PWD=$PWD CI_RUNNER_DESCRIPTION=$CI_RUNNER_DESCRIPTION"
