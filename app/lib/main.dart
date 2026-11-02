@@ -1,13 +1,27 @@
-import 'package:core/core.dart';
+import 'package:data/data.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'design/theme.dart';
-import 'design/tokens.dart';
+import 'features/ledger/ledger_screen.dart';
 
-void main() => runApp(const LocalBudgetApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // One SQLite file in the app's private directory — nothing leaves the
+  // device (decision 8: zero collection).
+  final dir = await getApplicationDocumentsDirectory();
+  final repository = LedgerRepository(
+    AppDatabase.openFile('${dir.path}/localbudget.sqlite'),
+  );
+  // First launch seeds the Cash account + default categories; idempotent.
+  await repository.ensureDefaults();
+  runApp(LocalBudgetApp(repository: repository));
+}
 
 class LocalBudgetApp extends StatelessWidget {
-  const LocalBudgetApp({super.key});
+  const LocalBudgetApp({super.key, required this.repository});
+
+  final LedgerRepository repository;
 
   @override
   Widget build(BuildContext context) {
@@ -15,31 +29,7 @@ class LocalBudgetApp extends StatelessWidget {
       title: 'LocalBudget',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // Smoke of the core wiring: money is integer minor units everywhere,
-    // format() is display-only. Replaced by the real Ledger screen in #17.
-    final sample = Money(123456, Currency.resolve('USD'));
-    return Scaffold(
-      appBar: AppBar(title: const Text('LocalBudget')),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('LocalBudget — everything stays on this device'),
-            const SizedBox(height: Tokens.space2),
-            Text(sample.format(), style: Tokens.amount(context)),
-          ],
-        ),
-      ),
+      home: LedgerScreen(repository: repository),
     );
   }
 }

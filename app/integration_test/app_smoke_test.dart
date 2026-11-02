@@ -1,28 +1,61 @@
 // On-device smoke for the e2e-android stage: builds the APK, installs it on
-// the headless emulator, and drives the placeholder shell. Real user-journeys
-// land here as screens arrive (E1+); this proves the emulator tier itself.
+// the headless emulator and drives the real #17 journey — file-backed SQLite
+// (path_provider + sqlite3_flutter_libs), seeding, QuickAdd, strip.
+// The emulator may carry app data from an earlier run, so nothing here
+// asserts an empty starting state — only that this entry lands.
+//
+// Like host widget tests, the integration binding blocks the event loop
+// between pumps, so database round-trips need tester.runAsync yields.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:local_budget/features/ledger/ledger_screen.dart';
 import 'package:local_budget/main.dart' as app;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('app boots and renders the local-first shell', (tester) async {
-    app.main();
-    await tester.pumpAndSettle();
-
-    expect(find.text('LocalBudget'), findsOneWidget);
-    expect(
-      find.text('LocalBudget — everything stays on this device'),
-      findsOneWidget,
+  Future<void> settle(WidgetTester tester) async {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
     );
-    expect(find.text(r'$1,234.56'), findsOneWidget);
+    await tester.pumpAndSettle();
+  }
 
-    // Extra frame through the real engine (no widget-tree shortcuts): the
-    // point is a green build->install->drive->teardown loop on the emulator.
+  testWidgets('boots on the current month and takes a manual entry', (
+    tester,
+  ) async {
+    app.main(); // async main: DB open + seeding happen on the real loop
+    await settle(tester);
+
+    final now = DateTime.now();
+    expect(find.text(monthTitle(monthIndexOf(now))), findsOneWidget);
+
+    // QuickAdd: 25.43 Food → save.
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    for (final key in [
+      'keypad-2',
+      'keypad-5',
+      'keypad-dot',
+      'keypad-4',
+      'keypad-3',
+    ]) {
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pump();
+    }
+    await tester.tap(find.widgetWithText(FilterChip, 'Food'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await settle(tester);
+
+    expect(find.text('\u2212\$25.43'), findsWidgets); // row and/or strip
+    expect(find.text('Food'), findsWidgets);
+
+    // Extra frame through the real engine: the point is a green
+    // build->install->drive->teardown loop on the emulator.
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
-    expect(find.text('LocalBudget'), findsOneWidget);
+    expect(find.text(monthTitle(monthIndexOf(now))), findsOneWidget);
   });
 }

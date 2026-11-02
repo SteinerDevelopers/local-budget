@@ -422,6 +422,7 @@ extension LedgerE1 on LedgerRepository {
       .into(db.transactions)
       .insert(
         TransactionsCompanion.insert(
+          id: Value(row.id), // Undo reuses the exact row id (§2.1).
           accountId: row.accountId,
           dateDays: row.dateDays,
           amountMinor: row.amountMinor,

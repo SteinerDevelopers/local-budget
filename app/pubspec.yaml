@@ -15,6 +15,12 @@ dependencies:
     sdk: flutter
   core:
     path: ../packages/core
+  data:
+    path: ../packages/data
+  path_provider: ^2.1.4
+  # Ships SQLite inside the APK/IPA so drift's NativeDatabase has a library
+  # to load on device (host test runs use the system libsqlite3).
+  sqlite3_flutter_libs: ^0.5.24
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -22,6 +28,9 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  # Overrides the SQLite SONAME lookup in host widget tests (same as
+  # packages/data tests: CI images carry libsqlite3.so.0, not the -dev .so).
+  sqlite3: ^2.6.0
   flutter_lints: ^6.0.0
 
 flutter:

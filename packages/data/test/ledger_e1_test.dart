@@ -166,6 +166,8 @@ void main() {
       expect(rows, hasLength(1));
       expect(rows.single.note, 'stationery');
       expect(rows.single.amountMinor, 640);
+      // §2.1: "the undo reuses the exact row id".
+      expect(rows.single.id, id);
     });
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:io' show File;
+
 import 'package:core/core.dart' show TransactionSource;
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart' show NativeDatabase;
@@ -25,6 +27,11 @@ class AppDatabase extends _$AppDatabase {
 
   /// Pure-Dart in-memory database (tests, previews).
   factory AppDatabase.inMemory() => AppDatabase(NativeDatabase.memory());
+
+  /// The device's persistent store. The app resolves the path through
+  /// `path_provider` so this package stays free of Flutter plugins.
+  factory AppDatabase.openFile(String path) =>
+      AppDatabase(NativeDatabase(File(path)));
 
   @override
   int get schemaVersion => 1;
