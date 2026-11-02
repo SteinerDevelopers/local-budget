@@ -207,6 +207,9 @@ e2e-android:
   stage: e2e
   image: localbudget-e2e:latest
   tags: [SteinerRunner]
+  # On-device runs gate on the app itself, not on golden refs: without this,
+  # a goldens failure (stale PNG) skips the whole e2e stage (#53 taught this).
+  needs: [app-test]
   variables:
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   rules:
