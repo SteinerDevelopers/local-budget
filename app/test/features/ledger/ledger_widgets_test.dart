@@ -1,0 +1,134 @@
+import 'package:core/core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:local_budget/design/money_display.dart';
+import 'package:local_budget/design/theme.dart';
+import 'package:local_budget/design/tokens.dart';
+import 'package:local_budget/features/ledger/balance_strip.dart';
+import 'package:local_budget/features/ledger/day_label.dart';
+import 'package:local_budget/features/ledger/empty_month.dart';
+import 'package:local_budget/features/ledger/transaction_row.dart';
+import 'package:local_budget/features/ledger/view_models.dart';
+
+Widget _host(Widget child) => MaterialApp(
+  theme: AppTheme.light(),
+  home: Scaffold(body: child),
+);
+
+Money _usd(int cents) => Money(cents, Currency.resolve('USD'));
+
+void main() {
+  group('MoneyDisplay (§3 expense-sign)', () {
+    test('expense uses U+2212, income uses +', () {
+      expect(MoneyDisplay.signed(_usd(1240), isExpense: true), '\u2212\$12.40');
+      expect(
+        MoneyDisplay.signed(_usd(240000), isExpense: false),
+        '+\$2,400.00',
+      );
+    });
+
+    test('net is plain when >= 0, U+2212 when negative', () {
+      expect(MoneyDisplay.net(_usd(500)), '\$5.00');
+      expect(MoneyDisplay.net(_usd(-500)), '\u2212\$5.00');
+      // never the ASCII hyphen from Money.format()
+      expect(MoneyDisplay.net(_usd(-500)), isNot(contains('-')));
+    });
+  });
+
+  group('DayLabel (§2.1)', () {
+    final today = DateTime(2026, 11, 2); // Monday
+    test('today / yesterday', () {
+      expect(DayLabel.of(today, today: today), 'Today');
+      expect(DayLabel.of(DateTime(2026, 11, 1), today: today), 'Yesterday');
+    });
+    test('older day = Wed 29 Oct form (2026 calendar: a Thursday)', () {
+      expect(DayLabel.of(DateTime(2026, 10, 29), today: today), 'Thu 29 Oct');
+    });
+  });
+
+  testWidgets('TransactionRow expense: minus sign, onSurface, 64dp', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        TransactionRow(
+          tile: EntryTile(
+            id: 1,
+            icon: Icons.local_cafe_outlined,
+            title: 'Coffee',
+            memo: 'Blue Bottle',
+            amount: _usd(1240),
+            kind: EntryKind.expense,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Coffee'), findsOneWidget);
+    expect(find.text('Blue Bottle'), findsOneWidget);
+    final amount = tester.widget<Text>(find.text('\u2212\$12.40'));
+    expect(amount.style?.color, isNot(AppTheme.light().colorScheme.primary));
+    expect(
+      amount.style?.fontFeatures,
+      Tokens.tabular,
+      reason: 'amounts use tabular figures',
+    );
+    expect(tester.getSize(find.byType(TransactionRow)).height, 64);
+  });
+
+  testWidgets('TransactionRow income: +, primary color', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        TransactionRow(
+          tile: EntryTile(
+            id: 2,
+            icon: Icons.work_outline,
+            title: 'Salary',
+            amount: _usd(240000),
+            kind: EntryKind.income,
+          ),
+        ),
+      ),
+    );
+    final amount = tester.widget<Text>(find.text('+\$2,400.00'));
+    expect(amount.style?.color, AppTheme.light().colorScheme.primary);
+    expect(find.text('Salary'), findsOneWidget);
+  });
+
+  testWidgets('BalanceStrip: caps labels, positive totals, net primary', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        BalanceStrip(
+          summary: BalanceSummary(income: _usd(240000), expenses: _usd(9950)),
+        ),
+      ),
+    );
+    expect(find.text('INCOME'), findsOneWidget);
+    expect(find.text('EXPENSES'), findsOneWidget);
+    expect(find.text('NET'), findsOneWidget);
+    expect(find.text('\$2,400.00'), findsOneWidget); // income, unsigned
+    expect(find.text('\$99.50'), findsOneWidget); // expenses, unsigned
+    final net = tester.widget<Text>(find.text('\$2,300.50'));
+    expect(net.style?.color, AppTheme.light().colorScheme.primary);
+    expect(tester.getSize(find.byType(BalanceStrip)).height, 56);
+  });
+
+  testWidgets('BalanceStrip net negative uses U+2212', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        BalanceStrip(
+          summary: BalanceSummary(income: _usd(1000), expenses: _usd(2500)),
+        ),
+      ),
+    );
+    expect(find.text('\u2212\$15.00'), findsOneWidget);
+  });
+
+  testWidgets('EmptyMonth shows the hint pair', (tester) async {
+    await tester.pumpWidget(_host(const EmptyMonth()));
+    expect(find.text('No transactions yet'), findsOneWidget);
+    expect(find.text('Tap + to add your first one'), findsOneWidget);
+    expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
+  });
+}
