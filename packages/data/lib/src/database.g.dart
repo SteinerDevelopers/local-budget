@@ -1163,6 +1163,15 @@ class $TransactionsTable extends Transactions
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _goalIdMeta = const VerificationMeta('goalId');
+  @override
+  late final GeneratedColumn<int> goalId = GeneratedColumn<int>(
+    'goal_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1178,6 +1187,7 @@ class $TransactionsTable extends Transactions
     imageRef,
     source,
     isIncome,
+    goalId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1277,6 +1287,12 @@ class $TransactionsTable extends Transactions
         isIncome.isAcceptableOrUnknown(data['is_income']!, _isIncomeMeta),
       );
     }
+    if (data.containsKey('goal_id')) {
+      context.handle(
+        _goalIdMeta,
+        goalId.isAcceptableOrUnknown(data['goal_id']!, _goalIdMeta),
+      );
+    }
     return context;
   }
 
@@ -1340,6 +1356,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.bool,
         data['${effectivePrefix}is_income'],
       )!,
+      goalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}goal_id'],
+      ),
     );
   }
 
@@ -1380,6 +1400,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// E1 §2.1: expense vs income — amountMinor stays unsigned, the sign
   /// lives in the display layer (spec §3).
   final bool isIncome;
+
+  /// E3 §3.5: non-null ⇒ this row is a goal transfer, not a ledger entry —
+  /// hidden from ledger, balance strip and budget sums (B6 renders the
+  /// exclusion; the schema encodes it from day one).
+  final int? goalId;
   const Transaction({
     required this.id,
     required this.accountId,
@@ -1394,6 +1419,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     this.imageRef,
     required this.source,
     required this.isIncome,
+    this.goalId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1427,6 +1453,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       );
     }
     map['is_income'] = Variable<bool>(isIncome);
+    if (!nullToAbsent || goalId != null) {
+      map['goal_id'] = Variable<int>(goalId);
+    }
     return map;
   }
 
@@ -1455,6 +1484,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           : Value(imageRef),
       source: Value(source),
       isIncome: Value(isIncome),
+      goalId: goalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(goalId),
     );
   }
 
@@ -1477,6 +1509,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       imageRef: serializer.fromJson<String?>(json['imageRef']),
       source: serializer.fromJson<TransactionSource>(json['source']),
       isIncome: serializer.fromJson<bool>(json['isIncome']),
+      goalId: serializer.fromJson<int?>(json['goalId']),
     );
   }
   @override
@@ -1496,6 +1529,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'imageRef': serializer.toJson<String?>(imageRef),
       'source': serializer.toJson<TransactionSource>(source),
       'isIncome': serializer.toJson<bool>(isIncome),
+      'goalId': serializer.toJson<int?>(goalId),
     };
   }
 
@@ -1513,6 +1547,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     Value<String?> imageRef = const Value.absent(),
     TransactionSource? source,
     bool? isIncome,
+    Value<int?> goalId = const Value.absent(),
   }) => Transaction(
     id: id ?? this.id,
     accountId: accountId ?? this.accountId,
@@ -1529,6 +1564,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     imageRef: imageRef.present ? imageRef.value : this.imageRef,
     source: source ?? this.source,
     isIncome: isIncome ?? this.isIncome,
+    goalId: goalId.present ? goalId.value : this.goalId,
   );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -1555,6 +1591,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       imageRef: data.imageRef.present ? data.imageRef.value : this.imageRef,
       source: data.source.present ? data.source.value : this.source,
       isIncome: data.isIncome.present ? data.isIncome.value : this.isIncome,
+      goalId: data.goalId.present ? data.goalId.value : this.goalId,
     );
   }
 
@@ -1573,7 +1610,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('note: $note, ')
           ..write('imageRef: $imageRef, ')
           ..write('source: $source, ')
-          ..write('isIncome: $isIncome')
+          ..write('isIncome: $isIncome, ')
+          ..write('goalId: $goalId')
           ..write(')'))
         .toString();
   }
@@ -1593,6 +1631,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     imageRef,
     source,
     isIncome,
+    goalId,
   );
   @override
   bool operator ==(Object other) =>
@@ -1610,7 +1649,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.note == this.note &&
           other.imageRef == this.imageRef &&
           other.source == this.source &&
-          other.isIncome == this.isIncome);
+          other.isIncome == this.isIncome &&
+          other.goalId == this.goalId);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -1627,6 +1667,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> imageRef;
   final Value<TransactionSource> source;
   final Value<bool> isIncome;
+  final Value<int?> goalId;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.accountId = const Value.absent(),
@@ -1641,6 +1682,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.imageRef = const Value.absent(),
     this.source = const Value.absent(),
     this.isIncome = const Value.absent(),
+    this.goalId = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -1656,6 +1698,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.imageRef = const Value.absent(),
     required TransactionSource source,
     this.isIncome = const Value.absent(),
+    this.goalId = const Value.absent(),
   }) : accountId = Value(accountId),
        dateDays = Value(dateDays),
        amountMinor = Value(amountMinor),
@@ -1675,6 +1718,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? imageRef,
     Expression<String>? source,
     Expression<bool>? isIncome,
+    Expression<int>? goalId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1690,6 +1734,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (imageRef != null) 'image_ref': imageRef,
       if (source != null) 'source': source,
       if (isIncome != null) 'is_income': isIncome,
+      if (goalId != null) 'goal_id': goalId,
     });
   }
 
@@ -1707,6 +1752,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<String?>? imageRef,
     Value<TransactionSource>? source,
     Value<bool>? isIncome,
+    Value<int?>? goalId,
   }) {
     return TransactionsCompanion(
       id: id ?? this.id,
@@ -1722,6 +1768,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       imageRef: imageRef ?? this.imageRef,
       source: source ?? this.source,
       isIncome: isIncome ?? this.isIncome,
+      goalId: goalId ?? this.goalId,
     );
   }
 
@@ -1769,6 +1816,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (isIncome.present) {
       map['is_income'] = Variable<bool>(isIncome.value);
     }
+    if (goalId.present) {
+      map['goal_id'] = Variable<int>(goalId.value);
+    }
     return map;
   }
 
@@ -1787,7 +1837,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('note: $note, ')
           ..write('imageRef: $imageRef, ')
           ..write('source: $source, ')
-          ..write('isIncome: $isIncome')
+          ..write('isIncome: $isIncome, ')
+          ..write('goalId: $goalId')
           ..write(')'))
         .toString();
   }
@@ -1863,6 +1914,29 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _periodTypeMeta = const VerificationMeta(
+    'periodType',
+  );
+  @override
+  late final GeneratedColumn<String> periodType = GeneratedColumn<String>(
+    'period_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('monthly'),
+  );
+  static const VerificationMeta _rolloverCapMinorMeta = const VerificationMeta(
+    'rolloverCapMinor',
+  );
+  @override
+  late final GeneratedColumn<int> rolloverCapMinor = GeneratedColumn<int>(
+    'rollover_cap_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1870,6 +1944,8 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     yearMonth,
     limitMinor,
     currencyCode,
+    periodType,
+    rolloverCapMinor,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1919,6 +1995,21 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     } else if (isInserting) {
       context.missing(_currencyCodeMeta);
     }
+    if (data.containsKey('period_type')) {
+      context.handle(
+        _periodTypeMeta,
+        periodType.isAcceptableOrUnknown(data['period_type']!, _periodTypeMeta),
+      );
+    }
+    if (data.containsKey('rollover_cap_minor')) {
+      context.handle(
+        _rolloverCapMinorMeta,
+        rolloverCapMinor.isAcceptableOrUnknown(
+          data['rollover_cap_minor']!,
+          _rolloverCapMinorMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1948,6 +2039,14 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
         DriftSqlType.string,
         data['${effectivePrefix}currency_code'],
       )!,
+      periodType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_type'],
+      )!,
+      rolloverCapMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rollover_cap_minor'],
+      ),
     );
   }
 
@@ -1965,12 +2064,21 @@ class Budget extends DataClass implements Insertable<Budget> {
   final String yearMonth;
   final int limitMinor;
   final String currencyCode;
+
+  /// 'monthly' | 'weekly' | 'yearly' — budget package storage keys.
+  final String periodType;
+
+  /// Per-row rollover cap override; null = engine default (2× limit, §3.3).
+  /// No UI in v1 — schema room for the "cap carry" ask.
+  final int? rolloverCapMinor;
   const Budget({
     required this.id,
     this.categoryId,
     required this.yearMonth,
     required this.limitMinor,
     required this.currencyCode,
+    required this.periodType,
+    this.rolloverCapMinor,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1982,6 +2090,10 @@ class Budget extends DataClass implements Insertable<Budget> {
     map['year_month'] = Variable<String>(yearMonth);
     map['limit_minor'] = Variable<int>(limitMinor);
     map['currency_code'] = Variable<String>(currencyCode);
+    map['period_type'] = Variable<String>(periodType);
+    if (!nullToAbsent || rolloverCapMinor != null) {
+      map['rollover_cap_minor'] = Variable<int>(rolloverCapMinor);
+    }
     return map;
   }
 
@@ -1994,6 +2106,10 @@ class Budget extends DataClass implements Insertable<Budget> {
       yearMonth: Value(yearMonth),
       limitMinor: Value(limitMinor),
       currencyCode: Value(currencyCode),
+      periodType: Value(periodType),
+      rolloverCapMinor: rolloverCapMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rolloverCapMinor),
     );
   }
 
@@ -2008,6 +2124,8 @@ class Budget extends DataClass implements Insertable<Budget> {
       yearMonth: serializer.fromJson<String>(json['yearMonth']),
       limitMinor: serializer.fromJson<int>(json['limitMinor']),
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      periodType: serializer.fromJson<String>(json['periodType']),
+      rolloverCapMinor: serializer.fromJson<int?>(json['rolloverCapMinor']),
     );
   }
   @override
@@ -2019,6 +2137,8 @@ class Budget extends DataClass implements Insertable<Budget> {
       'yearMonth': serializer.toJson<String>(yearMonth),
       'limitMinor': serializer.toJson<int>(limitMinor),
       'currencyCode': serializer.toJson<String>(currencyCode),
+      'periodType': serializer.toJson<String>(periodType),
+      'rolloverCapMinor': serializer.toJson<int?>(rolloverCapMinor),
     };
   }
 
@@ -2028,12 +2148,18 @@ class Budget extends DataClass implements Insertable<Budget> {
     String? yearMonth,
     int? limitMinor,
     String? currencyCode,
+    String? periodType,
+    Value<int?> rolloverCapMinor = const Value.absent(),
   }) => Budget(
     id: id ?? this.id,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     yearMonth: yearMonth ?? this.yearMonth,
     limitMinor: limitMinor ?? this.limitMinor,
     currencyCode: currencyCode ?? this.currencyCode,
+    periodType: periodType ?? this.periodType,
+    rolloverCapMinor: rolloverCapMinor.present
+        ? rolloverCapMinor.value
+        : this.rolloverCapMinor,
   );
   Budget copyWithCompanion(BudgetsCompanion data) {
     return Budget(
@@ -2048,6 +2174,12 @@ class Budget extends DataClass implements Insertable<Budget> {
       currencyCode: data.currencyCode.present
           ? data.currencyCode.value
           : this.currencyCode,
+      periodType: data.periodType.present
+          ? data.periodType.value
+          : this.periodType,
+      rolloverCapMinor: data.rolloverCapMinor.present
+          ? data.rolloverCapMinor.value
+          : this.rolloverCapMinor,
     );
   }
 
@@ -2058,14 +2190,23 @@ class Budget extends DataClass implements Insertable<Budget> {
           ..write('categoryId: $categoryId, ')
           ..write('yearMonth: $yearMonth, ')
           ..write('limitMinor: $limitMinor, ')
-          ..write('currencyCode: $currencyCode')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('periodType: $periodType, ')
+          ..write('rolloverCapMinor: $rolloverCapMinor')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, categoryId, yearMonth, limitMinor, currencyCode);
+  int get hashCode => Object.hash(
+    id,
+    categoryId,
+    yearMonth,
+    limitMinor,
+    currencyCode,
+    periodType,
+    rolloverCapMinor,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2074,7 +2215,9 @@ class Budget extends DataClass implements Insertable<Budget> {
           other.categoryId == this.categoryId &&
           other.yearMonth == this.yearMonth &&
           other.limitMinor == this.limitMinor &&
-          other.currencyCode == this.currencyCode);
+          other.currencyCode == this.currencyCode &&
+          other.periodType == this.periodType &&
+          other.rolloverCapMinor == this.rolloverCapMinor);
 }
 
 class BudgetsCompanion extends UpdateCompanion<Budget> {
@@ -2083,12 +2226,16 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   final Value<String> yearMonth;
   final Value<int> limitMinor;
   final Value<String> currencyCode;
+  final Value<String> periodType;
+  final Value<int?> rolloverCapMinor;
   const BudgetsCompanion({
     this.id = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.yearMonth = const Value.absent(),
     this.limitMinor = const Value.absent(),
     this.currencyCode = const Value.absent(),
+    this.periodType = const Value.absent(),
+    this.rolloverCapMinor = const Value.absent(),
   });
   BudgetsCompanion.insert({
     this.id = const Value.absent(),
@@ -2096,6 +2243,8 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     required String yearMonth,
     required int limitMinor,
     required String currencyCode,
+    this.periodType = const Value.absent(),
+    this.rolloverCapMinor = const Value.absent(),
   }) : yearMonth = Value(yearMonth),
        limitMinor = Value(limitMinor),
        currencyCode = Value(currencyCode);
@@ -2105,6 +2254,8 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Expression<String>? yearMonth,
     Expression<int>? limitMinor,
     Expression<String>? currencyCode,
+    Expression<String>? periodType,
+    Expression<int>? rolloverCapMinor,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2112,6 +2263,8 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       if (yearMonth != null) 'year_month': yearMonth,
       if (limitMinor != null) 'limit_minor': limitMinor,
       if (currencyCode != null) 'currency_code': currencyCode,
+      if (periodType != null) 'period_type': periodType,
+      if (rolloverCapMinor != null) 'rollover_cap_minor': rolloverCapMinor,
     });
   }
 
@@ -2121,6 +2274,8 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Value<String>? yearMonth,
     Value<int>? limitMinor,
     Value<String>? currencyCode,
+    Value<String>? periodType,
+    Value<int?>? rolloverCapMinor,
   }) {
     return BudgetsCompanion(
       id: id ?? this.id,
@@ -2128,6 +2283,8 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       yearMonth: yearMonth ?? this.yearMonth,
       limitMinor: limitMinor ?? this.limitMinor,
       currencyCode: currencyCode ?? this.currencyCode,
+      periodType: periodType ?? this.periodType,
+      rolloverCapMinor: rolloverCapMinor ?? this.rolloverCapMinor,
     );
   }
 
@@ -2149,6 +2306,12 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     if (currencyCode.present) {
       map['currency_code'] = Variable<String>(currencyCode.value);
     }
+    if (periodType.present) {
+      map['period_type'] = Variable<String>(periodType.value);
+    }
+    if (rolloverCapMinor.present) {
+      map['rollover_cap_minor'] = Variable<int>(rolloverCapMinor.value);
+    }
     return map;
   }
 
@@ -2159,7 +2322,9 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
           ..write('categoryId: $categoryId, ')
           ..write('yearMonth: $yearMonth, ')
           ..write('limitMinor: $limitMinor, ')
-          ..write('currencyCode: $currencyCode')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('periodType: $periodType, ')
+          ..write('rolloverCapMinor: $rolloverCapMinor')
           ..write(')'))
         .toString();
   }
@@ -2843,6 +3008,1201 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   }
 }
 
+class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GoalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetMinorMeta = const VerificationMeta(
+    'targetMinor',
+  );
+  @override
+  late final GeneratedColumn<int> targetMinor = GeneratedColumn<int>(
+    'target_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 3,
+      maxTextLength: 3,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+    'icon',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _archivedMeta = const VerificationMeta(
+    'archived',
+  );
+  @override
+  late final GeneratedColumn<bool> archived = GeneratedColumn<bool>(
+    'archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMsMeta = const VerificationMeta(
+    'createdAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtMs = GeneratedColumn<int>(
+    'created_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    targetMinor,
+    currencyCode,
+    icon,
+    archived,
+    createdAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'goals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Goal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('target_minor')) {
+      context.handle(
+        _targetMinorMeta,
+        targetMinor.isAcceptableOrUnknown(
+          data['target_minor']!,
+          _targetMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_currencyCodeMeta);
+    }
+    if (data.containsKey('icon')) {
+      context.handle(
+        _iconMeta,
+        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+      );
+    }
+    if (data.containsKey('archived')) {
+      context.handle(
+        _archivedMeta,
+        archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
+      );
+    }
+    if (data.containsKey('created_at_ms')) {
+      context.handle(
+        _createdAtMsMeta,
+        createdAtMs.isAcceptableOrUnknown(
+          data['created_at_ms']!,
+          _createdAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Goal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Goal(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      targetMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_minor'],
+      ),
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      icon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon'],
+      ),
+      archived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}archived'],
+      )!,
+      createdAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $GoalsTable createAlias(String alias) {
+    return $GoalsTable(attachedDatabase, alias);
+  }
+}
+
+class Goal extends DataClass implements Insertable<Goal> {
+  final int id;
+  final String name;
+  final int? targetMinor;
+  final String currencyCode;
+
+  /// Key into the app's icon registry, same convention as [Categories.icon].
+  final String? icon;
+  final bool archived;
+  final int createdAtMs;
+  const Goal({
+    required this.id,
+    required this.name,
+    this.targetMinor,
+    required this.currencyCode,
+    this.icon,
+    required this.archived,
+    required this.createdAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || targetMinor != null) {
+      map['target_minor'] = Variable<int>(targetMinor);
+    }
+    map['currency_code'] = Variable<String>(currencyCode);
+    if (!nullToAbsent || icon != null) {
+      map['icon'] = Variable<String>(icon);
+    }
+    map['archived'] = Variable<bool>(archived);
+    map['created_at_ms'] = Variable<int>(createdAtMs);
+    return map;
+  }
+
+  GoalsCompanion toCompanion(bool nullToAbsent) {
+    return GoalsCompanion(
+      id: Value(id),
+      name: Value(name),
+      targetMinor: targetMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetMinor),
+      currencyCode: Value(currencyCode),
+      icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      archived: Value(archived),
+      createdAtMs: Value(createdAtMs),
+    );
+  }
+
+  factory Goal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Goal(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      targetMinor: serializer.fromJson<int?>(json['targetMinor']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      icon: serializer.fromJson<String?>(json['icon']),
+      archived: serializer.fromJson<bool>(json['archived']),
+      createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'targetMinor': serializer.toJson<int?>(targetMinor),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'icon': serializer.toJson<String?>(icon),
+      'archived': serializer.toJson<bool>(archived),
+      'createdAtMs': serializer.toJson<int>(createdAtMs),
+    };
+  }
+
+  Goal copyWith({
+    int? id,
+    String? name,
+    Value<int?> targetMinor = const Value.absent(),
+    String? currencyCode,
+    Value<String?> icon = const Value.absent(),
+    bool? archived,
+    int? createdAtMs,
+  }) => Goal(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    targetMinor: targetMinor.present ? targetMinor.value : this.targetMinor,
+    currencyCode: currencyCode ?? this.currencyCode,
+    icon: icon.present ? icon.value : this.icon,
+    archived: archived ?? this.archived,
+    createdAtMs: createdAtMs ?? this.createdAtMs,
+  );
+  Goal copyWithCompanion(GoalsCompanion data) {
+    return Goal(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      targetMinor: data.targetMinor.present
+          ? data.targetMinor.value
+          : this.targetMinor,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      icon: data.icon.present ? data.icon.value : this.icon,
+      archived: data.archived.present ? data.archived.value : this.archived,
+      createdAtMs: data.createdAtMs.present
+          ? data.createdAtMs.value
+          : this.createdAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Goal(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('targetMinor: $targetMinor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('icon: $icon, ')
+          ..write('archived: $archived, ')
+          ..write('createdAtMs: $createdAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    targetMinor,
+    currencyCode,
+    icon,
+    archived,
+    createdAtMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Goal &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.targetMinor == this.targetMinor &&
+          other.currencyCode == this.currencyCode &&
+          other.icon == this.icon &&
+          other.archived == this.archived &&
+          other.createdAtMs == this.createdAtMs);
+}
+
+class GoalsCompanion extends UpdateCompanion<Goal> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int?> targetMinor;
+  final Value<String> currencyCode;
+  final Value<String?> icon;
+  final Value<bool> archived;
+  final Value<int> createdAtMs;
+  const GoalsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.targetMinor = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.archived = const Value.absent(),
+    this.createdAtMs = const Value.absent(),
+  });
+  GoalsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.targetMinor = const Value.absent(),
+    required String currencyCode,
+    this.icon = const Value.absent(),
+    this.archived = const Value.absent(),
+    required int createdAtMs,
+  }) : name = Value(name),
+       currencyCode = Value(currencyCode),
+       createdAtMs = Value(createdAtMs);
+  static Insertable<Goal> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? targetMinor,
+    Expression<String>? currencyCode,
+    Expression<String>? icon,
+    Expression<bool>? archived,
+    Expression<int>? createdAtMs,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (targetMinor != null) 'target_minor': targetMinor,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (icon != null) 'icon': icon,
+      if (archived != null) 'archived': archived,
+      if (createdAtMs != null) 'created_at_ms': createdAtMs,
+    });
+  }
+
+  GoalsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int?>? targetMinor,
+    Value<String>? currencyCode,
+    Value<String?>? icon,
+    Value<bool>? archived,
+    Value<int>? createdAtMs,
+  }) {
+    return GoalsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      targetMinor: targetMinor ?? this.targetMinor,
+      currencyCode: currencyCode ?? this.currencyCode,
+      icon: icon ?? this.icon,
+      archived: archived ?? this.archived,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (targetMinor.present) {
+      map['target_minor'] = Variable<int>(targetMinor.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
+    if (archived.present) {
+      map['archived'] = Variable<bool>(archived.value);
+    }
+    if (createdAtMs.present) {
+      map['created_at_ms'] = Variable<int>(createdAtMs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GoalsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('targetMinor: $targetMinor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('icon: $icon, ')
+          ..write('archived: $archived, ')
+          ..write('createdAtMs: $createdAtMs')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RecurringRulesTable extends RecurringRules
+    with TableInfo<$RecurringRulesTable, RecurringRule> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 3,
+      maxTextLength: 3,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _frequencyMeta = const VerificationMeta(
+    'frequency',
+  );
+  @override
+  late final GeneratedColumn<String> frequency = GeneratedColumn<String>(
+    'frequency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dayOfMonthMeta = const VerificationMeta(
+    'dayOfMonth',
+  );
+  @override
+  late final GeneratedColumn<int> dayOfMonth = GeneratedColumn<int>(
+    'day_of_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dayOfWeekMeta = const VerificationMeta(
+    'dayOfWeek',
+  );
+  @override
+  late final GeneratedColumn<int> dayOfWeek = GeneratedColumn<int>(
+    'day_of_week',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startMsMeta = const VerificationMeta(
+    'startMs',
+  );
+  @override
+  late final GeneratedColumn<int> startMs = GeneratedColumn<int>(
+    'start_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nextDueMsMeta = const VerificationMeta(
+    'nextDueMs',
+  );
+  @override
+  late final GeneratedColumn<int> nextDueMs = GeneratedColumn<int>(
+    'next_due_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notifyMeta = const VerificationMeta('notify');
+  @override
+  late final GeneratedColumn<bool> notify = GeneratedColumn<bool>(
+    'notify',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("notify" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _archivedMeta = const VerificationMeta(
+    'archived',
+  );
+  @override
+  late final GeneratedColumn<bool> archived = GeneratedColumn<bool>(
+    'archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    amountMinor,
+    currencyCode,
+    categoryId,
+    frequency,
+    dayOfMonth,
+    dayOfWeek,
+    startMs,
+    nextDueMs,
+    notify,
+    archived,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurring_rules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecurringRule> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_currencyCodeMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('frequency')) {
+      context.handle(
+        _frequencyMeta,
+        frequency.isAcceptableOrUnknown(data['frequency']!, _frequencyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_frequencyMeta);
+    }
+    if (data.containsKey('day_of_month')) {
+      context.handle(
+        _dayOfMonthMeta,
+        dayOfMonth.isAcceptableOrUnknown(
+          data['day_of_month']!,
+          _dayOfMonthMeta,
+        ),
+      );
+    }
+    if (data.containsKey('day_of_week')) {
+      context.handle(
+        _dayOfWeekMeta,
+        dayOfWeek.isAcceptableOrUnknown(data['day_of_week']!, _dayOfWeekMeta),
+      );
+    }
+    if (data.containsKey('start_ms')) {
+      context.handle(
+        _startMsMeta,
+        startMs.isAcceptableOrUnknown(data['start_ms']!, _startMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMsMeta);
+    }
+    if (data.containsKey('next_due_ms')) {
+      context.handle(
+        _nextDueMsMeta,
+        nextDueMs.isAcceptableOrUnknown(data['next_due_ms']!, _nextDueMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nextDueMsMeta);
+    }
+    if (data.containsKey('notify')) {
+      context.handle(
+        _notifyMeta,
+        notify.isAcceptableOrUnknown(data['notify']!, _notifyMeta),
+      );
+    }
+    if (data.containsKey('archived')) {
+      context.handle(
+        _archivedMeta,
+        archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecurringRule map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringRule(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      ),
+      frequency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}frequency'],
+      )!,
+      dayOfMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day_of_month'],
+      ),
+      dayOfWeek: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day_of_week'],
+      ),
+      startMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_ms'],
+      )!,
+      nextDueMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}next_due_ms'],
+      )!,
+      notify: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notify'],
+      )!,
+      archived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}archived'],
+      )!,
+    );
+  }
+
+  @override
+  $RecurringRulesTable createAlias(String alias) {
+    return $RecurringRulesTable(attachedDatabase, alias);
+  }
+}
+
+class RecurringRule extends DataClass implements Insertable<RecurringRule> {
+  final int id;
+  final String name;
+  final int amountMinor;
+  final String currencyCode;
+  final int? categoryId;
+
+  /// 'weekly' | 'monthly' | 'yearly'.
+  final String frequency;
+
+  /// 1..31 for monthly/yearly (clamped at short months), 1..7 ISO dow for
+  /// weekly; the unused partner column stays null.
+  final int? dayOfMonth;
+  final int? dayOfWeek;
+  final int startMs;
+
+  /// Advance-once cursor B5 advances when it materializes; a row far in the
+  /// past signals a stale rule (pause instead of insert, §3.4).
+  final int nextDueMs;
+  final bool notify;
+  final bool archived;
+  const RecurringRule({
+    required this.id,
+    required this.name,
+    required this.amountMinor,
+    required this.currencyCode,
+    this.categoryId,
+    required this.frequency,
+    this.dayOfMonth,
+    this.dayOfWeek,
+    required this.startMs,
+    required this.nextDueMs,
+    required this.notify,
+    required this.archived,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['currency_code'] = Variable<String>(currencyCode);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<int>(categoryId);
+    }
+    map['frequency'] = Variable<String>(frequency);
+    if (!nullToAbsent || dayOfMonth != null) {
+      map['day_of_month'] = Variable<int>(dayOfMonth);
+    }
+    if (!nullToAbsent || dayOfWeek != null) {
+      map['day_of_week'] = Variable<int>(dayOfWeek);
+    }
+    map['start_ms'] = Variable<int>(startMs);
+    map['next_due_ms'] = Variable<int>(nextDueMs);
+    map['notify'] = Variable<bool>(notify);
+    map['archived'] = Variable<bool>(archived);
+    return map;
+  }
+
+  RecurringRulesCompanion toCompanion(bool nullToAbsent) {
+    return RecurringRulesCompanion(
+      id: Value(id),
+      name: Value(name),
+      amountMinor: Value(amountMinor),
+      currencyCode: Value(currencyCode),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      frequency: Value(frequency),
+      dayOfMonth: dayOfMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayOfMonth),
+      dayOfWeek: dayOfWeek == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayOfWeek),
+      startMs: Value(startMs),
+      nextDueMs: Value(nextDueMs),
+      notify: Value(notify),
+      archived: Value(archived),
+    );
+  }
+
+  factory RecurringRule.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringRule(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      categoryId: serializer.fromJson<int?>(json['categoryId']),
+      frequency: serializer.fromJson<String>(json['frequency']),
+      dayOfMonth: serializer.fromJson<int?>(json['dayOfMonth']),
+      dayOfWeek: serializer.fromJson<int?>(json['dayOfWeek']),
+      startMs: serializer.fromJson<int>(json['startMs']),
+      nextDueMs: serializer.fromJson<int>(json['nextDueMs']),
+      notify: serializer.fromJson<bool>(json['notify']),
+      archived: serializer.fromJson<bool>(json['archived']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'categoryId': serializer.toJson<int?>(categoryId),
+      'frequency': serializer.toJson<String>(frequency),
+      'dayOfMonth': serializer.toJson<int?>(dayOfMonth),
+      'dayOfWeek': serializer.toJson<int?>(dayOfWeek),
+      'startMs': serializer.toJson<int>(startMs),
+      'nextDueMs': serializer.toJson<int>(nextDueMs),
+      'notify': serializer.toJson<bool>(notify),
+      'archived': serializer.toJson<bool>(archived),
+    };
+  }
+
+  RecurringRule copyWith({
+    int? id,
+    String? name,
+    int? amountMinor,
+    String? currencyCode,
+    Value<int?> categoryId = const Value.absent(),
+    String? frequency,
+    Value<int?> dayOfMonth = const Value.absent(),
+    Value<int?> dayOfWeek = const Value.absent(),
+    int? startMs,
+    int? nextDueMs,
+    bool? notify,
+    bool? archived,
+  }) => RecurringRule(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    amountMinor: amountMinor ?? this.amountMinor,
+    currencyCode: currencyCode ?? this.currencyCode,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    frequency: frequency ?? this.frequency,
+    dayOfMonth: dayOfMonth.present ? dayOfMonth.value : this.dayOfMonth,
+    dayOfWeek: dayOfWeek.present ? dayOfWeek.value : this.dayOfWeek,
+    startMs: startMs ?? this.startMs,
+    nextDueMs: nextDueMs ?? this.nextDueMs,
+    notify: notify ?? this.notify,
+    archived: archived ?? this.archived,
+  );
+  RecurringRule copyWithCompanion(RecurringRulesCompanion data) {
+    return RecurringRule(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      dayOfMonth: data.dayOfMonth.present
+          ? data.dayOfMonth.value
+          : this.dayOfMonth,
+      dayOfWeek: data.dayOfWeek.present ? data.dayOfWeek.value : this.dayOfWeek,
+      startMs: data.startMs.present ? data.startMs.value : this.startMs,
+      nextDueMs: data.nextDueMs.present ? data.nextDueMs.value : this.nextDueMs,
+      notify: data.notify.present ? data.notify.value : this.notify,
+      archived: data.archived.present ? data.archived.value : this.archived,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringRule(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('frequency: $frequency, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('dayOfWeek: $dayOfWeek, ')
+          ..write('startMs: $startMs, ')
+          ..write('nextDueMs: $nextDueMs, ')
+          ..write('notify: $notify, ')
+          ..write('archived: $archived')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    amountMinor,
+    currencyCode,
+    categoryId,
+    frequency,
+    dayOfMonth,
+    dayOfWeek,
+    startMs,
+    nextDueMs,
+    notify,
+    archived,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringRule &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.amountMinor == this.amountMinor &&
+          other.currencyCode == this.currencyCode &&
+          other.categoryId == this.categoryId &&
+          other.frequency == this.frequency &&
+          other.dayOfMonth == this.dayOfMonth &&
+          other.dayOfWeek == this.dayOfWeek &&
+          other.startMs == this.startMs &&
+          other.nextDueMs == this.nextDueMs &&
+          other.notify == this.notify &&
+          other.archived == this.archived);
+}
+
+class RecurringRulesCompanion extends UpdateCompanion<RecurringRule> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int> amountMinor;
+  final Value<String> currencyCode;
+  final Value<int?> categoryId;
+  final Value<String> frequency;
+  final Value<int?> dayOfMonth;
+  final Value<int?> dayOfWeek;
+  final Value<int> startMs;
+  final Value<int> nextDueMs;
+  final Value<bool> notify;
+  final Value<bool> archived;
+  const RecurringRulesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.dayOfMonth = const Value.absent(),
+    this.dayOfWeek = const Value.absent(),
+    this.startMs = const Value.absent(),
+    this.nextDueMs = const Value.absent(),
+    this.notify = const Value.absent(),
+    this.archived = const Value.absent(),
+  });
+  RecurringRulesCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required int amountMinor,
+    required String currencyCode,
+    this.categoryId = const Value.absent(),
+    required String frequency,
+    this.dayOfMonth = const Value.absent(),
+    this.dayOfWeek = const Value.absent(),
+    required int startMs,
+    required int nextDueMs,
+    this.notify = const Value.absent(),
+    this.archived = const Value.absent(),
+  }) : name = Value(name),
+       amountMinor = Value(amountMinor),
+       currencyCode = Value(currencyCode),
+       frequency = Value(frequency),
+       startMs = Value(startMs),
+       nextDueMs = Value(nextDueMs);
+  static Insertable<RecurringRule> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? amountMinor,
+    Expression<String>? currencyCode,
+    Expression<int>? categoryId,
+    Expression<String>? frequency,
+    Expression<int>? dayOfMonth,
+    Expression<int>? dayOfWeek,
+    Expression<int>? startMs,
+    Expression<int>? nextDueMs,
+    Expression<bool>? notify,
+    Expression<bool>? archived,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (categoryId != null) 'category_id': categoryId,
+      if (frequency != null) 'frequency': frequency,
+      if (dayOfMonth != null) 'day_of_month': dayOfMonth,
+      if (dayOfWeek != null) 'day_of_week': dayOfWeek,
+      if (startMs != null) 'start_ms': startMs,
+      if (nextDueMs != null) 'next_due_ms': nextDueMs,
+      if (notify != null) 'notify': notify,
+      if (archived != null) 'archived': archived,
+    });
+  }
+
+  RecurringRulesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int>? amountMinor,
+    Value<String>? currencyCode,
+    Value<int?>? categoryId,
+    Value<String>? frequency,
+    Value<int?>? dayOfMonth,
+    Value<int?>? dayOfWeek,
+    Value<int>? startMs,
+    Value<int>? nextDueMs,
+    Value<bool>? notify,
+    Value<bool>? archived,
+  }) {
+    return RecurringRulesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      amountMinor: amountMinor ?? this.amountMinor,
+      currencyCode: currencyCode ?? this.currencyCode,
+      categoryId: categoryId ?? this.categoryId,
+      frequency: frequency ?? this.frequency,
+      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+      startMs: startMs ?? this.startMs,
+      nextDueMs: nextDueMs ?? this.nextDueMs,
+      notify: notify ?? this.notify,
+      archived: archived ?? this.archived,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(frequency.value);
+    }
+    if (dayOfMonth.present) {
+      map['day_of_month'] = Variable<int>(dayOfMonth.value);
+    }
+    if (dayOfWeek.present) {
+      map['day_of_week'] = Variable<int>(dayOfWeek.value);
+    }
+    if (startMs.present) {
+      map['start_ms'] = Variable<int>(startMs.value);
+    }
+    if (nextDueMs.present) {
+      map['next_due_ms'] = Variable<int>(nextDueMs.value);
+    }
+    if (notify.present) {
+      map['notify'] = Variable<bool>(notify.value);
+    }
+    if (archived.present) {
+      map['archived'] = Variable<bool>(archived.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringRulesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('frequency: $frequency, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('dayOfWeek: $dayOfWeek, ')
+          ..write('startMs: $startMs, ')
+          ..write('nextDueMs: $nextDueMs, ')
+          ..write('notify: $notify, ')
+          ..write('archived: $archived')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2853,6 +4213,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $LineItemsTable lineItems = $LineItemsTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final $GoalsTable goals = $GoalsTable(this);
+  late final $RecurringRulesTable recurringRules = $RecurringRulesTable(this);
   late final Index txDate = Index(
     'tx_date',
     'CREATE INDEX tx_date ON transactions (date_days)',
@@ -2861,9 +4223,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'tx_account_date',
     'CREATE INDEX tx_account_date ON transactions (account_id, date_days)',
   );
-  late final Index budgetMonth = Index(
-    'budget_month',
-    'CREATE UNIQUE INDEX budget_month ON budgets (category_id, year_month)',
+  late final Index budgetMonthPeriod = Index(
+    'budget_month_period',
+    'CREATE UNIQUE INDEX budget_month_period ON budgets (category_id, year_month, period_type)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -2877,9 +4239,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     budgets,
     lineItems,
     settings,
+    goals,
+    recurringRules,
     txDate,
     txAccountDate,
-    budgetMonth,
+    budgetMonthPeriod,
   ];
 }
 
@@ -3435,6 +4799,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> imageRef,
       required TransactionSource source,
       Value<bool> isIncome,
+      Value<int?> goalId,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
     TransactionsCompanion Function({
@@ -3451,6 +4816,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> imageRef,
       Value<TransactionSource> source,
       Value<bool> isIncome,
+      Value<int?> goalId,
     });
 
 class $$TransactionsTableFilterComposer
@@ -3525,6 +4891,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<bool> get isIncome => $composableBuilder(
     column: $table.isIncome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get goalId => $composableBuilder(
+    column: $table.goalId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3602,6 +4973,11 @@ class $$TransactionsTableOrderingComposer
     column: $table.isIncome,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get goalId => $composableBuilder(
+    column: $table.goalId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -3661,6 +5037,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get isIncome =>
       $composableBuilder(column: $table.isIncome, builder: (column) => column);
+
+  GeneratedColumn<int> get goalId =>
+      $composableBuilder(column: $table.goalId, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager
@@ -3707,6 +5086,7 @@ class $$TransactionsTableTableManager
                 Value<String?> imageRef = const Value.absent(),
                 Value<TransactionSource> source = const Value.absent(),
                 Value<bool> isIncome = const Value.absent(),
+                Value<int?> goalId = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
                 accountId: accountId,
@@ -3721,6 +5101,7 @@ class $$TransactionsTableTableManager
                 imageRef: imageRef,
                 source: source,
                 isIncome: isIncome,
+                goalId: goalId,
               ),
           createCompanionCallback:
               ({
@@ -3737,6 +5118,7 @@ class $$TransactionsTableTableManager
                 Value<String?> imageRef = const Value.absent(),
                 required TransactionSource source,
                 Value<bool> isIncome = const Value.absent(),
+                Value<int?> goalId = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
                 accountId: accountId,
@@ -3751,6 +5133,7 @@ class $$TransactionsTableTableManager
                 imageRef: imageRef,
                 source: source,
                 isIncome: isIncome,
+                goalId: goalId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3784,6 +5167,8 @@ typedef $$BudgetsTableCreateCompanionBuilder =
       required String yearMonth,
       required int limitMinor,
       required String currencyCode,
+      Value<String> periodType,
+      Value<int?> rolloverCapMinor,
     });
 typedef $$BudgetsTableUpdateCompanionBuilder =
     BudgetsCompanion Function({
@@ -3792,6 +5177,8 @@ typedef $$BudgetsTableUpdateCompanionBuilder =
       Value<String> yearMonth,
       Value<int> limitMinor,
       Value<String> currencyCode,
+      Value<String> periodType,
+      Value<int?> rolloverCapMinor,
     });
 
 class $$BudgetsTableFilterComposer
@@ -3825,6 +5212,16 @@ class $$BudgetsTableFilterComposer
 
   ColumnFilters<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rolloverCapMinor => $composableBuilder(
+    column: $table.rolloverCapMinor,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3862,6 +5259,16 @@ class $$BudgetsTableOrderingComposer
     column: $table.currencyCode,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rolloverCapMinor => $composableBuilder(
+    column: $table.rolloverCapMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BudgetsTableAnnotationComposer
@@ -3891,6 +5298,16 @@ class $$BudgetsTableAnnotationComposer
 
   GeneratedColumn<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rolloverCapMinor => $composableBuilder(
+    column: $table.rolloverCapMinor,
     builder: (column) => column,
   );
 }
@@ -3928,12 +5345,16 @@ class $$BudgetsTableTableManager
                 Value<String> yearMonth = const Value.absent(),
                 Value<int> limitMinor = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
+                Value<String> periodType = const Value.absent(),
+                Value<int?> rolloverCapMinor = const Value.absent(),
               }) => BudgetsCompanion(
                 id: id,
                 categoryId: categoryId,
                 yearMonth: yearMonth,
                 limitMinor: limitMinor,
                 currencyCode: currencyCode,
+                periodType: periodType,
+                rolloverCapMinor: rolloverCapMinor,
               ),
           createCompanionCallback:
               ({
@@ -3942,12 +5363,16 @@ class $$BudgetsTableTableManager
                 required String yearMonth,
                 required int limitMinor,
                 required String currencyCode,
+                Value<String> periodType = const Value.absent(),
+                Value<int?> rolloverCapMinor = const Value.absent(),
               }) => BudgetsCompanion.insert(
                 id: id,
                 categoryId: categoryId,
                 yearMonth: yearMonth,
                 limitMinor: limitMinor,
                 currencyCode: currencyCode,
+                periodType: periodType,
+                rolloverCapMinor: rolloverCapMinor,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -4342,6 +5767,574 @@ typedef $$SettingsTableProcessedTableManager =
       Setting,
       PrefetchHooks Function()
     >;
+typedef $$GoalsTableCreateCompanionBuilder =
+    GoalsCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int?> targetMinor,
+      required String currencyCode,
+      Value<String?> icon,
+      Value<bool> archived,
+      required int createdAtMs,
+    });
+typedef $$GoalsTableUpdateCompanionBuilder =
+    GoalsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int?> targetMinor,
+      Value<String> currencyCode,
+      Value<String?> icon,
+      Value<bool> archived,
+      Value<int> createdAtMs,
+    });
+
+class $$GoalsTableFilterComposer extends Composer<_$AppDatabase, $GoalsTable> {
+  $$GoalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetMinor => $composableBuilder(
+    column: $table.targetMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$GoalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $GoalsTable> {
+  $$GoalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetMinor => $composableBuilder(
+    column: $table.targetMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$GoalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GoalsTable> {
+  $$GoalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get targetMinor => $composableBuilder(
+    column: $table.targetMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<bool> get archived =>
+      $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$GoalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GoalsTable,
+          Goal,
+          $$GoalsTableFilterComposer,
+          $$GoalsTableOrderingComposer,
+          $$GoalsTableAnnotationComposer,
+          $$GoalsTableCreateCompanionBuilder,
+          $$GoalsTableUpdateCompanionBuilder,
+          (Goal, BaseReferences<_$AppDatabase, $GoalsTable, Goal>),
+          Goal,
+          PrefetchHooks Function()
+        > {
+  $$GoalsTableTableManager(_$AppDatabase db, $GoalsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GoalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GoalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GoalsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int?> targetMinor = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<int> createdAtMs = const Value.absent(),
+              }) => GoalsCompanion(
+                id: id,
+                name: name,
+                targetMinor: targetMinor,
+                currencyCode: currencyCode,
+                icon: icon,
+                archived: archived,
+                createdAtMs: createdAtMs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int?> targetMinor = const Value.absent(),
+                required String currencyCode,
+                Value<String?> icon = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                required int createdAtMs,
+              }) => GoalsCompanion.insert(
+                id: id,
+                name: name,
+                targetMinor: targetMinor,
+                currencyCode: currencyCode,
+                icon: icon,
+                archived: archived,
+                createdAtMs: createdAtMs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$GoalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GoalsTable,
+      Goal,
+      $$GoalsTableFilterComposer,
+      $$GoalsTableOrderingComposer,
+      $$GoalsTableAnnotationComposer,
+      $$GoalsTableCreateCompanionBuilder,
+      $$GoalsTableUpdateCompanionBuilder,
+      (Goal, BaseReferences<_$AppDatabase, $GoalsTable, Goal>),
+      Goal,
+      PrefetchHooks Function()
+    >;
+typedef $$RecurringRulesTableCreateCompanionBuilder =
+    RecurringRulesCompanion Function({
+      Value<int> id,
+      required String name,
+      required int amountMinor,
+      required String currencyCode,
+      Value<int?> categoryId,
+      required String frequency,
+      Value<int?> dayOfMonth,
+      Value<int?> dayOfWeek,
+      required int startMs,
+      required int nextDueMs,
+      Value<bool> notify,
+      Value<bool> archived,
+    });
+typedef $$RecurringRulesTableUpdateCompanionBuilder =
+    RecurringRulesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int> amountMinor,
+      Value<String> currencyCode,
+      Value<int?> categoryId,
+      Value<String> frequency,
+      Value<int?> dayOfMonth,
+      Value<int?> dayOfWeek,
+      Value<int> startMs,
+      Value<int> nextDueMs,
+      Value<bool> notify,
+      Value<bool> archived,
+    });
+
+class $$RecurringRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dayOfMonth => $composableBuilder(
+    column: $table.dayOfMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dayOfWeek => $composableBuilder(
+    column: $table.dayOfWeek,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nextDueMs => $composableBuilder(
+    column: $table.nextDueMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notify => $composableBuilder(
+    column: $table.notify,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RecurringRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dayOfMonth => $composableBuilder(
+    column: $table.dayOfMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dayOfWeek => $composableBuilder(
+    column: $table.dayOfWeek,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nextDueMs => $composableBuilder(
+    column: $table.nextDueMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get notify => $composableBuilder(
+    column: $table.notify,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecurringRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get frequency =>
+      $composableBuilder(column: $table.frequency, builder: (column) => column);
+
+  GeneratedColumn<int> get dayOfMonth => $composableBuilder(
+    column: $table.dayOfMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get dayOfWeek =>
+      $composableBuilder(column: $table.dayOfWeek, builder: (column) => column);
+
+  GeneratedColumn<int> get startMs =>
+      $composableBuilder(column: $table.startMs, builder: (column) => column);
+
+  GeneratedColumn<int> get nextDueMs =>
+      $composableBuilder(column: $table.nextDueMs, builder: (column) => column);
+
+  GeneratedColumn<bool> get notify =>
+      $composableBuilder(column: $table.notify, builder: (column) => column);
+
+  GeneratedColumn<bool> get archived =>
+      $composableBuilder(column: $table.archived, builder: (column) => column);
+}
+
+class $$RecurringRulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecurringRulesTable,
+          RecurringRule,
+          $$RecurringRulesTableFilterComposer,
+          $$RecurringRulesTableOrderingComposer,
+          $$RecurringRulesTableAnnotationComposer,
+          $$RecurringRulesTableCreateCompanionBuilder,
+          $$RecurringRulesTableUpdateCompanionBuilder,
+          (
+            RecurringRule,
+            BaseReferences<_$AppDatabase, $RecurringRulesTable, RecurringRule>,
+          ),
+          RecurringRule,
+          PrefetchHooks Function()
+        > {
+  $$RecurringRulesTableTableManager(
+    _$AppDatabase db,
+    $RecurringRulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecurringRulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecurringRulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecurringRulesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int?> categoryId = const Value.absent(),
+                Value<String> frequency = const Value.absent(),
+                Value<int?> dayOfMonth = const Value.absent(),
+                Value<int?> dayOfWeek = const Value.absent(),
+                Value<int> startMs = const Value.absent(),
+                Value<int> nextDueMs = const Value.absent(),
+                Value<bool> notify = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+              }) => RecurringRulesCompanion(
+                id: id,
+                name: name,
+                amountMinor: amountMinor,
+                currencyCode: currencyCode,
+                categoryId: categoryId,
+                frequency: frequency,
+                dayOfMonth: dayOfMonth,
+                dayOfWeek: dayOfWeek,
+                startMs: startMs,
+                nextDueMs: nextDueMs,
+                notify: notify,
+                archived: archived,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required int amountMinor,
+                required String currencyCode,
+                Value<int?> categoryId = const Value.absent(),
+                required String frequency,
+                Value<int?> dayOfMonth = const Value.absent(),
+                Value<int?> dayOfWeek = const Value.absent(),
+                required int startMs,
+                required int nextDueMs,
+                Value<bool> notify = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+              }) => RecurringRulesCompanion.insert(
+                id: id,
+                name: name,
+                amountMinor: amountMinor,
+                currencyCode: currencyCode,
+                categoryId: categoryId,
+                frequency: frequency,
+                dayOfMonth: dayOfMonth,
+                dayOfWeek: dayOfWeek,
+                startMs: startMs,
+                nextDueMs: nextDueMs,
+                notify: notify,
+                archived: archived,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecurringRulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecurringRulesTable,
+      RecurringRule,
+      $$RecurringRulesTableFilterComposer,
+      $$RecurringRulesTableOrderingComposer,
+      $$RecurringRulesTableAnnotationComposer,
+      $$RecurringRulesTableCreateCompanionBuilder,
+      $$RecurringRulesTableUpdateCompanionBuilder,
+      (
+        RecurringRule,
+        BaseReferences<_$AppDatabase, $RecurringRulesTable, RecurringRule>,
+      ),
+      RecurringRule,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4360,4 +6353,8 @@ class $AppDatabaseManager {
       $$LineItemsTableTableManager(_db, _db.lineItems);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
+  $$GoalsTableTableManager get goals =>
+      $$GoalsTableTableManager(_db, _db.goals);
+  $$RecurringRulesTableTableManager get recurringRules =>
+      $$RecurringRulesTableTableManager(_db, _db.recurringRules);
 }

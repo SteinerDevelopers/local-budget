@@ -73,15 +73,68 @@ class Transactions extends Table {
   /// lives in the display layer (spec §3).
   BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
 
+  /// E3 §3.5: non-null ⇒ this row is a goal transfer, not a ledger entry —
+  /// hidden from ledger, balance strip and budget sums (B6 renders the
+  /// exclusion; the schema encodes it from day one).
+  IntColumn get goalId => integer().nullable().references(Goals, #id)();
+
   @override
   Set<Column> get primaryKey => {id};
 }
 
-/// Monthly budgets. Null [categoryId] = the whole-month overall budget
-/// (plan §4 E4 keeps category budgets as the fast-follow).
+/// E3 §4: savings goals. Money is again minor units + code; [targetMinor]
+/// null = open-ended goal (progress bar degrades to a plain total).
+class Goals extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  IntColumn get targetMinor => integer().nullable()();
+  TextColumn get currencyCode => text().withLength(min: 3, max: 3)();
+
+  /// Key into the app's icon registry, same convention as [Categories.icon].
+  TextColumn get icon => text().nullable()();
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
+  IntColumn get createdAtMs => integer()();
+}
+
+/// E3 §4: recurring bill/goal-contribution rules. Rows are **rules**, never
+/// generated transactions — materialization (B5) inserts at most one missed
+/// occurrence per app-open. [frequency]/day columns mirror the budget
+/// package's `BillFrequency` storage keys; kept as plain TEXT here so this
+/// package stays independent of `budget`.
+class RecurringRules extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currencyCode => text().withLength(min: 3, max: 3)();
+  IntColumn get categoryId =>
+      integer().nullable().references(Categories, #id)();
+
+  /// 'weekly' | 'monthly' | 'yearly'.
+  TextColumn get frequency => text()();
+
+  /// 1..31 for monthly/yearly (clamped at short months), 1..7 ISO dow for
+  /// weekly; the unused partner column stays null.
+  IntColumn get dayOfMonth => integer().nullable()();
+  IntColumn get dayOfWeek => integer().nullable()();
+
+  IntColumn get startMs => integer()();
+
+  /// Advance-once cursor B5 advances when it materializes; a row far in the
+  /// past signals a stale rule (pause instead of insert, §3.4).
+  IntColumn get nextDueMs => integer()();
+
+  BoolColumn get notify => boolean().withDefault(const Constant(true))();
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
+}
+
+/// Budgets per (category?, period). Null [categoryId] = the whole-month
+/// overall budget (plan §4 E4 keeps category budgets as the fast-follow).
+/// E3 §4: one row per **period**, not per calendar month — weekly/yearly
+/// share the [yearMonth] key as the period's anchor label (budget package
+/// `BudgetPeriodType.keyFor`).
 @TableIndex(
-  name: 'budget_month',
-  columns: {#categoryId, #yearMonth},
+  name: 'budget_month_period',
+  columns: {#categoryId, #yearMonth, #periodType},
   unique: true,
 )
 class Budgets extends Table {
@@ -93,6 +146,13 @@ class Budgets extends Table {
   TextColumn get yearMonth => text().withLength(min: 7, max: 7)();
   IntColumn get limitMinor => integer()();
   TextColumn get currencyCode => text().withLength(min: 3, max: 3)();
+
+  /// 'monthly' | 'weekly' | 'yearly' — budget package storage keys.
+  TextColumn get periodType => text().withDefault(const Constant('monthly'))();
+
+  /// Per-row rollover cap override; null = engine default (2× limit, §3.3).
+  /// No UI in v1 — schema room for the "cap carry" ask.
+  IntColumn get rolloverCapMinor => integer().nullable()();
 }
 
 /// Reserved (decision 2): ships in v1 so enabling line-item OCR later is an

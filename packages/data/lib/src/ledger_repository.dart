@@ -48,6 +48,14 @@ class LedgerRepository {
 
   static const settingBaseCurrency = 'base_currency';
 
+  /// E3 §4: 'on' | 'off', absent = off (rollover is opt-in).
+  static const settingBudgetRollover = 'budget_rollover';
+
+  /// Epoch-ms of the last materialization pass (B5; §3.4 "one per open").
+  static const settingBillsLastMaterializeMs = 'bills_last_materialize_ms';
+
+  static const _periodValues = {'monthly', 'weekly', 'yearly'};
+
   // ---- accounts -----------------------------------------------------------
 
   Future<int> createAccount({
@@ -106,6 +114,7 @@ class LedgerRepository {
     String? baseCurrencyCode,
     double? fxRate,
     bool isIncome = false,
+    int? goalId,
   }) async {
     int? merchantId;
     if (merchant != null && merchant.trim().isNotEmpty) {
@@ -137,6 +146,7 @@ class LedgerRepository {
             baseAmountMinor: Value(baseMinor),
             fxRate: Value(rate),
             isIncome: Value(isIncome),
+            goalId: Value(goalId),
           ),
         );
   }
@@ -195,20 +205,26 @@ class LedgerRepository {
 
   // ---- budgets ------------------------------------------------------------
 
-  /// Insert-or-replace the budget for (category?, month). Null [categoryId] =
+  /// Insert-or-replace the budget for (category?, period). Null [categoryId] =
   /// overall budget. Handled manually because SQLite treats NULLs as distinct
-  /// inside unique indexes.
+  /// inside unique indexes. E3: keyed by (category, anchor, periodType).
   Future<void> setBudget({
     int? categoryId,
     required String yearMonth,
     required int limitMinor,
     required String currencyCode,
+    String periodType = 'monthly',
+    int? rolloverCapMinor,
   }) async {
     monthRange(yearMonth); // validate format before touching the db
+    if (!_periodValues.contains(periodType)) {
+      throw ArgumentError('unknown periodType: $periodType');
+    }
     final existing =
         await (db.select(db.budgets)..where(
               (b) =>
                   b.yearMonth.equals(yearMonth) &
+                  b.periodType.equals(periodType) &
                   (categoryId == null
                       ? b.categoryId.isNull()
                       : b.categoryId.equals(categoryId)),
@@ -223,23 +239,45 @@ class LedgerRepository {
               yearMonth: yearMonth,
               limitMinor: limitMinor,
               currencyCode: currencyCode,
+              periodType: Value(periodType),
+              rolloverCapMinor: Value(rolloverCapMinor),
             ),
           );
     } else {
-      await (db.update(db.budgets)..where((b) => b.id.equals(existing.id)))
-          .write(BudgetsCompanion(limitMinor: Value(limitMinor)));
+      await (db.update(
+        db.budgets,
+      )..where((b) => b.id.equals(existing.id))).write(
+        BudgetsCompanion(
+          limitMinor: Value(limitMinor),
+          rolloverCapMinor: Value(rolloverCapMinor),
+        ),
+      );
     }
   }
 
-  Future<Budget?> budgetFor({int? categoryId, required String yearMonth}) =>
+  Future<Budget?> budgetFor({
+    int? categoryId,
+    required String yearMonth,
+    String periodType = 'monthly',
+  }) =>
       (db.select(db.budgets)..where(
             (b) =>
                 b.yearMonth.equals(yearMonth) &
+                b.periodType.equals(periodType) &
                 (categoryId == null
                     ? b.categoryId.isNull()
                     : b.categoryId.equals(categoryId)),
           ))
           .getSingleOrNull();
+
+  /// Every budget row anchored in a month, all period types — the B3 sheet
+  /// maps rows onto engine periods from here.
+  Future<List<Budget>> budgetsIn(String yearMonth) => (db.select(
+    db.budgets,
+  )..where((b) => b.yearMonth.equals(yearMonth))).get();
+
+  Future<void> deleteBudget(int id) =>
+      (db.delete(db.budgets)..where((b) => b.id.equals(id))).go();
 
   // ---- settings -----------------------------------------------------------
 
@@ -259,6 +297,148 @@ class LedgerRepository {
   }
 
   Future<String?> baseCurrency() => setting(settingBaseCurrency);
+
+  Future<void> setBudgetRollover(bool enabled) =>
+      setSetting(settingBudgetRollover, enabled ? 'on' : 'off');
+
+  Future<bool> budgetRollover() async =>
+      await setting(settingBudgetRollover) == 'on';
+
+  Future<void> setBillsLastMaterializeMs(int ms) =>
+      setSetting(settingBillsLastMaterializeMs, '$ms');
+
+  Future<int?> billsLastMaterializeMs() async =>
+      int.tryParse(await setting(settingBillsLastMaterializeMs) ?? '');
+
+  // ---- recurring rules (E3 §4) ---------------------------------------------
+
+  /// Rules are pure rows — never generated transactions. [dayOfMonth] 1..31
+  /// (monthly/yearly, clamped at short months), [dayOfWeek] 1..7 ISO (weekly);
+  /// pass the one matching [frequency].
+  Future<int> addRule({
+    required String name,
+    required int amountMinor,
+    required String currencyCode,
+    required String frequency,
+    required DateTime start,
+    required DateTime nextDue,
+    int? categoryId,
+    int? dayOfMonth,
+    int? dayOfWeek,
+    bool notify = true,
+  }) async {
+    if (!_periodValues.contains(frequency)) {
+      throw ArgumentError('unknown frequency: $frequency');
+    }
+    if (name.trim().isEmpty) throw ArgumentError('rule name required');
+    return db
+        .into(db.recurringRules)
+        .insert(
+          RecurringRulesCompanion.insert(
+            name: name.trim(),
+            amountMinor: amountMinor,
+            currencyCode: currencyCode,
+            categoryId: Value(categoryId),
+            frequency: frequency,
+            dayOfMonth: Value(dayOfMonth),
+            dayOfWeek: Value(dayOfWeek),
+            startMs: start.millisecondsSinceEpoch,
+            nextDueMs: nextDue.millisecondsSinceEpoch,
+            notify: Value(notify),
+          ),
+        );
+  }
+
+  Future<List<RecurringRule>> rules({bool includeArchived = false}) {
+    final q = db.select(db.recurringRules)
+      ..orderBy([(t) => OrderingTerm.asc(t.nextDueMs)]);
+    if (!includeArchived) q.where((t) => t.archived.equals(false));
+    return q.get();
+  }
+
+  /// B5 write-back: advance the cursor (and optionally pause) after planning.
+  Future<void> updateRuleDue({
+    required int id,
+    required DateTime nextDue,
+    bool? archived,
+  }) => (db.update(db.recurringRules)..where((t) => t.id.equals(id))).write(
+    RecurringRulesCompanion(
+      nextDueMs: Value(nextDue.millisecondsSinceEpoch),
+      archived: archived == null ? const Value.absent() : Value(archived),
+    ),
+  );
+
+  Future<void> archiveRule(int id, {bool archived = true}) =>
+      (db.update(db.recurringRules)..where((t) => t.id.equals(id))).write(
+        RecurringRulesCompanion(archived: Value(archived)),
+      );
+
+  // ---- goals (E3 §4) ---------------------------------------------------------
+
+  Future<int> addGoal({
+    required String name,
+    required String currencyCode,
+    int? targetMinor,
+    String? icon,
+  }) async {
+    if (name.trim().isEmpty) throw ArgumentError('goal name required');
+    return db
+        .into(db.goals)
+        .insert(
+          GoalsCompanion.insert(
+            name: name.trim(),
+            currencyCode: currencyCode,
+            targetMinor: Value(targetMinor),
+            icon: Value(icon),
+            createdAtMs: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+  }
+
+  Future<List<Goal>> goals({bool includeArchived = false}) {
+    final q = db.select(db.goals)
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAtMs)]);
+    if (!includeArchived) q.where((t) => t.archived.equals(false));
+    return q.get();
+  }
+
+  Future<void> updateGoal(
+    int id, {
+    String? name,
+    int? targetMinor,
+    String? icon,
+    bool? archived,
+  }) => (db.update(db.goals)..where((t) => t.id.equals(id))).write(
+    GoalsCompanion(
+      name: name == null ? const Value.absent() : Value(name.trim()),
+      targetMinor: targetMinor == null
+          ? const Value.absent()
+          : Value(targetMinor),
+      icon: icon == null ? const Value.absent() : Value(icon),
+      archived: archived == null ? const Value.absent() : Value(archived),
+    ),
+  );
+
+  /// A goal transfer is a [Transactions] row carrying [goalId] — invisible to
+  /// the ledger and budget sums (B6), visible only in the goal detail (§3.5).
+  Future<int> addGoalTransfer({
+    required int accountId,
+    required int goalId,
+    required DateTime date,
+    required Money amount,
+    String? note,
+    String? baseCurrencyCode,
+    double? fxRate,
+  }) => addTransaction(
+    accountId: accountId,
+    date: date,
+    amount: amount,
+    source: TransactionSource.manual,
+    note: note,
+    baseCurrencyCode: baseCurrencyCode,
+    fxRate: fxRate,
+    goalId: goalId,
+  );
 }
 
 /// A month-list row joined with its category name — the projection the
@@ -475,6 +655,7 @@ extension LedgerE1 on LedgerRepository {
           baseAmountMinor: Value(row.baseAmountMinor),
           fxRate: Value(row.fxRate),
           isIncome: Value(row.isIncome),
+          goalId: Value(row.goalId),
         ),
       );
 }

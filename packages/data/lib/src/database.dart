@@ -20,6 +20,8 @@ part 'database.g.dart';
     Budgets,
     LineItems,
     Settings,
+    Goals,
+    RecurringRules,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -34,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(NativeDatabase(File(path)));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -54,9 +56,45 @@ class AppDatabase extends _$AppDatabase {
           'CREATE INDEX IF NOT EXISTS tx_date ON transactions (date_days)',
         );
       }
+      if (from < 4) {
+        // E3 §4 ("schema v2" in the design doc; drift v4): goals first so the
+        // transactions.goal_id FK target exists, then rules, then the new
+        // budget columns, then swap the month-unique index for the
+        // period-unique one. Existing rows default to 'monthly' — identical
+        // semantics to v3.
+        await m.createTable(goals);
+        await m.createTable(recurringRules);
+        await _addColumnIfAbsent(m, budgets, budgets.periodType);
+        await _addColumnIfAbsent(m, budgets, budgets.rolloverCapMinor);
+        await _addColumnIfAbsent(m, transactions, transactions.goalId);
+        await customStatement('DROP INDEX IF EXISTS budget_month');
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS budget_month_period '
+          'ON budgets (category_id, year_month, period_type)',
+        );
+      }
     },
     // v2: icon key on categories (Manage screen, #18). Line items remain a
     // feature flag — the table shipped in v1 (decision 2), not a migration.
     // v3: tx_date index for the month query (hardening #23).
+    // v4: E3 — Goals, RecurringRules, budget periodType/rolloverCapMinor,
+    //     transactions.goalId, budget_month → budget_month_period (#33).
   );
+
+  /// SQLite has no `ADD COLUMN IF NOT EXISTS`, and the from<4 step re-runs
+  /// over databases that already carry the column (the schema-rewind case
+  /// perf_regression_test pins). Check table_info first; skipping an existing
+  /// column keeps the whole step re-runnable, matching v3's IF NOT EXISTS.
+  Future<void> _addColumnIfAbsent(
+    Migrator m,
+    TableInfo table,
+    GeneratedColumn<Object> column,
+  ) async {
+    final present = await customSelect(
+      "PRAGMA table_info('${table.actualTableName}')",
+    ).get();
+    if (present.every((row) => row.data['name'] != column.name)) {
+      await m.addColumn(table, column);
+    }
+  }
 }
