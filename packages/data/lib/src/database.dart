@@ -34,9 +34,20 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(NativeDatabase(File(path)));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
-  // v1 relies on drift's default onCreate (createAll). The first real
-  // onUpgrade arrives with v2 — line_items already exists (decision 2), so
-  // enabling line items is a feature flag, not a migration.
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    // v1 shipped with drift's default createAll; keep that behaviour.
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // #18 (spec §2.4): Manage screen stores an icon key per category.
+        // sortOrder already shipped in v1.
+        await m.addColumn(categories, categories.icon);
+      }
+    },
+    // v2: icon key on categories (Manage screen, #18). Line items remain a
+    // feature flag — the table shipped in v1 (decision 2), not a migration.
+  );
 }

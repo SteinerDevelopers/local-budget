@@ -142,7 +142,8 @@ void main() {
       expect(amountText(tester), '0'); // back to placeholder
 
       await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pump();
+      // #18: the gear now pops the sheet before jumping — settle the exit.
+      await tester.pumpAndSettle();
       expect(manageTaps, 1);
     });
 

@@ -3,6 +3,8 @@ import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../manage/icon_registry.dart';
+import '../manage/manage_screen.dart';
 import '../quickadd/quick_add_sheet.dart';
 import 'balance_strip.dart';
 import 'day_label.dart';
@@ -55,24 +57,16 @@ String monthTitle(int index) {
 
 // ---- presentation mapping --------------------------------------------------
 
-/// Default category icon (§2.1 row + §2.2 chips). #18 lets the user manage
-/// categories; this stays the fallback by name.
-IconData categoryIcon(String? name) => switch (name) {
-  'Food' => Icons.restaurant_outlined,
-  'Housing' => Icons.home_outlined,
-  'Transport' => Icons.directions_bus_outlined,
-  'Utilities' => Icons.bolt_outlined,
-  'Fun' => Icons.movie_outlined,
-  'Health' => Icons.monitor_heart_outlined,
-  'Salary' => Icons.payments_outlined,
-  'Other income' => Icons.trending_up,
-  _ => Icons.label_outline,
-};
+/// Default category icon (§2.1 row + §2.2 chips). #18 stores an icon key per
+/// category ([ManageIcons.of]); this is the by-name fallback kept as the
+/// public helper the #17 tests pin.
+IconData categoryIcon(String? name) => ManageIcons.of(null, name);
 
 /// Drift row → [EntryTile]; amount stays unsigned, sign is display-only (§3).
 EntryTile tileFor(LedgerEntryData row) => EntryTile(
   id: row.id,
-  icon: categoryIcon(row.categoryName),
+  // Stored icon key wins (§2.4); name mapping is the pre-#18 fallback.
+  icon: ManageIcons.of(row.categoryIcon, row.categoryName),
   title: row.categoryName ?? 'Uncategorized',
   memo: (row.note == null || row.note!.isEmpty) ? null : row.note,
   amount: Money(row.amountMinor, Currency.resolve(row.currencyCode)),
@@ -131,9 +125,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   void initState() {
     super.initState();
-    widget.repository.baseCurrency().then((code) {
-      if (mounted) setState(() => _currency = Currency.resolve(code ?? 'USD'));
-    });
+    _loadCurrency();
+  }
+
+  /// Base currency feeds the strip + QuickAdd's keypad; re-read after Manage
+  /// changes it (#18).
+  Future<void> _loadCurrency() async {
+    final code = await widget.repository.baseCurrency();
+    if (mounted) setState(() => _currency = Currency.resolve(code ?? 'USD'));
   }
 
   @override
@@ -158,11 +157,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
       context,
       categories: [
         for (final c in cats)
-          CategoryOption(c.id, c.name, categoryIcon(c.name)),
+          CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name)),
       ],
       currency: _currency,
       initialKind: _warmKind,
       initialCategoryId: _warmCategoryId,
+      // §2.4: the sheet's Manage chip pops it and lands here.
+      onManageCategories: _openManage,
     );
     if (entry == null || !mounted) return;
     await widget.repository.addEntry(
@@ -179,6 +180,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
     // Saved via the inline calendar into another month? Follow it.
     _animate(monthIndexOf(entry.day));
+  }
+
+  Future<void> _openManage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ManageScreen(repository: widget.repository),
+      ),
+    );
+    // Base currency may have changed (§2.4); categories re-read themselves
+    // the next time the FAB opens.
+    _loadCurrency();
   }
 
   /// Swipe-to-dismiss → SnackBar "Deleted / Undo" (§2.1). Undo is the only

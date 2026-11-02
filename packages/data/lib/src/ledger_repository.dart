@@ -272,6 +272,7 @@ class LedgerEntryData {
     required this.isIncome,
     required this.categoryId,
     required this.categoryName,
+    this.categoryIcon,
     required this.note,
   });
 
@@ -282,6 +283,9 @@ class LedgerEntryData {
   final bool isIncome;
   final int? categoryId;
   final String? categoryName;
+
+  /// Icon-registry key of the joined category (#18); null ⇒ by-name fallback.
+  final String? categoryIcon;
   final String? note;
 }
 
@@ -297,33 +301,38 @@ extension LedgerE1 on LedgerRepository {
     return (await accounts()).first;
   }
 
-  /// Names seeded on first launch; the UI maps names to icons (§2.2 chips).
-  static const defaultExpenseCategories = [
-    'Food',
-    'Housing',
-    'Transport',
-    'Utilities',
-    'Fun',
-    'Health',
-    'Other',
-  ];
-  static const defaultIncomeCategories = ['Salary', 'Other income'];
+  /// Seed name → icon-registry key, first-launch order (§2.4). The app owns
+  /// the key → [IconData] mapping; the db only stores the key string.
+  static const defaultExpenseCategories = <String, String>{
+    'Food': 'restaurant_outlined',
+    'Housing': 'home_outlined',
+    'Transport': 'directions_bus_outlined',
+    'Utilities': 'bolt_outlined',
+    'Fun': 'movie_outlined',
+    'Health': 'monitor_heart_outlined',
+    'Other': 'label_outline',
+  };
+  static const defaultIncomeCategories = <String, String>{
+    'Salary': 'payments_outlined',
+    'Other income': 'trending_up',
+  };
 
   /// Idempotent first-launch seeding: default account + category list.
   Future<void> ensureDefaults() async {
     await defaultAccount();
     if ((await categories()).isNotEmpty) return;
     var sort = 0;
-    for (final name in defaultExpenseCategories) {
-      await addCategory(name, sortOrder: sort++);
+    for (final MapEntry(:key, :value) in defaultExpenseCategories.entries) {
+      await addCategory(key, icon: value, sortOrder: sort++);
     }
-    for (final name in defaultIncomeCategories) {
-      await addCategory(name, sortOrder: sort++, isIncome: true);
+    for (final MapEntry(:key, :value) in defaultIncomeCategories.entries) {
+      await addCategory(key, icon: value, sortOrder: sort++, isIncome: true);
     }
   }
 
   Future<int> addCategory(
     String name, {
+    String? icon,
     int sortOrder = 0,
     bool isIncome = false,
   }) => db
@@ -331,10 +340,32 @@ extension LedgerE1 on LedgerRepository {
       .insert(
         CategoriesCompanion.insert(
           name: name,
+          icon: Value(icon),
           sortOrder: Value(sortOrder),
           isIncome: Value(isIncome),
         ),
       );
+
+  /// Partial update for the Manage rename sheet (#18, spec §2.4).
+  Future<void> updateCategory(int id, {String? name, String? icon}) async {
+    await (db.update(db.categories)..where((t) => t.id.equals(id))).write(
+      CategoriesCompanion(
+        name: name == null ? const Value.absent() : Value(name),
+        icon: icon == null ? const Value.absent() : Value(icon),
+      ),
+    );
+  }
+
+  /// Persists one section's new drag order (§2.4): sortOrder = list index.
+  Future<void> reorderCategories({
+    required bool income,
+    required List<int> orderedIds,
+  }) => db.transaction(() async {
+    for (var i = 0; i < orderedIds.length; i++) {
+      await (db.update(db.categories)..where((t) => t.id.equals(orderedIds[i])))
+          .write(CategoriesCompanion(sortOrder: Value(i)));
+    }
+  });
 
   Future<List<Category>> categories({bool? income}) {
     final q = db.select(db.categories)
@@ -401,6 +432,7 @@ extension LedgerE1 on LedgerRepository {
             categoryId: row.readTable(tx).categoryId,
             // Outer-joined: null category must not throw.
             categoryName: row.read(db.categories.name),
+            categoryIcon: row.read(db.categories.icon),
             note: row.readTable(tx).note,
           ),
       ],

@@ -24,6 +24,10 @@ class Categories extends Table {
   /// Optional UI tint (ARGB int); semantics stay UI-side.
   IntColumn get colorHint => integer().nullable()();
 
+  /// Key into the app's icon registry (#18, spec §2.4); null ⇒ the UI falls
+  /// back to its by-name mapping, so old rows keep rendering.
+  TextColumn get icon => text().nullable()();
+
   /// True = income category (QuickAdd shows it under the Income toggle).
   BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
 }

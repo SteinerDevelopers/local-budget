@@ -28,8 +28,17 @@ void main() {
 
       final expense = await repo.categories(income: false);
       final income = await repo.categories(income: true);
-      expect(expense.map((c) => c.name), LedgerE1.defaultExpenseCategories);
-      expect(income.map((c) => c.name), LedgerE1.defaultIncomeCategories);
+      expect(
+        expense.map((c) => c.name),
+        LedgerE1.defaultExpenseCategories.keys,
+      );
+      expect(income.map((c) => c.name), LedgerE1.defaultIncomeCategories.keys);
+      // #18: each seed row carries its icon-registry key (§2.4).
+      expect(
+        expense.map((c) => c.icon),
+        LedgerE1.defaultExpenseCategories.values,
+      );
+      expect(expense.map((c) => c.sortOrder), [0, 1, 2, 3, 4, 5, 6]);
     });
 
     test('is idempotent — a second call seeds nothing twice', () async {
@@ -169,5 +178,82 @@ void main() {
       // §2.1: "the undo reuses the exact row id".
       expect(rows.single.id, id);
     });
+  });
+
+  group('Manage screen backing (#18, spec §2.4)', () {
+    test(
+      'updateCategory renames and re-icons without touching order',
+      () async {
+        await repo.ensureDefaults();
+        final food = (await repo.categories(income: false)).first;
+        expect(food.name, 'Food');
+
+        await repo.updateCategory(food.id, name: 'Coffee', icon: 'local_cafe');
+
+        final coffee = (await repo.categories(income: false)).first;
+        expect(coffee.name, 'Coffee');
+        expect(coffee.icon, 'local_cafe');
+        expect(coffee.sortOrder, food.sortOrder);
+        // Partial update: omitting a field leaves it untouched.
+        await repo.updateCategory(food.id, name: 'Food');
+        expect((await repo.categories(income: false)).first.icon, 'local_cafe');
+      },
+    );
+
+    test('reorderCategories persists the dragged section order', () async {
+      await repo.ensureDefaults();
+      final before = await repo.categories(income: false);
+      final ids = before.map((c) => c.id).toList();
+      final moved = [ids[1], ids[0], ...ids.skip(2)];
+
+      await repo.reorderCategories(income: false, orderedIds: moved);
+
+      final after = await repo.categories(income: false);
+      expect(after.map((c) => c.id), moved);
+      expect(after.map((c) => c.sortOrder), [0, 1, 2, 3, 4, 5, 6]);
+      // The other section is untouched (seeding numbers a single shared
+      // counter; sections render filtered, so absolute values don't matter).
+      final income = await repo.categories(income: true);
+      expect(income.map((c) => c.sortOrder), [7, 8]);
+    });
+
+    test('watchCategories re-emits after rename, add and reorder', () async {
+      await repo.ensureDefaults();
+      final cats = await repo.categories(income: false);
+      final events = <List<String>>[];
+      final sub = repo.watchCategories().listen(
+        (rows) => events.add(
+          rows.where((c) => !c.isIncome).map((c) => c.name).toList(),
+        ),
+      );
+      await pumpEventQueue();
+
+      final id = await repo.addCategory('Pets', icon: 'pets', sortOrder: 7);
+      await repo.updateCategory(id, name: 'Animals');
+      await repo.reorderCategories(
+        income: false,
+        orderedIds: [id, ...cats.map((c) => c.id)],
+      );
+      await pumpEventQueue();
+      await sub.cancel();
+
+      expect(events.last.first, 'Animals'); // drag put it on top
+      expect(events.last, hasLength(8));
+    });
+
+    test(
+      'setBaseCurrency validates and round-trips through baseCurrency()',
+      () async {
+        expect(
+          await repo.baseCurrency(),
+          isNull,
+        ); // unset until the app sets it
+        await repo.setBaseCurrency('EUR');
+        expect(await repo.baseCurrency(), 'EUR');
+        await repo.setBaseCurrency('JPY'); // upsert, not insert-conflict crash
+        expect(await repo.baseCurrency(), 'JPY');
+        expect(() => repo.setBaseCurrency('XX'), throwsA(isA<ArgumentError>()));
+      },
+    );
   });
 }

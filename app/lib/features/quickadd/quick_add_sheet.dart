@@ -283,6 +283,9 @@ class _CategoryChips extends StatelessWidget {
     return SizedBox(
       height: 40,
       child: ListView(
+        // Test handle: the Manage chip sits at the end of a row that can
+        // overflow with many categories (#18).
+        key: const Key('chip-row'),
         scrollDirection: Axis.horizontal,
         children: [
           for (final c in categories)
@@ -299,7 +302,12 @@ class _CategoryChips extends StatelessWidget {
             ActionChip(
               avatar: const Icon(Icons.settings_outlined, size: 18),
               label: const Text('Manage'),
-              onPressed: onManage,
+              // §2.4: jump to Manage. The sheet closes first — its chips are
+              // an open-time snapshot anyway, so the next FAB re-reads.
+              onPressed: () {
+                Navigator.of(context).pop();
+                onManage!();
+              },
             ),
         ],
       ),

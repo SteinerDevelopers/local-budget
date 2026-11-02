@@ -432,6 +432,15 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+    'icon',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isIncomeMeta = const VerificationMeta(
     'isIncome',
   );
@@ -454,6 +463,7 @@ class $CategoriesTable extends Categories
     parentId,
     sortOrder,
     colorHint,
+    icon,
     isIncome,
   ];
   @override
@@ -497,6 +507,12 @@ class $CategoriesTable extends Categories
         colorHint.isAcceptableOrUnknown(data['color_hint']!, _colorHintMeta),
       );
     }
+    if (data.containsKey('icon')) {
+      context.handle(
+        _iconMeta,
+        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+      );
+    }
     if (data.containsKey('is_income')) {
       context.handle(
         _isIncomeMeta,
@@ -532,6 +548,10 @@ class $CategoriesTable extends Categories
         DriftSqlType.int,
         data['${effectivePrefix}color_hint'],
       ),
+      icon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon'],
+      ),
       isIncome: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_income'],
@@ -556,6 +576,10 @@ class Category extends DataClass implements Insertable<Category> {
   /// Optional UI tint (ARGB int); semantics stay UI-side.
   final int? colorHint;
 
+  /// Key into the app's icon registry (#18, spec §2.4); null ⇒ the UI falls
+  /// back to its by-name mapping, so old rows keep rendering.
+  final String? icon;
+
   /// True = income category (QuickAdd shows it under the Income toggle).
   final bool isIncome;
   const Category({
@@ -564,6 +588,7 @@ class Category extends DataClass implements Insertable<Category> {
     this.parentId,
     required this.sortOrder,
     this.colorHint,
+    this.icon,
     required this.isIncome,
   });
   @override
@@ -577,6 +602,9 @@ class Category extends DataClass implements Insertable<Category> {
     map['sort_order'] = Variable<int>(sortOrder);
     if (!nullToAbsent || colorHint != null) {
       map['color_hint'] = Variable<int>(colorHint);
+    }
+    if (!nullToAbsent || icon != null) {
+      map['icon'] = Variable<String>(icon);
     }
     map['is_income'] = Variable<bool>(isIncome);
     return map;
@@ -593,6 +621,7 @@ class Category extends DataClass implements Insertable<Category> {
       colorHint: colorHint == null && nullToAbsent
           ? const Value.absent()
           : Value(colorHint),
+      icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
       isIncome: Value(isIncome),
     );
   }
@@ -608,6 +637,7 @@ class Category extends DataClass implements Insertable<Category> {
       parentId: serializer.fromJson<int?>(json['parentId']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       colorHint: serializer.fromJson<int?>(json['colorHint']),
+      icon: serializer.fromJson<String?>(json['icon']),
       isIncome: serializer.fromJson<bool>(json['isIncome']),
     );
   }
@@ -620,6 +650,7 @@ class Category extends DataClass implements Insertable<Category> {
       'parentId': serializer.toJson<int?>(parentId),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'colorHint': serializer.toJson<int?>(colorHint),
+      'icon': serializer.toJson<String?>(icon),
       'isIncome': serializer.toJson<bool>(isIncome),
     };
   }
@@ -630,6 +661,7 @@ class Category extends DataClass implements Insertable<Category> {
     Value<int?> parentId = const Value.absent(),
     int? sortOrder,
     Value<int?> colorHint = const Value.absent(),
+    Value<String?> icon = const Value.absent(),
     bool? isIncome,
   }) => Category(
     id: id ?? this.id,
@@ -637,6 +669,7 @@ class Category extends DataClass implements Insertable<Category> {
     parentId: parentId.present ? parentId.value : this.parentId,
     sortOrder: sortOrder ?? this.sortOrder,
     colorHint: colorHint.present ? colorHint.value : this.colorHint,
+    icon: icon.present ? icon.value : this.icon,
     isIncome: isIncome ?? this.isIncome,
   );
   Category copyWithCompanion(CategoriesCompanion data) {
@@ -646,6 +679,7 @@ class Category extends DataClass implements Insertable<Category> {
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       colorHint: data.colorHint.present ? data.colorHint.value : this.colorHint,
+      icon: data.icon.present ? data.icon.value : this.icon,
       isIncome: data.isIncome.present ? data.isIncome.value : this.isIncome,
     );
   }
@@ -658,6 +692,7 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('parentId: $parentId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('colorHint: $colorHint, ')
+          ..write('icon: $icon, ')
           ..write('isIncome: $isIncome')
           ..write(')'))
         .toString();
@@ -665,7 +700,7 @@ class Category extends DataClass implements Insertable<Category> {
 
   @override
   int get hashCode =>
-      Object.hash(id, name, parentId, sortOrder, colorHint, isIncome);
+      Object.hash(id, name, parentId, sortOrder, colorHint, icon, isIncome);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -675,6 +710,7 @@ class Category extends DataClass implements Insertable<Category> {
           other.parentId == this.parentId &&
           other.sortOrder == this.sortOrder &&
           other.colorHint == this.colorHint &&
+          other.icon == this.icon &&
           other.isIncome == this.isIncome);
 }
 
@@ -684,6 +720,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<int?> parentId;
   final Value<int> sortOrder;
   final Value<int?> colorHint;
+  final Value<String?> icon;
   final Value<bool> isIncome;
   const CategoriesCompanion({
     this.id = const Value.absent(),
@@ -691,6 +728,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.colorHint = const Value.absent(),
+    this.icon = const Value.absent(),
     this.isIncome = const Value.absent(),
   });
   CategoriesCompanion.insert({
@@ -699,6 +737,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.colorHint = const Value.absent(),
+    this.icon = const Value.absent(),
     this.isIncome = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Category> custom({
@@ -707,6 +746,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<int>? parentId,
     Expression<int>? sortOrder,
     Expression<int>? colorHint,
+    Expression<String>? icon,
     Expression<bool>? isIncome,
   }) {
     return RawValuesInsertable({
@@ -715,6 +755,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (parentId != null) 'parent_id': parentId,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (colorHint != null) 'color_hint': colorHint,
+      if (icon != null) 'icon': icon,
       if (isIncome != null) 'is_income': isIncome,
     });
   }
@@ -725,6 +766,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<int?>? parentId,
     Value<int>? sortOrder,
     Value<int?>? colorHint,
+    Value<String?>? icon,
     Value<bool>? isIncome,
   }) {
     return CategoriesCompanion(
@@ -733,6 +775,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       parentId: parentId ?? this.parentId,
       sortOrder: sortOrder ?? this.sortOrder,
       colorHint: colorHint ?? this.colorHint,
+      icon: icon ?? this.icon,
       isIncome: isIncome ?? this.isIncome,
     );
   }
@@ -755,6 +798,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (colorHint.present) {
       map['color_hint'] = Variable<int>(colorHint.value);
     }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
     if (isIncome.present) {
       map['is_income'] = Variable<bool>(isIncome.value);
     }
@@ -769,6 +815,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('parentId: $parentId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('colorHint: $colorHint, ')
+          ..write('icon: $icon, ')
           ..write('isIncome: $isIncome')
           ..write(')'))
         .toString();
@@ -3032,6 +3079,7 @@ typedef $$CategoriesTableCreateCompanionBuilder =
       Value<int?> parentId,
       Value<int> sortOrder,
       Value<int?> colorHint,
+      Value<String?> icon,
       Value<bool> isIncome,
     });
 typedef $$CategoriesTableUpdateCompanionBuilder =
@@ -3041,6 +3089,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
       Value<int?> parentId,
       Value<int> sortOrder,
       Value<int?> colorHint,
+      Value<String?> icon,
       Value<bool> isIncome,
     });
 
@@ -3075,6 +3124,11 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<int> get colorHint => $composableBuilder(
     column: $table.colorHint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icon => $composableBuilder(
+    column: $table.icon,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3118,6 +3172,11 @@ class $$CategoriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isIncome => $composableBuilder(
     column: $table.isIncome,
     builder: (column) => ColumnOrderings(column),
@@ -3147,6 +3206,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get colorHint =>
       $composableBuilder(column: $table.colorHint, builder: (column) => column);
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
 
   GeneratedColumn<bool> get isIncome =>
       $composableBuilder(column: $table.isIncome, builder: (column) => column);
@@ -3185,6 +3247,7 @@ class $$CategoriesTableTableManager
                 Value<int?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> colorHint = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
                 Value<bool> isIncome = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
@@ -3192,6 +3255,7 @@ class $$CategoriesTableTableManager
                 parentId: parentId,
                 sortOrder: sortOrder,
                 colorHint: colorHint,
+                icon: icon,
                 isIncome: isIncome,
               ),
           createCompanionCallback:
@@ -3201,6 +3265,7 @@ class $$CategoriesTableTableManager
                 Value<int?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> colorHint = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
                 Value<bool> isIncome = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
@@ -3208,6 +3273,7 @@ class $$CategoriesTableTableManager
                 parentId: parentId,
                 sortOrder: sortOrder,
                 colorHint: colorHint,
+                icon: icon,
                 isIncome: isIncome,
               ),
           withReferenceMapper: (p0) => p0
