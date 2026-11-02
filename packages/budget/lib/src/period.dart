@@ -126,6 +126,7 @@ final class EngineTx {
     required this.categoryId,
     this.isIncome = false,
     this.isGoalTransfer = false,
+    this.merchantName,
   });
 
   /// Epoch day of the transaction date.
@@ -142,6 +143,10 @@ final class EngineTx {
 
   /// `goalId != null` rows are hidden from budget sums (§3.5).
   final bool isGoalTransfer;
+
+  /// Denormalized merchant for the report aggregates (E4 §4); the budget
+  /// engine never reads it, so scope semantics stay untouched.
+  final String? merchantName;
 
   bool get countsTowardBudgets => !isIncome && !isGoalTransfer;
 }

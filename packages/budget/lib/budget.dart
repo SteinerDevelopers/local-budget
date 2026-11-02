@@ -8,4 +8,5 @@ library;
 export 'src/engine.dart';
 export 'src/materialize.dart';
 export 'src/period.dart';
+export 'src/reports.dart';
 export 'src/rules.dart';
