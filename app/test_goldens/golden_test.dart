@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_budget/features/capture/capture_intake.dart';
 import 'package:local_budget/features/capture/capture_services.dart';
+import 'package:local_budget/features/help/help_screen.dart';
 import 'package:local_budget/features/ledger/balance_strip.dart';
 import 'package:local_budget/features/ledger/empty_month.dart';
 import 'package:local_budget/features/ledger/transaction_row.dart';
@@ -344,6 +345,28 @@ void main() {
 
       testWidgets('review low confidence — $mode', (tester) async {
         await reviewGolden(tester, lowConf, 'review_low_confidence');
+      });
+    }
+  });
+
+  // E2 §7 / issue #30: one article page stands in for the Help reading
+  // surface; it is reached by real navigation so the back affordance is
+  // part of the shot.
+  group('Help golden', () {
+    for (final brightness in Brightness.values) {
+      final mode = modeName(brightness);
+      testWidgets('article page — $mode', (tester) async {
+        usePhoneViewport(tester);
+        await tester.pumpWidget(
+          goldHost(brightness: brightness, child: const HelpScreen()),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Why is a field highlighted?'));
+        await tester.pumpAndSettle();
+        await expectLater(
+          find.byType(HelpArticlePage),
+          matchesGoldenFile('goldens/help_article_$mode.png'),
+        );
       });
     }
   });

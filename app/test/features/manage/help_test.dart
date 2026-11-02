@@ -1,0 +1,96 @@
+// #30 — the Help section (E2 §7): four offline articles behind a search
+// box, entered from the About & help sheet. Search must find the terms
+// the acceptance criteria name, and the no-match copy must never dead
+// end — it hands the reader words that do work.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:local_budget/features/help/help_articles.dart';
+import 'package:local_budget/features/help/help_screen.dart';
+import 'package:local_budget/features/manage/manage_screen.dart';
+
+Future<void> pumpHelp(WidgetTester tester) async {
+  await tester.pumpWidget(
+    MaterialApp(theme: ThemeData.light(), home: const HelpScreen()),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> search(WidgetTester tester, String query) async {
+  await tester.enterText(find.byType(TextField), query);
+  await tester.pump();
+}
+
+void main() {
+  testWidgets('every article is listed', (tester) async {
+    await pumpHelp(tester);
+    for (final article in kHelpArticles) {
+      expect(find.text(article.title), findsOneWidget);
+    }
+  });
+
+  testWidgets('“highlight” finds the highlight article only', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'highlight');
+    expect(find.text('Why is a field highlighted?'), findsOneWidget);
+    expect(find.text('Tips for better scans'), findsNothing);
+    expect(find.text('Scanning receipts'), findsNothing);
+  });
+
+  testWidgets('“total” finds the reading articles', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'total');
+    expect(find.text('Scanning receipts'), findsOneWidget);
+    expect(find.text('Why is a field highlighted?'), findsOneWidget);
+    expect(find.text('Importing PDFs & screenshots'), findsNothing);
+  });
+
+  testWidgets('“PDF” finds the import article', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'PDF');
+    expect(find.text('Importing PDFs & screenshots'), findsOneWidget);
+    expect(find.text('Why is a field highlighted?'), findsNothing);
+  });
+
+  testWidgets('no match points at terms that do work', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'zebra');
+    expect(find.textContaining('Nothing found'), findsOneWidget);
+    expect(find.text('Scanning receipts'), findsNothing);
+  });
+
+  testWidgets('opening an article reads and backs out', (tester) async {
+    await pumpHelp(tester);
+    await tester.tap(find.text('Why is a field highlighted?'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('amber outline'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(HelpArticlePage), findsNothing);
+    expect(find.text('Scanning receipts'), findsOneWidget);
+  });
+
+  testWidgets('the About & help sheet links to all topics', (tester) async {
+    late final BuildContext context;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (buildContext) {
+            context = buildContext;
+            return const Scaffold(body: SizedBox.shrink());
+          },
+        ),
+      ),
+    );
+    showManageHelp(context);
+    await tester.pumpAndSettle();
+    // The sheet scrolls; the entry sits below the first screenful.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(find.text('All help topics'), findsOneWidget);
+
+    await tester.tap(find.text('All help topics'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HelpScreen), findsOneWidget);
+    expect(find.text('Scanning receipts'), findsOneWidget);
+  });
+}

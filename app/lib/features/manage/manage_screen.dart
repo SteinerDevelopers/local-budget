@@ -1,6 +1,7 @@
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
+import '../help/help_screen.dart';
 import 'base_currency_sheet.dart';
 import 'category_list_screen.dart';
 
@@ -122,6 +123,20 @@ Future<void> showManageHelp(BuildContext context) => showModalBottomSheet<void>(
             ],
           ),
         ),
+      const Divider(height: 24),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.search),
+        title: const Text('All help topics'),
+        subtitle: const Text('Searchable articles: scanning, highlights, PDFs'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.of(sheetContext).pop();
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute<void>(builder: (_) => const HelpScreen()));
+        },
+      ),
     ],
   ),
 );
