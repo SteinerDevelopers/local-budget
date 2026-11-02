@@ -195,7 +195,7 @@ class MainActivity : FlutterActivity() {
             )
             val r = PdfRenderer(pfd)
             renderer = r
-            if (r.numberPages == 0) return null
+            if (r.pageCount == 0) return null
             val pg = r.openPage(0)
             page = pg
             val scale = (1200.0 / pg.width).coerceIn(0.25, 4.0)
