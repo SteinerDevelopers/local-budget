@@ -166,6 +166,19 @@ class LedgerRepository {
     return q.get();
   }
 
+  /// Rows in an inclusive `dateDays` window — the multi-period read the E3
+  /// budgets sheet runs to feed the engine's rollover chain (weekly/yearly
+  /// chains walk months beyond the visible one). Ordered like
+  /// [transactionsForMonth]; served by the v3 `tx_date` index.
+  Future<List<Transaction>> transactionsInRange(int fromDays, int toDays) =>
+      (db.select(db.transactions)
+        ..where((t) => t.dateDays.isBetweenValues(fromDays, toDays))
+        ..orderBy([
+          (t) => OrderingTerm.asc(t.dateDays),
+          (t) => OrderingTerm.asc(t.id),
+        ]))
+          .get();
+
   /// Spend (positive amounts) for a month, in one currency — refunds (negative
   /// amounts) reduce the total. Returns minor units.
   Future<int> monthSpendMinor({
@@ -275,6 +288,14 @@ class LedgerRepository {
   Future<List<Budget>> budgetsIn(String yearMonth) => (db.select(
     db.budgets,
   )..where((b) => b.yearMonth.equals(yearMonth))).get();
+
+  /// Budget rows whose `yearMonth` key falls in the inclusive lexicographic
+  /// window (`'2024-11' … '2026-11'` — zero-padded, so text order is time
+  /// order): the preload the rollover chain's rowFor lookups run against.
+  Future<List<Budget>> budgetsBetween(String startYm, String endYm) =>
+      (db.select(
+        db.budgets,
+      )..where((b) => b.yearMonth.isBetweenValues(startYm, endYm))).get();
 
   Future<void> deleteBudget(int id) =>
       (db.delete(db.budgets)..where((b) => b.id.equals(id))).go();
