@@ -58,9 +58,7 @@ void main() {
           .data['user_version'],
       5,
     );
-    final cols = await db2
-        .customSelect("PRAGMA table_info('goals')")
-        .get();
+    final cols = await db2.customSelect("PRAGMA table_info('goals')").get();
     expect(cols.map((r) => r.data['name']), contains('note'));
 
     final rows = await repo2.goals();
