@@ -1,10 +1,10 @@
 import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 
-void main() => runApp(const LocalBudgetApp());
+import 'design/theme.dart';
+import 'design/tokens.dart';
 
-/// Placeholder seed until the Figma design tokens are exported (E0 checklist).
-const _seed = Color(0xFF2E7D32);
+void main() => runApp(const LocalBudgetApp());
 
 class LocalBudgetApp extends StatelessWidget {
   const LocalBudgetApp({super.key});
@@ -13,12 +13,8 @@ class LocalBudgetApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LocalBudget',
-      theme: ThemeData(colorSchemeSeed: _seed, useMaterial3: true),
-      darkTheme: ThemeData(
-        colorSchemeSeed: _seed,
-        useMaterial3: true,
-        brightness: Brightness.dark,
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       home: const HomeScreen(),
     );
   }
@@ -30,7 +26,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Smoke of the core wiring: money is integer minor units everywhere,
-    // format() is display-only.
+    // format() is display-only. Replaced by the real Ledger screen in #17.
     final sample = Money(123456, Currency.resolve('USD'));
     return Scaffold(
       appBar: AppBar(title: const Text('LocalBudget')),
@@ -39,11 +35,8 @@ class HomeScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('LocalBudget — everything stays on this device'),
-            const SizedBox(height: 8),
-            Text(
-              sample.format(),
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            const SizedBox(height: Tokens.space2),
+            Text(sample.format(), style: Tokens.amount(context)),
           ],
         ),
       ),
