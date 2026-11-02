@@ -19,12 +19,17 @@ final class EntryTile {
     required this.title,
     required this.amount,
     required this.kind,
+    required this.day,
     this.memo,
   });
 
   final int id;
   final IconData icon;
   final String title;
+
+  /// Entry day — used only in the row's TalkBack label (§5's example ends
+  /// with "Oct 29"); the visual date lives in the day-group header.
+  final DateTime day;
 
   /// Optional second line; empty/null renders the single-line variant.
   final String? memo;

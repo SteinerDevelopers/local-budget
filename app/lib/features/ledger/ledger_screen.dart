@@ -71,6 +71,7 @@ EntryTile tileFor(LedgerEntryData row) => EntryTile(
   memo: (row.note == null || row.note!.isEmpty) ? null : row.note,
   amount: Money(row.amountMinor, Currency.resolve(row.currencyCode)),
   kind: row.isIncome ? EntryKind.income : EntryKind.expense,
+  day: row.day, // spoken in the row's TalkBack label (§5)
 );
 
 /// Sums one month; income/expenses unsigned, the labels carry the sign (§2.1).
@@ -237,9 +238,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ],
         ),
       ),
-      // Only FAB in the app (§2.1).
+      // Only FAB in the app (§2.1). The tooltip is also its TalkBack label (§5).
       floatingActionButton: FloatingActionButton(
         onPressed: _openQuickAdd,
+        tooltip: 'Add transaction',
         child: const Icon(Icons.add),
       ),
     );
@@ -397,14 +399,18 @@ class _DayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      // §2.1: 32 dp header row including spacing.
-      height: 32,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
-          child: Text(DayLabel.of(day), style: Tokens.labelCaps(context)),
+    // §5: day groups are announced as section headers.
+    return Semantics(
+      header: true,
+      child: SizedBox(
+        // §2.1: 32 dp header row including spacing.
+        height: 32,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+            child: Text(DayLabel.of(day), style: Tokens.labelCaps(context)),
+          ),
         ),
       ),
     );
@@ -422,6 +428,8 @@ class _DeleteBackground extends StatelessWidget {
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
       color: scheme.errorContainer,
+      // Decorative — the Dismissible's own semantics carry the action (§5);
+      // Icon never leaks its glyph as a label.
       child: Icon(Icons.delete_outline, color: scheme.onErrorContainer),
     );
   }

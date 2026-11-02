@@ -195,6 +195,9 @@ class _IconCell extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      // The glyph itself is decorative; the key is the label (§5: no
+      // color/icon-only meaning). excludeSemantics keeps this a single node.
+      excludeSemantics: true,
       label: iconKey,
       child: InkWell(
         onTap: onTap,

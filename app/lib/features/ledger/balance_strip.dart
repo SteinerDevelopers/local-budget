@@ -58,22 +58,28 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // §5: one TalkBack node per stat — "Income $1,200.00"; the words
+    // INCOME/EXPENSES/NET carry the meaning the unsigned values drop.
     return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
-          const SizedBox(height: Tokens.space1),
-          Flexible(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Tokens.amount(context).copyWith(color: valueColor),
+      child: Semantics(
+        label: '$label $value',
+        excludeSemantics: true,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
+            const SizedBox(height: Tokens.space1),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Tokens.amount(context).copyWith(color: valueColor),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

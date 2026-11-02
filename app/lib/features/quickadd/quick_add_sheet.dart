@@ -239,26 +239,36 @@ class _AmountDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // §5: the hero is the one amount that shrink-wraps under text scale —
+    // FittedBox scaleDown keeps long amounts readable instead of clipped.
     return Semantics(
-      label: 'Amount',
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Text(
-            currency.symbol,
-            style: TextStyle(fontSize: 24, color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(width: Tokens.space2),
-          Text(
-            pad.display,
-            key: const Key('amount-value'),
-            style: Tokens.amount(context, size: Tokens.amountHeroSize).copyWith(
-              color: pad.isPlaceholder ? scheme.outline : scheme.onSurface,
+      label: 'Amount ${pad.display}',
+      excludeSemantics: true,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              currency.symbol,
+              style: TextStyle(fontSize: 24, color: scheme.onSurfaceVariant),
             ),
-          ),
-        ],
+            const SizedBox(width: Tokens.space2),
+            Text(
+              pad.display,
+              key: const Key('amount-value'),
+              style: Tokens.amount(context, size: Tokens.amountHeroSize)
+                  .copyWith(
+                    color: pad.isPlaceholder
+                        ? scheme.outline
+                        : scheme.onSurface,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -362,34 +372,72 @@ class _OptionalRow extends StatelessWidget {
 
     if (stripOpen) {
       final now = DateTime.now();
+      // Flexible + ellipsis: at 1.3× text scale three labels exceed a 360 dp
+      // sheet (§5 forbids clipping at large scale).
       return Row(
         children: [
-          TextButton(
-            onPressed: () =>
-                onPickDay(DateTime(now.year, now.month, now.day - 1)),
-            child: const Text('Yesterday'),
+          Flexible(
+            child: TextButton(
+              onPressed: () =>
+                  onPickDay(DateTime(now.year, now.month, now.day - 1)),
+              child: const Text(
+                'Yesterday',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ),
-          TextButton(
-            onPressed: () => onPickDay(DateTime(now.year, now.month, now.day)),
-            child: const Text('Today'),
+          Flexible(
+            child: TextButton(
+              onPressed: () =>
+                  onPickDay(DateTime(now.year, now.month, now.day)),
+              child: const Text(
+                'Today',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ),
-          TextButton(onPressed: onOpenCalendar, child: const Text('Calendar…')),
+          Flexible(
+            child: TextButton(
+              onPressed: onOpenCalendar,
+              child: const Text(
+                'Calendar…',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ],
       );
     }
 
+    // Flexible keeps both buttons inside the sheet at 1.3× (ellipsis only in
+    // that extreme); Spacer still pins 'Add note' right at normal scale.
     return Row(
       children: [
-        TextButton.icon(
-          onPressed: onToggleDateStrip,
-          icon: const Icon(Icons.expand_more, size: 18),
-          label: Text(DayLabel.of(day)),
+        Flexible(
+          child: TextButton.icon(
+            onPressed: onToggleDateStrip,
+            icon: const Icon(Icons.expand_more, size: 18),
+            label: Text(
+              DayLabel.of(day),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ),
         const Spacer(),
-        TextButton.icon(
-          onPressed: onActivateNote,
-          icon: const Icon(Icons.note_add_outlined, size: 18),
-          label: const Text('Add note'),
+        Flexible(
+          child: TextButton.icon(
+            onPressed: onActivateNote,
+            icon: const Icon(Icons.note_add_outlined, size: 18),
+            label: const Text(
+              'Add note',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ),
       ],
     );

@@ -92,13 +92,17 @@ class _Section extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 4, 0),
           child: Row(
             children: [
+              // §5: EXPENSE / INCOME are announced as section headers.
               Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 12,
-                    letterSpacing: 0.4,
-                    color: theme.colorScheme.onSurfaceVariant,
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: 12,
+                      letterSpacing: 0.4,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),

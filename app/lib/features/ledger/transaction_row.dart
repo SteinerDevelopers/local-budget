@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import 'day_label.dart';
 import 'view_models.dart';
 
 /// One transaction (design §2.1): icon, title (+ optional memo), right-aligned
@@ -18,12 +19,15 @@ class TransactionRow extends StatelessWidget {
     final amountColor = tile.isExpense ? scheme.onSurface : scheme.primary;
 
     return Semantics(
-      // TalkBack: one node, "Coffee, Lunch, 12 dollars 40 cents" (§5).
+      // TalkBack: ONE node, "Coffee, Lunch, 12 dollars 40 cents, Oct 29" (§5);
+      // excludeSemantics keeps the child texts from leaking as extra nodes.
+      // U+2212/+ read as "minus"/"plus" — sign and word, never color alone.
       button: true,
+      excludeSemantics: true,
       label:
           '${tile.title}'
           '${tile.memo == null || tile.memo!.isEmpty ? '' : ', ${tile.memo}'}'
-          ', ${tile.amountDisplay()}',
+          ', ${tile.amountDisplay()}, ${DayLabel.of(tile.day)}',
       child: SizedBox(
         height: Tokens.rowHeight,
         child: Padding(
