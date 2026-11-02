@@ -211,6 +211,11 @@ e2e-android:
   script:
     - |
       set -e
+      # receive_sharing_intent compiles against Android SDK 37. AGP's
+      # auto-install fires only after Gradle cached its target list, so the
+      # platform can never satisfy the very build that installs it — and CI
+      # containers are fresh every job. Provision it before configuring.
+      yes | sdkmanager --install "platforms;android-37" > /dev/null
       emulator -avd ci -no-window -no-audio -no-boot-anim -no-snapshot-save \
         -gpu swiftshader_indirect -accel on > /tmp/emu.log 2>&1 &
       adb wait-for-device
