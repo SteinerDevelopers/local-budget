@@ -6,7 +6,6 @@ final usd = Currency.resolve('USD');
 final eur = Currency.resolve('EUR');
 
 void main() {
-
   group('structurerPrompt', () {
     test('names the three keys and quotes the OCR lines', () {
       final p = structurerPrompt(['ACME MART', 'TOTAL 4.20', '']);
@@ -74,8 +73,8 @@ void main() {
     test('amounts: whole numbers only, ints or integer-valued numerics', () {
       // Fractional cents and unparsable strings reject the only field, so
       // nothing was structured - the honest answer is null.
-      expect(parseStructurerJson('{"amountCents":12.49}', currency: usd),
-          isNull);
+      expect(
+          parseStructurerJson('{"amountCents":12.49}', currency: usd), isNull);
       expect(
         parseStructurerJson('{"amountCents":"1249"}', currency: usd)!.total,
         Money(1249, usd),
