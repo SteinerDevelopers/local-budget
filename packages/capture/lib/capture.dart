@@ -8,3 +8,4 @@ library;
 export 'src/capture_pipeline.dart';
 export 'src/interfaces.dart';
 export 'src/merge.dart';
+export 'src/pdf_text.dart';

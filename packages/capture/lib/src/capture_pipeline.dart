@@ -4,6 +4,7 @@ import 'package:core/core.dart';
 
 import 'interfaces.dart';
 import 'merge.dart';
+import 'pdf_text.dart';
 
 /// Scan → Review orchestration (e2-capture.md §3).
 ///
@@ -39,6 +40,23 @@ class CapturePipeline {
   /// from `PdfText`, C2). [bytes] stay available for a future re-OCR.
   Future<ReceiptDraft> fromTextLines(List<String> lines) =>
       _withOptionalStructuring(null, lines);
+
+  /// PDF ingest decision tree (e2-capture.md §3): trust the text layer when
+  /// page 1 has ≥ [kTextLayerMinChars] characters; otherwise render page 1
+  /// and OCR it (scanned receipt); with no renderer available, any partial
+  /// text found is still better than an empty sheet.
+  Future<ReceiptDraft> fromPdf(
+    Uint8List bytes, {
+    PdfText pdfText = const SimplePdfText(),
+    TextRenderer? renderer,
+  }) async {
+    final lines = pdfText.readTextLayer(bytes);
+    if (hasTextLayer(lines)) return _withOptionalStructuring(null, lines);
+    final rd = renderer;
+    if (rd != null) return fromImage(await rd.renderPage1(bytes));
+    return _withOptionalStructuring(
+        null, lines.where((l) => l.isNotEmpty).toList());
+  }
 
   Future<ReceiptDraft> _withOptionalStructuring(
       Uint8List? bytes, List<String> lines) async {

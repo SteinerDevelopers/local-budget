@@ -103,10 +103,12 @@ the app behind these interfaces:
 
 ```
 TextExtractor.extractText(Uint8List image) -> List<String> lines   // Tier 1
-PdfText.readTextLayer(ByteFile pdf) -> List<String>                // §2.5 case A
+PdfText.readTextLayer(Uint8List pdf) -> List<String>               // §2.5 case A
+TextRenderer.renderPage1(Uint8List pdf) -> Uint8List               // scanned fallback
 LlmStructurer.isAvailable() -> bool
 LlmStructurer.structure(image, lines) -> ReceiptDraft?             // Tier 3
-CapturePipeline.fromImage(image) / .fromTextLines(lines) -> ReceiptDraft
+CapturePipeline.fromImage(image) / .fromPdf(pdf) / .fromTextLines(lines)
+    -> ReceiptDraft
 ```
 
 Tier 2 is core's existing `ReceiptHeuristics(currency: base).extract(lines)`
@@ -148,6 +150,9 @@ overwrites `medium/high` values and never touches a field the user edited.
 **PDF (§2.5):** try text layer; < 20 chars on page 1 ⇒ treat as scanned →
 render page 1 (pdfium adapter) → Tier 1 OCR. Multi-page = one document,
 page 1 only (M1); statement splitting is v2 (decision 2/feasibility §2.5).
+The pure-Dart reader covers generated (non-CID) PDFs; exotic font encoding
+yields no text, which fails safe into the OCR path. Page 1 ≈ first content
+stream — a page-boundary sentinel separates streams in the line list.
 
 Perf target: picker-close → all fields filled ≤ 3 s on mid-range (§4.2);
 the sheet itself opens in < 300 ms regardless of pipeline state.
