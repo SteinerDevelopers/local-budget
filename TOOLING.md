@@ -23,7 +23,16 @@ Sandbox gotchas learned:
   regex fragments instead of composing with `$var` inside `r'...'`.
 - The new formatter re-wraps long single-line `if (x) return;` bodies and can drop
   intent — always run `dart analyze` *after* `dart format`.
-- No `python3` in this image; use `tr`/`grep`/`sed` for JSON poking.
+- No `python3` in this image; **jq 1.7 is available** (`/usr/bin/jq`) — parse all
+  `glab api` JSON with it, never `tr`/`grep`.
+
+## Drift / data package
+
+Codegen: `dart run build_runner build --delete-conflicting-outputs` (generated
+`database.g.dart` is committed — CI does not re-run codegen).
+SQLite: runtimes ship `libsqlite3.so.0` but Dart's default loader wants the
+`libsqlite3.so` symlink from the `-dev` package — tests override the loader
+(`sqlite3/open.dart`), CI installs plain `libsqlite3-0`.
 
 ## GitLab CI (`SteinerRunner`)
 

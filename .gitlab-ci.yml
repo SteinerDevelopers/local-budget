@@ -33,6 +33,29 @@ core-test:
       dart format --output=none --set-exit-if-changed .
       dart test --reporter compact
 
+data-test:
+  stage: test
+  image: dart:stable
+  tags: [SteinerRunner]
+  cache:
+    key:
+      files:
+        - packages/data/pubspec.lock
+    paths:
+      - .pub-cache/
+  before_script:
+    # drift tests hit real SQLite; the runtime lib suffices because the tests
+    # load libsqlite3.so.0 via an explicit loader override (no -dev package).
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends libsqlite3-0
+  script:
+    - |
+      set -e
+      cd packages/data
+      dart pub get
+      dart analyze --fatal-infos
+      dart format --output=none --set-exit-if-changed .
+      dart test --reporter compact
+
 app-test:
   stage: test
   image: ghcr.io/cirruslabs/flutter:stable # Flutter SDK + Android SDK (GHCR; Docker Hub repo was retired)
