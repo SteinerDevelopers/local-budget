@@ -82,6 +82,11 @@ void main() {
         matching: find.text('Food'),
       );
       if (foodChip.evaluate().isNotEmpty) {
+        // On the phone-sized viewport the chip row sits below the sheet's
+        // clip edge — tapping the finder's centre hits the barrier instead
+        // (pipeline 61 trace). Scroll it into the sheet, then tap.
+        await tester.ensureVisible(foodChip);
+        await tester.pumpAndSettle();
         await tester.tap(foodChip);
         await tester.pump();
         for (final d in ['1', '0', '0', '0']) {
@@ -113,12 +118,19 @@ void main() {
       );
       await settle(tester);
       await tester.enterText(find.byKey(const Key('bill-name')), 'E2E bill');
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(const Key('bill-categories')),
-          matching: find.text('Utilities'),
-        ),
+      // Defocus: the soft keyboard shrinks the viewport and moved sheet
+      // content out from under the finder (pipeline 61 — the Utilities tap
+      // hit a modal barrier at stale geometry). Unfocus, do NOT tap the
+      // barrier: that would dismiss the sheet mid-form.
+      FocusManager.instance.primaryFocus?.unfocus();
+      await settle(tester);
+      final utilChip = find.descendant(
+        of: find.byKey(const Key('bill-categories')),
+        matching: find.text('Utilities'),
       );
+      await tester.ensureVisible(utilChip);
+      await tester.pumpAndSettle();
+      await tester.tap(utilChip);
       await tester.pump();
       for (final d in ['2', '0', '0', '0']) {
         // $20.00 — monthly default falls due today.
