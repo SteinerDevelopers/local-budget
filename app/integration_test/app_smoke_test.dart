@@ -25,7 +25,10 @@ void main() {
   testWidgets('boots on the current month and takes a manual entry', (
     tester,
   ) async {
-    app.main(); // async main: DB open + seeding happen on the real loop
+    // Await the real async main to completion: file-backed DB open,
+    // seeding and the notification bootstrap (#35) all happen before
+    // runApp, and a fixed yield is not enough on a cold-booted emulator.
+    await tester.runAsync(() => app.main());
     await settle(tester);
 
     final now = DateTime.now();
