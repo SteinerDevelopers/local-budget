@@ -394,6 +394,44 @@ class LedgerRepository {
         RecurringRulesCompanion(archived: Value(archived)),
       );
 
+  /// Full rule edit (spec §2.3 "Edit rule"): every editable column in one
+  /// write. [dayOfMonth]/[dayOfWeek] follow the new [frequency]; the caller
+  /// recomputes [nextDue] — the repository never invents dates.
+  Future<void> updateRule({
+    required int id,
+    required String name,
+    required int amountMinor,
+    required String frequency,
+    required DateTime start,
+    required DateTime nextDue,
+    int? categoryId,
+    int? dayOfMonth,
+    int? dayOfWeek,
+    bool? notify,
+  }) async {
+    if (!_periodValues.contains(frequency)) {
+      throw ArgumentError('unknown frequency: $frequency');
+    }
+    if (name.trim().isEmpty) throw ArgumentError('rule name required');
+    await (db.update(db.recurringRules)..where((t) => t.id.equals(id))).write(
+      RecurringRulesCompanion(
+        name: Value(name.trim()),
+        amountMinor: Value(amountMinor),
+        categoryId: Value(categoryId),
+        frequency: Value(frequency),
+        dayOfMonth: Value(dayOfMonth),
+        dayOfWeek: Value(dayOfWeek),
+        startMs: Value(start.millisecondsSinceEpoch),
+        nextDueMs: Value(nextDue.millisecondsSinceEpoch),
+        notify: notify == null ? const Value.absent() : Value(notify),
+      ),
+    );
+  }
+
+  /// Hard delete — a rule is not money, so nothing cascades (§2.3).
+  Future<void> deleteRule(int id) =>
+      (db.delete(db.recurringRules)..where((t) => t.id.equals(id))).go();
+
   // ---- goals (E3 §4) ---------------------------------------------------------
 
   Future<int> addGoal({

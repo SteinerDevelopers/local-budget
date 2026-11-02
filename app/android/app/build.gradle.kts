@@ -15,6 +15,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications (#35, design e3 §5) runs on java.time.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -58,4 +60,6 @@ dependencies {
     // wrapper package stubs inference, so MainActivity talks to this
     // artifact through the localbudget/capture channel.
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
+    // java.time backport for flutter_local_notifications (needs ≥ 2.1.4).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -271,13 +271,17 @@ void main() {
       await db.close();
     });
 
-    testWidgets('Bills and Goals slots ship empty (§2.1)', (tester) async {
+    testWidgets('Bills ships live empty state; Goals still a slot (§2.1)', (
+      tester,
+    ) async {
       final (:db, :repo) = freshRepo();
       await openSheet(tester, repo);
       await tester.tap(find.text('Bills'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('tab-bills')), findsOneWidget);
-      expect(find.text('Bills are coming in this update'), findsOneWidget);
+      // #35 replaced the placeholder with the real (empty) Bills tab.
+      expect(find.text('No bills yet'), findsOneWidget);
+      expect(find.byKey(const Key('bill-add-empty')), findsOneWidget);
       await tester.tap(find.text('Goals'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('tab-goals')), findsOneWidget);

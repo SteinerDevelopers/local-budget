@@ -3,6 +3,10 @@ import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../bills/bill_detail_sheet.dart';
+import '../bills/bill_editor_sheet.dart';
+import '../bills/bills_service.dart';
+import '../bills/bills_tab.dart';
 import '../ledger/ledger_screen.dart' show monthTitle;
 import 'budgets_service.dart';
 import 'budgets_tab.dart';
@@ -11,11 +15,14 @@ import 'limit_editor_sheet.dart';
 /// Budgets & bills entry point — from the ledger's Expenses stat or Manage
 /// (design e3 §2.1). A near-full-height sheet: budgets live next to the
 /// ledger, not on a new bottom tab (E1 IA decision, unchanged).
+/// [focusBillId] (§5, notification tap) lands on the Bills tab with that
+/// rule's occurrence sheet open.
 Future<void> showBudgetsSheet(
   BuildContext context, {
   required LedgerRepository repository,
   required int monthIndex,
   Currency? currency,
+  int? focusBillId,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -27,6 +34,7 @@ Future<void> showBudgetsSheet(
     repository: repository,
     initialMonthIndex: monthIndex,
     currency: currency,
+    focusBillId: focusBillId,
   ),
 );
 
@@ -36,11 +44,13 @@ class BudgetsSheet extends StatefulWidget {
     required this.repository,
     required this.initialMonthIndex,
     this.currency,
+    this.focusBillId,
   });
 
   final LedgerRepository repository;
   final int initialMonthIndex;
   final Currency? currency;
+  final int? focusBillId;
 
   @override
   State<BudgetsSheet> createState() => _BudgetsSheetState();
@@ -52,11 +62,69 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
   int _tab = 0; // 0 Budgets · 1 Bills · 2 Goals
   BudgetsSnapshot? _snapshot;
   int? _snapshotIndex; // guards against a slow load for a left month
+  List<BillLine> _bills = const [];
+  List<Category> _billCats = const [];
+  bool _billsLoaded = false;
+  Currency _billCurrency = Currency.resolve('USD');
+  late final Future<void> _billsFuture;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Kick the bills load NOW: the tab body only reads `_billsLoaded`, so a
+    // lazy future here would never start when the user just taps the tab.
+    _billsFuture = _loadBills();
+    final focus = widget.focusBillId;
+    if (focus != null) _openFocused(focus);
+  }
+
+  /// Notification tap (§5): jump straight to the occurrence sheet.
+  Future<void> _openFocused(int ruleId) async {
+    await _billsFuture;
+    if (!mounted) return;
+    setState(() => _tab = 1);
+    BillLine? line;
+    for (final b in _bills) {
+      if (b.rule.id == ruleId) {
+        line = b;
+        break;
+      }
+    }
+    if (line == null) return; // deleted between tap and open
+    final result = await showBillDetail(
+      context,
+      repository: widget.repository,
+      line: line,
+      categories: _billCats,
+    );
+    if (result == 'edit') {
+      if (!mounted) return;
+      final changed = await showBillEditor(
+        context,
+        repository: widget.repository,
+        currency: _billCurrency,
+        categories: _billCats,
+        line: line,
+      );
+      if (changed == true) await _loadBills();
+    } else if (result != null) {
+      await _loadBills();
+    }
+  }
+
+  Future<void> _loadBills() async {
+    final base = widget.currency ??
+        Currency.resolve(await widget.repository.baseCurrency() ?? 'USD');
+    final lines = await loadBillLines(widget.repository);
+    final cats = await widget.repository.categories(income: false);
+    if (!mounted) return;
+    setState(() {
+      _bills = lines;
+      _billCats = cats;
+      _billsLoaded = true;
+      _billCurrency = base;
+    });
   }
 
   Future<void> _load() async {
@@ -145,12 +213,21 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
           const SizedBox(height: Tokens.space2),
           Expanded(
             child: switch (_tab) {
-              1 => const _Placeholder(
-                icon: Icons.event_repeat_outlined,
-                title: 'Bills are coming in this update',
-                body: 'Recurring bills will show due dates here.',
-                slotKey: 'tab-bills',
-              ),
+              1 => !_billsLoaded
+                  ? const KeyedSubtree(
+                      key: Key('tab-bills'),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : KeyedSubtree(
+                      key: const Key('tab-bills'),
+                      child: BillsTab(
+                        repository: widget.repository,
+                        bills: _bills,
+                        currency: _billCurrency,
+                        categories: _billCats,
+                        onChanged: _loadBills,
+                      ),
+                    ),
               2 => const _Placeholder(
                 icon: Icons.savings_outlined,
                 title: 'Savings goals are coming in this update',

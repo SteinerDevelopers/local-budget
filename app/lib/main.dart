@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'design/theme.dart';
+import 'features/bills/bill_notifier.dart';
+import 'features/budgets/budgets_sheet.dart';
 import 'features/capture/android_capture_intake.dart';
 import 'features/capture/adapters/channel_pdf_text_renderer.dart';
 import 'features/capture/adapters/gemini_nano_structurer.dart';
@@ -12,6 +14,9 @@ import 'features/capture/adapters/ml_kit_text_extractor.dart';
 
 import 'features/capture/capture_services.dart';
 import 'features/ledger/ledger_screen.dart';
+
+/// The navigator notification taps resolve against (§5: tap opens the bill).
+final appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +28,37 @@ Future<void> main() async {
   );
   // First launch seeds the Cash account + default categories; idempotent.
   await repository.ensureDefaults();
-  runApp(LocalBudgetApp(repository: repository, capture: _androidCapture(dir)));
+  // Bill reminders: time zone + channel init (inert where unavailable, §5).
+  await BillNotifier.bootstrap();
+  runApp(
+    LocalBudgetApp(
+      repository: repository,
+      capture: _androidCapture(dir),
+      navigatorKey: appNavigatorKey,
+    ),
+  );
+  BillNotifier.onOpen = (ruleId) => _openBillRule(repository, ruleId);
+  final pending = BillNotifier.pendingOpenRuleId;
+  if (pending != null) {
+    BillNotifier.pendingOpenRuleId = null;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openBillRule(repository, pending),
+    );
+  }
+}
+
+/// Notification tap → the budgets sheet on the Bills tab with this rule's
+/// occurrence open (§5). No context (teardown) → drop the hint; the list
+/// stays the truth either way.
+void _openBillRule(LedgerRepository repository, int ruleId) {
+  final context = appNavigatorKey.currentContext;
+  if (context == null) return;
+  showBudgetsSheet(
+    context,
+    repository: repository,
+    monthIndex: monthIndexOf(DateTime.now()),
+    focusBillId: ruleId,
+  );
 }
 
 /// Real capture services on Android (issue #28): scanner/picker/SAF intake,
@@ -58,6 +93,7 @@ class LocalBudgetApp extends StatelessWidget {
     this.theme,
     this.darkTheme,
     this.themeMode,
+    this.navigatorKey,
   });
 
   final LedgerRepository repository;
@@ -65,11 +101,13 @@ class LocalBudgetApp extends StatelessWidget {
   final ThemeData? theme;
   final ThemeData? darkTheme;
   final ThemeMode? themeMode;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LocalBudget',
+      navigatorKey: navigatorKey,
       theme: theme ?? AppTheme.light(),
       darkTheme: darkTheme ?? AppTheme.dark(),
       themeMode: themeMode,
