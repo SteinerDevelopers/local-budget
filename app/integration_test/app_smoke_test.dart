@@ -66,28 +66,39 @@ void main() {
     // tolerates leftovers: chips only list unbudgeted categories, and the
     // assertions look for presence, never counts.
 
-    // Give the category we just spent in a monthly budget.
+    // Give the category we just spent in a monthly budget. The add button
+    // AND the chip row live inside the editor sheet, and a fresh emulator
+    // image has zero budgets — so open first, then look (the old order
+    // evaluated chips against the list, skipped the branch on clean
+    // images, and left no progress row behind).
     await tester.tap(find.text('EXPENSES'));
     await settle(tester);
-    final foodChip = find.descendant(
-      of: find.byKey(const Key('chip-row')),
-      matching: find.text('Food'),
-    );
-    if (foodChip.evaluate().isNotEmpty) {
-      await tester.tap(find.byKey(const Key('budget-add')));
+    final budgetAdd = find.byKey(const Key('budget-add'));
+    if (budgetAdd.evaluate().isNotEmpty) {
+      await tester.tap(budgetAdd);
       await settle(tester);
-      await tester.tap(foodChip);
-      await tester.pump();
-      for (final d in ['1', '0', '0', '0']) {
-        // $100.00 — keypad digits are major units with an implied dot.
-        await tester.tap(find.byKey(Key('keypad-$d')));
+      final foodChip = find.descendant(
+        of: find.byKey(const Key('chip-row')),
+        matching: find.text('Food'),
+      );
+      if (foodChip.evaluate().isNotEmpty) {
+        await tester.tap(foodChip);
         await tester.pump();
+        for (final d in ['1', '0', '0', '0']) {
+          // $100.00 — keypad digits are major units with an implied dot.
+          await tester.tap(find.byKey(Key('keypad-$d')));
+          await tester.pump();
+        }
+        await tester.ensureVisible(find.byKey(const Key('limit-save')));
+        await tester.tap(find.byKey(const Key('limit-save')));
+        await settle(tester);
+      } else {
+        // Leftover image where Food was budgeted in an earlier run.
+        await tester.pageBack();
+        await settle(tester);
       }
-      await tester.ensureVisible(find.byKey(const Key('limit-save')));
-      await tester.tap(find.byKey(const Key('limit-save')));
-      await settle(tester);
     }
-    // A progress row ('$X of $Y' style) is on screen either way.
+    // A progress row ('$spent / $limit') is on screen either way.
     expect(find.textContaining(' / \$'), findsWidgets);
 
     // A bill due today, paid off through the detail sheet (§2.3).
