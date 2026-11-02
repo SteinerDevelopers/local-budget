@@ -1,9 +1,9 @@
 # LocalBudget CI — GitLab CI, self-hosted runner `SteinerRunner` (Docker executor).
-# Runner facts (probe pipeline #8, 2026-11-02): 8 vCPU / 15 GiB / ~62 GB, registry
-# egress OK, NO /dev/kvm in job containers -> emulator tiers land after a
-# config.toml passthrough (feasibility §6.1). Keep scripts in block scalars:
-# plain YAML scalars containing ": " break job parsing (learned the hard way).
-stages: [test, probe]
+# Runner facts (probes #8/#17, 2026-11-02): 8 vCPU / 15 GiB / ~62 GB, registry
+# egress OK, /dev/kvm passed through, /dev/shm = 2 GiB, pull_policy=if-not-present.
+# Keep scripts in block scalars: plain YAML scalars containing ": " break job
+# parsing (learned the hard way).
+stages: [test, e2e, probe]
 
 workflow:
   rules:
@@ -98,6 +98,41 @@ app-test:
       flutter pub get
       flutter analyze
       flutter test --reporter compact
+
+# On-device smoke on a headless x86_64 emulator (KVM-accelerated).
+# Image = localbudget-e2e:latest, baked once on this runner — see
+# docker/e2e-android/Dockerfile; if-not-present resolves the host-local tag.
+# Manual + allow_failure until the first green run promotes it to automatic.
+e2e-android:
+  stage: e2e
+  when: manual
+  allow_failure: true
+  image: localbudget-e2e:latest
+  tags: [SteinerRunner]
+  cache:
+    key:
+      files:
+        - app/pubspec.lock
+    paths:
+      - .pub-cache/
+  script:
+    - |
+      set -e
+      emulator -avd ci -no-window -no-audio -no-boot-anim -no-snapshot-save \
+        -gpu swiftshader_indirect -accel on > /tmp/emu.log 2>&1 &
+      adb wait-for-device
+      timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 3; done'
+      echo "emulator booted: $(adb shell getprop ro.build.version.sdk)"
+      cd app
+      flutter pub get
+      flutter test integration_test --reporter compact -d emulator-5554
+  after_script:
+    - cp /tmp/emu.log emu.log 2> /dev/null || true
+  artifacts:
+    when: on_failure
+    paths:
+      - emu.log
+    expire_in: 1 week
 
 # Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
