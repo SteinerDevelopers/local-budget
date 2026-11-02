@@ -47,6 +47,13 @@ CI hygiene: lint before pushing —
 Multi-line job scripts must use block scalars (`- |`): an unquoted YAML scalar
 containing `": "` silently corrupts job parsing.
 
+CI images that work here: `dart:stable` and `alpine` (Docker Hub) +
+`ghcr.io/cirruslabs/flutter:stable` (**pinned at Flutter 3.44 / Dart 3.12 —
+cirrus never published newer; the app SDK floor `>=3.12` is validated by it**).
+`cirruslabs/flutter` on Docker Hub no longer exists. The flutter image is ~2.7 GB
+and `pull_policy = always` re-pulls every job (~11 min on this VM) — ask the
+runner admin for `pull_policy = "if-not-present"` before E2 doubles job count.
+
 ## Flutter app scaffold (once `app/` exists)
 
 `flutter create --org dev.steiner --project-name local_budget --platforms android,ios app`

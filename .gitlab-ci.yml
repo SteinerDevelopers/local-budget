@@ -80,7 +80,9 @@ data-test:
 
 app-test:
   stage: test
-  image: ghcr.io/cirruslabs/flutter:stable # Flutter SDK + Android SDK (GHCR; Docker Hub repo was retired)
+  # cirrus GHCR pins stop at Flutter 3.44 (Dart 3.12) — app supports this floor;
+  # development uses 3.47.9. Revisit a pinned 3.47 image when E2 camera stack lands.
+  image: ghcr.io/cirruslabs/flutter:stable # = 3.44.0; Docker Hub repo was retired
   tags: [SteinerRunner]
   cache:
     key:
