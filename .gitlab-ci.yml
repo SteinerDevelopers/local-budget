@@ -110,6 +110,7 @@ runner-probe:
       echo "== identity =="; hostname; uname -a; head -2 /etc/os-release 2>/dev/null
       echo "== cpu-ram =="; nproc; free -h | head -2
       echo "== kvm =="; ls -l /dev/kvm 2>&1 || true; grep -cE 'vmx|svm' /proc/cpuinfo || true
+      echo "== shm =="; df -h /dev/shm | tail -1
       echo "== disk =="; df -h / | tail -1
       echo "== toolchains =="
       command -v git >/dev/null && git --version || echo "git MISSING"
