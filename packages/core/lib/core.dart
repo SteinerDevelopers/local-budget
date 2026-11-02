@@ -9,4 +9,3 @@ export 'src/dedupe.dart';
 export 'src/heuristics.dart';
 export 'src/money.dart';
 export 'src/receipt.dart';
-export 'src/transaction_source.dart';
