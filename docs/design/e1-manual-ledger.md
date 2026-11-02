@@ -52,10 +52,13 @@ the exact row id). Undo is the only delete safety net — no dialogs.
 
 ### 2.2 QuickAdd sheet
 
-Modal bottom sheet, ~48 % height, no full-screen. Contents top → bottom:
+Modal bottom sheet, ~48 % height, no full-screen — with a 480 dp floor: the
+3×4 keypad's keys keep the §3 touch-min, and where the two collide, touch-min
+wins (48 % of a short screen would shrink the keys). Contents top → bottom:
 
 1. **Segmented toggle** `Expense | Income` (M3 SegmentedButton, 40 dp) —
-   expense preselected every open.
+   expense preselected on a cold open; after a save the last toggle (and
+   category) stay warm for the next QuickAdd (item 5).
 2. **Amount** — large right-aligned text, 40 pt tabular, leading currency
    symbol 24 pt `onSurfaceVariant`; value `0` dimmed until first digit.
 3. **Custom keypad** (3×4: 1–9, `.`, 0, ⌫) — no system keyboard ever covers
