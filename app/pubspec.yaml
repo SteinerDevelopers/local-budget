@@ -1,0 +1,23 @@
+name: local_budget
+description: "LocalBudget — privacy-first, on-device budgeting. Bills and receipts never leave the phone."
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  core:
+    path: ../packages/core
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

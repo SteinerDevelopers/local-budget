@@ -33,6 +33,25 @@ core-test:
       dart format --output=none --set-exit-if-changed .
       dart test --reporter compact
 
+app-test:
+  stage: test
+  image: cirruslabs/flutter:stable # Flutter SDK + Android SDK, Docker Hub
+  tags: [SteinerRunner]
+  cache:
+    key:
+      files:
+        - app/pubspec.lock
+    paths:
+      - .pub-cache/
+  script:
+    - |
+      set -e
+      cd app
+      flutter --version | head -1
+      flutter pub get
+      flutter analyze
+      flutter test --reporter compact
+
 # Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
   stage: probe
