@@ -125,7 +125,9 @@ class BudgetsService {
       if (b.categoryId == null) {
         overallRow = b;
         chains.add((-1, BudgetPeriodType.monthly));
-      } else {
+      } else if (type == BudgetPeriodType.monthly) {
+        // §3.3: chains are monthly — a yearMonth key cannot name a
+        // predecessor week or year, so non-monthly rows load no history.
         chains.add((b.categoryId!, type));
       }
     }
@@ -179,6 +181,8 @@ class BudgetsService {
     }
 
     final engine = BudgetEngine(rolloverEnabled: rollover);
+    // Non-monthly rows are progress rows (§3.3): rollover off, carry 0.
+    final progressEngine = BudgetEngine();
     BudgetStatus? overall;
     if (overallRow != null) {
       overall = engine.overallStatus(
@@ -197,13 +201,14 @@ class BudgetsService {
       final catId = b.categoryId;
       if (catId == null) continue;
       final type = BudgetPeriodType.fromStorage(b.periodType);
-      final status = engine.statusFor(
-        period: periodFor(type),
-        row: engineRows['$catId|$ym|${type.storageKey}']!,
-        rowFor: (p) =>
-            engineRows['$catId|${_ymOfDay(p.startDay)}|${type.storageKey}'],
-        transactions: txs,
-      );
+      final status = (type == BudgetPeriodType.monthly ? engine : progressEngine)
+          .statusFor(
+            period: periodFor(type),
+            row: engineRows['$catId|$ym|${type.storageKey}']!,
+            rowFor: (p) =>
+                engineRows['$catId|${_ymOfDay(p.startDay)}|${type.storageKey}'],
+            transactions: txs,
+          );
       final cat = catById[catId];
       lines.add(
         BudgetLine(

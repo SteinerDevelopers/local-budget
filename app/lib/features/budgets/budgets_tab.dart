@@ -1,4 +1,4 @@
-import 'package:budget/budget.dart' show BudgetStatus;
+import 'package:budget/budget.dart' show BudgetPeriodType, BudgetStatus;
 import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 
@@ -129,6 +129,17 @@ class BudgetsTab extends StatelessWidget {
 
   static String _short(String month) =>
       month.length <= 3 ? month : month.substring(0, 3);
+
+  /// 12 pt caption distinguishing a weekly/yearly row from the month's
+  /// monthly rows (§2.1); Monthly stays silent.
+  static String? periodCaption(String periodType) {
+    final type = BudgetPeriodType.fromStorage(periodType);
+    return switch (type) {
+      BudgetPeriodType.monthly => null,
+      BudgetPeriodType.weekly => 'Weekly',
+      BudgetPeriodType.yearly => 'Yearly',
+    };
+  }
 }
 
 /// Overall target: 'Spent $842.10 of $1,200.00' + 6 dp bar (spec §2.1).
@@ -222,6 +233,8 @@ class _CategoryRow extends StatelessWidget {
     final spent = Money(status.spentMinor, currency).format();
     final limit = Money(status.effectiveLimitMinor, currency).format();
     final carry = snapshot.rollover ? carryBadge(status, currency) : '';
+    // Non-monthly rows are progress rows (§3.3), so carryBadge is always
+    // empty for them and this monthly suffix is all that can render.
     final badge = carry.isEmpty
         ? null
         : '$carry from ${BudgetsTab._short(snapshot.previousMonthName)}';
@@ -261,6 +274,17 @@ class _CategoryRow extends StatelessWidget {
                               style: Tokens.body(context),
                             ),
                           ),
+                          if (BudgetsTab.periodCaption(line.row.periodType)
+                              case final caption?) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              caption,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                           Text.rich(
                             TextSpan(
                               children: [

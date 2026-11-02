@@ -43,8 +43,8 @@ Top → bottom:
 | Zone | Content | Spec |
 |---|---|---|
 | Overall target | `Spent $842.10 of $1,200.00` + 6 dp bar | target row tappable → inline numeric sheet (same keypad as QuickAdd). No target set → `Spent $842.10` only; bar hidden. Over target: bar + value `error` color, never a warning icon |
-| Category rows | icon, name, `spent / limit`, thin progress bar | row 56 dp; bar 4 dp under the name baseline, radius 2; fill = min(spent/limit, 1); **overspend keeps the fill at full and colors it `tertiary`** — the number carries the truth (`$130 / $100`). Tap → category limit editor |
-| Carry-in badge | `+$20 from Oct` / `−$12 from Oct` suffix on the limit | only when rollover is on for that month (§3.3); 12 pt `onSurfaceVariant`; the effective limit is what the bar divides |
+| Category rows | icon, name, `spent / limit`, thin progress bar | row 56 dp; bar 4 dp under the name baseline, radius 2; fill = min(spent/limit, 1); **overspend keeps the fill at full and colors it `tertiary`** — the number carries the truth (`$130 / $100`). Tap → category limit editor. Non-monthly rows carry a 12 pt `onSurfaceVariant` caption after the name (`Weekly` / `Yearly`; Monthly shows none) |
+| Carry-in badge | `+$20 from Oct` / `−$12 from Oct` suffix on the limit | only when rollover is on for that month (§3.3); 12 pt `onSurfaceVariant`; the effective limit is what the bar divides. Non-monthly rows show no badge — they are progress rows (§3.3) |
 | Footer | `Add category budget` + `Rollover` switch | the switch writes Settings key `budget_rollover` (device-wide, default off); the editor lists only categories without a budget yet |
 
 Empty state: icon + "No budgets yet" + "Add one to track a category this
@@ -116,7 +116,10 @@ integer arithmetic and injected `DateTime now`, mirroring `core`'s test style.
    category chain, **bounded**: carried surplus ≤ the limit (never grows past
    2×), carried deficit passes through whole (a $50 budget overspent by $80
    starts at −$30). Periods with no budget row break the chain. Rollover
-   never reaches into goal transfers.
+   never reaches into goal transfers. Chains are defined over **monthly**
+   rows: budgets are keyed by `yearMonth` (§4), which cannot represent a
+   predecessor week or year — non-monthly rows are progress rows (carry is
+   always 0, no badge).
 4. **Recurring materialization is lazy.** Opening the app (cold or warm
    resume) runs one local pass: rules whose `nextDue ≤ today` get a
    transaction inserted *as if typed by the user* (source `manual`, note

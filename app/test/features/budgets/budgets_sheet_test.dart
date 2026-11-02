@@ -355,4 +355,131 @@ void main() {
       await db.close();
     });
   });
+
+  group('Rollover switch & period surfacing (#38)', () {
+    testWidgets('the switch persists device-wide and survives a reopen', (
+      tester,
+    ) async {
+      final (:db, :repo) = freshRepo();
+      await openSheet(tester, repo);
+      expect(
+        tester
+            .widget<SwitchListTile>(find.byKey(const Key('rollover-switch')))
+            .value,
+        isFalse,
+      );
+      await tester.tap(find.byKey(const Key('rollover-switch')));
+      await settle(tester);
+      expect(await repo.budgetRollover(), isTrue);
+      // Dismiss on the scrim and reopen: the setting is device-wide state,
+      // not sheet state (§2.1 — the footer mirrors the Settings key).
+      await tester.tapAt(const Offset(10, 10));
+      await settle(tester);
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<SwitchListTile>(find.byKey(const Key('rollover-switch')))
+            .value,
+        isTrue,
+      );
+      await db.close();
+    });
+
+    testWidgets('weekly row sums its ISO week and shows the caption', (
+      tester,
+    ) async {
+      final (:db, :repo) = freshRepo();
+      final food = await repo.addCategory('Food');
+      await repo.setBudget(
+        categoryId: food,
+        yearMonth: yearMonthOf(DateTime(now.year, now.month)),
+        limitMinor: 3000,
+        currencyCode: 'USD',
+        periodType: 'weekly',
+      );
+      await spend(repo, catId: food, date: now, minor: 500); // in week
+      // Any day 10 ahead is outside the ISO week by construction (weeks end
+      // at most 6 days ahead); near a month end fall back 10 days back,
+      // which always lands in an earlier week too.
+      final ahead = now.add(const Duration(days: 10));
+      final outside = ahead.month == now.month && ahead.year == now.year
+          ? ahead
+          : now.subtract(const Duration(days: 10));
+      await spend(repo, catId: food, date: outside, minor: 700);
+      await openSheet(tester, repo);
+      expect(find.text('Weekly'), findsOneWidget);
+      expect(find.text('Monthly'), findsNothing);
+      expect(find.textContaining('\$5.00 / \$30.00'), findsOneWidget);
+      await db.close();
+    });
+
+    testWidgets('non-monthly rows never carry, even with rollover on', (
+      tester,
+    ) async {
+      // Regression: a yearMonth key cannot name a predecessor week, so a
+      // weekly chain must not walk (§3.3 — progress rows, carry always 0).
+      final weekStart = DateTime(
+        now.year,
+        now.month,
+        now.day - now.weekday + 1,
+      );
+      final (:db, :repo) = freshRepo();
+      final food = await repo.addCategory('Food');
+      final prevStart = weekStart.subtract(const Duration(days: 7));
+      await repo.setBudgetRollover(true);
+      await repo.setBudget(
+        categoryId: food,
+        yearMonth: yearMonthOf(DateTime(prevStart.year, prevStart.month)),
+        limitMinor: 3000,
+        currencyCode: 'USD',
+        periodType: 'weekly',
+      );
+      await spend(
+        repo,
+        catId: food,
+        date: weekStart.subtract(const Duration(days: 1)), // prev Sunday
+        minor: 1000, // $10 of $30 → $20 carries
+      );
+      await repo.setBudget(
+        categoryId: food,
+        yearMonth: yearMonthOf(DateTime(now.year, now.month)),
+        limitMinor: 3000,
+        currencyCode: 'USD',
+        periodType: 'weekly',
+      );
+      await spend(repo, catId: food, date: now, minor: 500);
+      await openSheet(tester, repo);
+      // Nominal limit and no carry badge anywhere (§3.3).
+      expect(find.textContaining('\$5.00 / \$30.00'), findsOneWidget);
+      expect(find.textContaining('from'), findsNothing);
+      await db.close();
+    });
+
+    testWidgets('yearly row sums the calendar year with its caption', (
+      tester,
+    ) async {
+      final (:db, :repo) = freshRepo();
+      final food = await repo.addCategory('Food');
+      await repo.setBudget(
+        categoryId: food,
+        yearMonth: yearMonthOf(DateTime(now.year, now.month)),
+        limitMinor: 10000,
+        currencyCode: 'USD',
+        periodType: 'yearly',
+      );
+      await spend(repo, catId: food, date: now, minor: 500);
+      // January of the same year — different month, same yearly period.
+      await spend(
+        repo,
+        catId: food,
+        date: DateTime(now.year, 1, 15),
+        minor: 700,
+      );
+      await openSheet(tester, repo);
+      expect(find.text('Yearly'), findsOneWidget);
+      expect(find.textContaining('\$12.00 / \$100.00'), findsOneWidget);
+      await db.close();
+    });
+  });
 }
