@@ -35,7 +35,7 @@ core-test:
 
 app-test:
   stage: test
-  image: cirruslabs/flutter:stable # Flutter SDK + Android SDK, Docker Hub
+  image: ghcr.io/cirruslabs/flutter:stable # Flutter SDK + Android SDK (GHCR; Docker Hub repo was retired)
   tags: [SteinerRunner]
   cache:
     key:
