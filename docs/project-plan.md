@@ -90,7 +90,7 @@ local-budget-app/
   docs/                  feasibility study, this plan, decision log
   app/                   Flutter app (android/, ios/ kept buildable both)
   packages/              core domain (pure Dart: money, parsers, dedupe) + data (drift)
-  .github/workflows/     ci.yml (unit/widget), e2e-android.yml, ios-parked.yml
+  .gitlab-ci.yml           stages: test (analyze/unit/widget), e2e-android, ios-parked
   TOOLING.md             runner setup, sandbox notes (this workspace), emulator flags
 ```
 
@@ -101,9 +101,9 @@ local-budget-app/
 
 1. Create GitLab project (this repo), labels, milestones, epic issues ✅ *(done — see issue board)*
 2. Install Flutter + JDK + Android SDK in the sandbox; scaffold `app/` + `packages/core`.
-3. Stand up the mini-PC runner: Linux, `actions-runner` service, KVM group, restricted runner group.
-4. CI: `ci.yml` (analyze + unit + widget + golden) and `e2e-android.yml` (headless emulator template).
-5. `ios-parked.yml`: path-filtered `flutter build ipa` + weekly simulator smoke (start spending the Xcode Cloud 25 h/mo).
+3. Stand up the mini-PC runner: Linux, `gitlab-runner` service, KVM group, restricted runner group. *(first runner already live — see below)*
+4. CI: GitLab CI `test` stage (analyze + unit + widget + golden) and `e2e-android` stage (headless emulator template).
+5. iOS-parked CI lane: path-filtered `flutter build ipa` + weekly simulator smoke (start spending the Xcode Cloud 25 h/mo).
 6. Drift schema v1 incl. `line_items` reserved + `source` discriminator + currency columns (decision-6 proof).
 7. Figma file + design tokens; first pass at numeric pad + review sheet.
 8. Draft §4.5 acceptance checklist as an executable golden-test list.

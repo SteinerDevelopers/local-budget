@@ -1,9 +1,43 @@
-# LocalBudget CI — GitLab CI on self-hosted runners.
-# Probe stage is temporary: establishes runner capabilities (KVM, toolchains).
-stages: [probe]
+# LocalBudget CI — GitLab CI, self-hosted runner `SteinerRunner` (Docker executor).
+# Runner facts (probe pipeline #8, 2026-11-02): 8 vCPU / 15 GiB / ~62 GB, registry
+# egress OK, NO /dev/kvm in job containers -> emulator tiers land after a
+# config.toml passthrough (feasibility §6.1). Keep scripts in block scalars:
+# plain YAML scalars containing ": " break job parsing (learned the hard way).
+stages: [test, probe]
 
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+variables:
+  PUB_CACHE: "$CI_PROJECT_DIR/.pub-cache"
+
+core-test:
+  stage: test
+  image: dart:stable
+  tags: [SteinerRunner]
+  cache:
+    key:
+      files:
+        - packages/core/pubspec.lock
+    paths:
+      - .pub-cache/
+  script:
+    - |
+      set -e
+      cd packages/core
+      dart --version
+      dart pub get
+      dart analyze --fatal-infos
+      dart format --output=none --set-exit-if-changed .
+      dart test --reporter compact
+
+# Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
   stage: probe
+  when: manual
+  allow_failure: true
   tags: [SteinerRunner]
   script:
     - |
