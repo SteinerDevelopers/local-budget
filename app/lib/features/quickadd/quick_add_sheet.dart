@@ -372,74 +372,66 @@ class _OptionalRow extends StatelessWidget {
 
     if (stripOpen) {
       final now = DateTime.now();
-      // Flexible + ellipsis: at 1.3× text scale three labels exceed a 360 dp
-      // sheet (§5 forbids clipping at large scale).
-      return Row(
-        children: [
-          Flexible(
-            child: TextButton(
+      // FittedBox(scaleDown) per §5: at 1.3× text scale three labels exceed
+      // a 360 dp sheet, so the strip shrink-wraps proportionally instead of
+      // clipping or ellipsizing. (A Flexible/Spacer mix cannot do this —
+      // flex children split *all* leftover width, truncating even at 1.0×.)
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(
               onPressed: () =>
                   onPickDay(DateTime(now.year, now.month, now.day - 1)),
-              child: const Text(
-                'Yesterday',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: const Text('Yesterday'),
             ),
-          ),
-          Flexible(
-            child: TextButton(
+            TextButton(
               onPressed: () =>
                   onPickDay(DateTime(now.year, now.month, now.day)),
-              child: const Text(
-                'Today',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: const Text('Today'),
             ),
-          ),
-          Flexible(
-            child: TextButton(
+            TextButton(
               onPressed: onOpenCalendar,
-              child: const Text(
-                'Calendar…',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: const Text('Calendar…'),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
-    // Flexible keeps both buttons inside the sheet at 1.3× (ellipsis only in
-    // that extreme); Spacer still pins 'Add note' right at normal scale.
-    return Row(
-      children: [
-        Flexible(
-          child: TextButton.icon(
-            onPressed: onToggleDateStrip,
-            icon: const Icon(Icons.expand_more, size: 18),
-            label: Text(
-              DayLabel.of(day),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+    // Same §5 pattern, but the collapsed pill row keeps both ends pinned.
+    // The child must size to its INTRINSIC width (floor: available width):
+    // a fixed-width SizedBox reports `available` as its size, FittedBox then
+    // computes scale 1.0 and the Row overflows *inside* the boundary.
+    // ConstrainedBox + mainAxisSize.min gives spaceBetween the leftover when
+    // under available, and lets FittedBox scale the 3.3 px overshoot
+    // (1.3× text scale at 360 dp) down by 1%.
+    return LayoutBuilder(
+      builder: (context, constraints) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton.icon(
+                onPressed: onToggleDateStrip,
+                icon: const Icon(Icons.expand_more, size: 18),
+                label: Text(DayLabel.of(day)),
+              ),
+              TextButton.icon(
+                onPressed: onActivateNote,
+                icon: const Icon(Icons.note_add_outlined, size: 18),
+                label: const Text('Add note'),
+              ),
+            ],
           ),
         ),
-        const Spacer(),
-        Flexible(
-          child: TextButton.icon(
-            onPressed: onActivateNote,
-            icon: const Icon(Icons.note_add_outlined, size: 18),
-            label: const Text(
-              'Add note',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

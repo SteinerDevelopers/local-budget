@@ -19,16 +19,28 @@ Future<void> main() async {
 }
 
 class LocalBudgetApp extends StatelessWidget {
-  const LocalBudgetApp({super.key, required this.repository});
+  /// [theme]/[darkTheme]/[themeMode] exist for the §6 golden harness (CI
+  /// injects a font-pinned text theme); the app itself runs on AppTheme.
+  const LocalBudgetApp({
+    super.key,
+    required this.repository,
+    this.theme,
+    this.darkTheme,
+    this.themeMode,
+  });
 
   final LedgerRepository repository;
+  final ThemeData? theme;
+  final ThemeData? darkTheme;
+  final ThemeMode? themeMode;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LocalBudget',
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: theme ?? AppTheme.light(),
+      darkTheme: darkTheme ?? AppTheme.dark(),
+      themeMode: themeMode,
       home: LedgerScreen(repository: repository),
     );
   }
