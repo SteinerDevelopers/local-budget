@@ -103,4 +103,15 @@ void main() {
           throwsArgumentError);
     });
   });
+
+  group('format()', () {
+    test('canonical display form', () {
+      expect(Money(123456, usd).format(), r'$1,234.56');
+      expect(Money(99, usd).format(), r'$0.99');
+      expect(Money(-500, usd).format(), r'-$5.00');
+      expect(Money(1485, jpy).format(), '¥1,485'); // 0-decimal: no fraction
+      expect(Money(-5, jpy).format(), '-¥5');
+      expect(Money(12345678, usd).format(), r'$123,456.78');
+    });
+  });
 }

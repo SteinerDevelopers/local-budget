@@ -95,6 +95,26 @@ final class Money implements Comparable<Money> {
   /// Major units as double — **display/formatting only**, never storage.
   double get major => minorUnits / currency.pow10;
 
+  /// Locale-free display form: `$1,234.56`, `¥1,485`, `-€12,345` (German
+  /// comma comes from the currency's convention only in parse; display here
+  /// is the canonical dot form — the UI layer may re-localize).
+  String format() {
+    final sign = minorUnits < 0 ? '-' : '';
+    final abs = minorUnits.abs();
+    final intPart = (abs ~/ currency.pow10).toString();
+    final grouped = _groupThousands(intPart);
+    if (currency.minorUnits == 0) return '$sign${currency.symbol}$grouped';
+    final frac =
+        (abs % currency.pow10).toString().padLeft(currency.minorUnits, '0');
+    return '$sign${currency.symbol}$grouped.$frac';
+  }
+
+  static String _groupThousands(String digits) {
+    if (digits.length <= 3) return digits;
+    final tail = digits.substring(digits.length - 3);
+    return '${_groupThousands(digits.substring(0, digits.length - 3))},$tail';
+  }
+
   /// Parse a user/OCR string in [currency]. Accepts currency symbols/prefix
   /// codes, thousands separators (space, nbsp, comma or dot depending on the
   /// decimal convention), and a leading minus.
