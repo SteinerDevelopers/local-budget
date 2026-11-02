@@ -1,0 +1,15 @@
+name: budget
+description: E3 budget engine — periods, rollover, bill materialization, goal sums. Pure Dart, no Flutter, no I/O.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  core:
+    path: ../core
+
+dev_dependencies:
+  lints: ">=4.0.0 <7.0.0"
+  test: ^1.25.0

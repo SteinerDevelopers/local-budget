@@ -97,6 +97,25 @@ capture-test:
       dart format --output=none --set-exit-if-changed .
       dart test --reporter compact
 
+budget-test:
+  stage: test
+  image: dart:stable
+  tags: [SteinerRunner]
+  cache:
+    key:
+      files:
+        - packages/budget/pubspec.lock
+    paths:
+      - .pub-cache/
+  script:
+    - |
+      set -e
+      cd packages/budget
+      dart pub get
+      dart analyze --fatal-infos
+      dart format --output=none --set-exit-if-changed .
+      dart test --reporter compact
+
 app-test:
   stage: test
   # cirrus GHCR pins stop at Flutter 3.44 (Dart 3.12) — app supports this floor;

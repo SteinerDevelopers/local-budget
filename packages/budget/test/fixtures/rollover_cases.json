@@ -1,0 +1,75 @@
+{
+  "comment": "Rollover goldens (spec §3.3). Each case evaluates the LAST month with BudgetEngine.statusFor; months walk backward month-by-month, a null limit means the row does not exist and breaks the chain. Amounts are minor units.",
+  "cases": [
+    {
+      "name": "underspent surplus carries forward",
+      "rollover": true,
+      "months": ["2026-10", "2026-11"],
+      "limits": [5000, 5000],
+      "spent": [3000, 0],
+      "expectCarry": 2000,
+      "expectEffective": 7000,
+      "expectRemaining": 7000
+    },
+    {
+      "name": "surplus is bounded by the current limit",
+      "rollover": true,
+      "months": ["2026-10", "2026-11"],
+      "limits": [5000, 1000],
+      "spent": [0, 0],
+      "expectCarry": 1000,
+      "expectEffective": 2000,
+      "expectRemaining": 2000
+    },
+    {
+      "name": "deficit passes through whole (spec $50/$80 -> -30)",
+      "rollover": true,
+      "months": ["2026-10", "2026-11"],
+      "limits": [5000, 5000],
+      "spent": [8000, 0],
+      "expectCarry": -3000,
+      "expectEffective": 2000,
+      "expectRemaining": 2000
+    },
+    {
+      "name": "overspend consumes the whole reduced allowance",
+      "rollover": true,
+      "months": ["2026-10", "2026-11"],
+      "limits": [5000, 5000],
+      "spent": [8000, 2000],
+      "expectCarry": -3000,
+      "expectEffective": 2000,
+      "expectRemaining": 0
+    },
+    {
+      "name": "missing row breaks the chain",
+      "rollover": true,
+      "months": ["2026-09", "2026-10", "2026-11"],
+      "limits": [5000, null, 5000],
+      "spent": [0, 0, 0],
+      "expectCarry": 0,
+      "expectEffective": 5000,
+      "expectRemaining": 5000
+    },
+    {
+      "name": "switch off never carries",
+      "rollover": false,
+      "months": ["2026-10", "2026-11"],
+      "limits": [5000, 5000],
+      "spent": [0, 0],
+      "expectCarry": 0,
+      "expectEffective": 5000,
+      "expectRemaining": 5000
+    },
+    {
+      "name": "multi-hop chain re-bounds at 2x each hop",
+      "rollover": true,
+      "months": ["2026-09", "2026-10", "2026-11"],
+      "limits": [5000, 5000, 5000],
+      "spent": [4000, 1000, 0],
+      "expectCarry": 5000,
+      "expectEffective": 10000,
+      "expectRemaining": 10000
+    }
+  ]
+}
