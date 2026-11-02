@@ -22,3 +22,6 @@ ios/.symlinks/
 service-account*.json
 .env
 app/pubspec.lock
+
+# OCR benchmark corpus (#31) — generated, never committed
+packages/capture/corpus/

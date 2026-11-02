@@ -60,3 +60,38 @@ runner admin for `pull_policy = "if-not-present"` before E2 doubles job count.
 Android build needs JDK 17 (`JAVA_HOME` above). No Android SDK in this sandbox yet —
 APK builds run in CI or after `sdkmanager` install; `flutter test` (unit/widget)
 needs neither.
+
+## OCR benchmark corpus & harness (#31)
+
+Device × screenshot matrix for the capture pipeline (`packages/capture/tool/`).
+Deterministic: a fixed 5×7 bitmap font (latin + upper-case Cyrillic), a seeded
+RNG, and a hand-rolled PNG writer — byte-stable corpus with no fonts or image
+packages involved.
+
+```bash
+cd packages/capture
+dart run tool/corpus_gen.dart --out corpus [--seed N] [--per-cell K]   # 2 scripts x 3 res x 2 modes
+dart run tool/benchmark.dart --corpus corpus --backend gold \
+    [--budget 0.85] [--reps 5] [--log tool/results.jsonl]
+```
+
+- `corpus/` is gitignored; regenerate any time. Each image ships a manifest
+  entry (ground truth + gold lines) and a `<image>.lines.txt` sidecar.
+- **`--backend gold`** replays the manifest's ground-truth lines as the
+  `TextExtractor` — measures Tier-2 heuristics and the timing floor. Runs
+  anywhere pure Dart runs (sandbox, runner, mini-PC), no device.
+- **`--backend sidecar`** reads `<image>.lines.txt` next to (or under
+  `--sidecars DIR`) each image. On device: `adb push corpus/ /data/local/tmp/`,
+  run the app's ML Kit `TextExtractor` adapter over each PNG dumping its lines
+  into the sidecar, `adb pull`, then benchmark with `--backend sidecar`.
+  Missing sidecars are counted, not fatal (partial device runs).
+- Regression budget: grand-total **precision ≥ 0.85** across all images
+  (exit code 2). Every run can be logged append-only as JSONL (`--log`):
+  sha, backend, seed, per-cell P/R, p50/p95 latency.
+- Reading the table: gold/latin should sit at 100/100. gold/cyrillic shows
+  **merchant and total recall = 0 by design of Tier-2** (anchor words and the
+  letter filter are Latin-only) — the harness exists to track that gap; the
+  fix belongs in `core` heuristics (ИТОГО & co.), not in this tool.
+- Not a sandbox CI gate (needs corpus-sized disk + no value without devices);
+  on the KVM runner the sidecar backend is the device OCR gate.
+
