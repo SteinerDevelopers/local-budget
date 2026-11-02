@@ -318,6 +318,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       warmCategoryId: _warmCategoryId,
       onManageCategories: _openManage,
       renderer: services.renderer,
+      merchantLookup: widget.repository.merchantsLike,
     );
     if (captured == null || !mounted) return;
     await _saveCaptured(captured, fileExtension: pick.choice.fileExtension);

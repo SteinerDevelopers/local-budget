@@ -97,6 +97,42 @@ class LedgerRepository {
         .insert(MerchantsCompanion.insert(name: trimmed));
   }
 
+  /// Autocomplete candidates (E4 spec §4): case-insensitive prefix match
+  /// over merchant names, ranked by usage count desc, then most-recent use
+  /// desc, then name asc for determinism. SQLite's LIKE is ASCII-
+  /// case-insensitive by default; `%`/`_` in the user's prefix are escaped.
+  /// Only merchants attached to at least one transaction can be suggested —
+  /// the table gains rows solely through saving transactions anyway.
+  Future<List<String>> merchantsLike(String prefix, {int limit = 3}) async {
+    final trimmed = prefix.trim();
+    if (trimmed.isEmpty) return const [];
+    final escaped = trimmed
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
+    final uses = db.transactions.id.count();
+    final lastUsed = db.transactions.dateDays.max();
+    final q = db.selectOnly(db.merchants)
+      ..join([
+        innerJoin(
+          db.transactions,
+          db.transactions.merchantId.equalsExp(db.merchants.id),
+        ),
+      ])
+      ..addColumns([db.merchants.id, db.merchants.name, uses, lastUsed])
+      // escapeChar keeps a literal '%' or '_' typed by the user literal
+      // instead of acting as a LIKE wildcard.
+      ..where(db.merchants.name.like('$escaped%', escapeChar: r'\'))
+      ..groupBy([db.merchants.id])
+      ..orderBy([
+        OrderingTerm.desc(uses),
+        OrderingTerm.desc(lastUsed),
+        OrderingTerm.asc(db.merchants.name),
+      ])
+      ..limit(limit);
+    return [for (final row in await q.get()) row.read(db.merchants.name)!];
+  }
+
   // ---- transactions -------------------------------------------------------
 
   /// Inserts one reviewed header. When [baseCurrencyCode] differs from the

@@ -42,6 +42,7 @@ Future<CapturedEntry?> showCaptureReview(
   int? warmCategoryId,
   VoidCallback? onManageCategories,
   TextRenderer? renderer,
+  Future<List<String>> Function(String prefix)? merchantLookup,
 }) => showModalBottomSheet<CapturedEntry>(
   context: context,
   isScrollControlled: true,
@@ -57,6 +58,7 @@ Future<CapturedEntry?> showCaptureReview(
       warmCategoryId: warmCategoryId,
       onManageCategories: onManageCategories,
       renderer: renderer,
+      merchantLookup: merchantLookup,
     ),
   ),
 );
@@ -71,6 +73,7 @@ class CaptureReviewSheet extends StatefulWidget {
     this.warmCategoryId,
     this.onManageCategories,
     this.renderer,
+    this.merchantLookup,
   });
 
   final TransactionSource source;
@@ -83,6 +86,10 @@ class CaptureReviewSheet extends StatefulWidget {
   /// Page-1 rasterizer for PDFs (§2.3 thumbnail / §3 scanned fallback).
   /// Null keeps the PDF icon placeholder — goldens never load pdfium.
   final TextRenderer? renderer;
+
+  /// E4 §4 merchant autocomplete: local prefix → ranked names (max 3 by
+  /// default). Null disables the suggestion chips entirely.
+  final Future<List<String>> Function(String prefix)? merchantLookup;
 
   @override
   State<CaptureReviewSheet> createState() => _CaptureReviewSheetState();
@@ -108,6 +115,11 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
   bool _amountEdited = false;
   bool _dateEdited = false;
   bool _merchantEdited = false;
+
+  // E4 §4: ≤3 chips under the merchant field while the user types. The
+  // sequence guard drops out-of-order answers from the local query.
+  List<String> _merchantHints = const [];
+  int _hintSeq = 0;
 
   /// Hardening #20 parity: sheet routes stay hit-testable during the pop
   /// animation; first pop wins.
@@ -193,6 +205,39 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
       !_merchantEdited &&
       _draft?.merchant != null &&
       _draft!.merchantConfidence == FieldConfidence.low;
+
+  /// E4 §4: refresh the suggestion chips for the typed prefix. Exact
+  /// (case-insensitive) matches are dropped — nothing left to complete.
+  void _suggest(String prefix) {
+    final lookup = widget.merchantLookup;
+    final trimmed = prefix.trim();
+    final seq = ++_hintSeq;
+    if (lookup == null || trimmed.isEmpty) {
+      if (_merchantHints.isNotEmpty) setState(() => _merchantHints = const []);
+      return;
+    }
+    unawaited(
+      lookup(trimmed).then((found) {
+        if (!mounted || seq != _hintSeq) return;
+        final lower = trimmed.toLowerCase();
+        setState(() {
+          _merchantHints = [
+            for (final name in found)
+              if (name.toLowerCase() != lower) name,
+          ];
+        });
+      }),
+    );
+  }
+
+  void _useSuggestion(String name) {
+    _merchant.text = name;
+    _merchantEdited = true;
+    setState(() {
+      _merchantHints = const [];
+      ++_hintSeq; // retire any query still in flight
+    });
+  }
 
   bool get _noTotal => !_busy && _draft?.total == null;
 
@@ -432,10 +477,37 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
               : BorderSide(color: scheme.primary, width: 2),
         ),
       ),
-      onChanged: (_) {
+      onChanged: (value) {
         if (!_merchantEdited) setState(() => _merchantEdited = true);
+        _suggest(value);
       },
     );
+    if (_merchantHints.isNotEmpty) {
+      // E4 §4: tap fills the exact stored name — no half-typed variants.
+      field = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          field,
+          Padding(
+            padding: const EdgeInsets.only(top: Tokens.space1),
+            child: Wrap(
+              key: const Key('merchant-suggest'),
+              spacing: Tokens.space1,
+              runSpacing: Tokens.space1,
+              children: [
+                for (final name in _merchantHints)
+                  ActionChip(
+                    key: Key('merchant-suggest-$name'),
+                    label: Text(name),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _useSuggestion(name),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
     if (_merchantAmber) {
       field = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

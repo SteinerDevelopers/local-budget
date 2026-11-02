@@ -8,7 +8,7 @@ import 'dart:io';
 import 'dart:typed_data' show Uint8List;
 
 import 'package:capture/capture.dart' show TextExtractor;
-import 'package:core/core.dart' show TransactionSource;
+import 'package:core/core.dart' show Currency, Money, TransactionSource;
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -189,6 +189,62 @@ void main() {
       expect(row.data['merchant_id'], isNotNull); // merchant upserted
       final file = '${storeRoot.path}/${row.data['image_ref']}';
       expect(File(file).existsSync(), isTrue);
+    } finally {
+      await ctx.db.close();
+    }
+  });
+
+  testWidgets('E4 §4: merchant chips suggest, rank, fill, and retire', (
+    tester,
+  ) async {
+    final ctx = await pumpCapture(tester, services());
+    try {
+      final cash = (await ctx.repo.defaultAccount()).id;
+      Future<void> spend(String merchant, int day) => ctx.repo.addTransaction(
+        accountId: cash,
+        date: DateTime(2026, 10, day),
+        amount: Money.tryParse('7.00', Currency.resolve('USD'))!,
+        source: TransactionSource.statementImport,
+        merchant: merchant,
+      );
+      await spend('Green Grocer', 21); // more recent use → ranks first
+      await spend('Green Fare', 20);
+      await spend('Zeta Zone', 22); // never matches a 'green' prefix
+
+      await openReview(tester);
+      final field = find.byType(TextField);
+      await tester.enterText(field, 'green');
+      await tester.pump();
+
+      final wrap = find.byKey(const Key('merchant-suggest'));
+      expect(wrap, findsOneWidget);
+      final order = [
+        for (final child in tester.widget<Wrap>(wrap).children)
+          ((child as ActionChip).label as Text).data!,
+      ];
+      expect(order, [
+        'Green Grocer',
+        'Green Fare',
+      ], reason: 'equal counts → most-recent use first; Zeta never matches');
+
+      // Tap fills the exact stored name and retires the row.
+      await tester.tap(find.widgetWithText(ActionChip, 'Green Grocer'));
+      await tester.pump();
+      expect(tester.widget<TextField>(field).controller!.text, 'Green Grocer');
+      expect(wrap, findsNothing);
+
+      // Partial again → chip back; exact (case-insensitive) match → gone.
+      await tester.enterText(field, 'green gr');
+      await tester.pump();
+      expect(find.widgetWithText(ActionChip, 'Green Grocer'), findsOneWidget);
+      await tester.enterText(field, 'GREEN GROCER');
+      await tester.pump();
+      expect(wrap, findsNothing, reason: 'nothing left to complete');
+
+      // A prefix with no candidates shows nothing.
+      await tester.enterText(field, 'zzz');
+      await tester.pump();
+      expect(wrap, findsNothing);
     } finally {
       await ctx.db.close();
     }
