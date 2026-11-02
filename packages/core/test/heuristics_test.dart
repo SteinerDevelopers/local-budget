@@ -98,26 +98,110 @@ void main() {
   });
 
   group('merchant guess', () {
-    test('first plausible line', () {
-      expect(
-          heur().guessMerchant(
-              ['GREEN GROCERS', '123 OAK STREET', 'TEL 555-1212']),
-          'GREEN GROCERS');
+    test('first plausible line is high confidence', () {
+      final m = heur()
+          .guessMerchant(['GREEN GROCERS', '123 OAK STREET', 'TEL 555-1212'])!;
+      expect(m.name, 'GREEN GROCERS');
+      expect(m.confidence, FieldConfidence.high);
     });
 
-    test('skips noise (receipt headers, thank-yous)', () {
-      expect(
-          heur().guessMerchant([
-            'RECEIPT',
-            'THANK YOU FOR VISITING!',
-            'BOSTON MARKET',
-            'BOSTON, MA',
-          ]),
-          'BOSTON MARKET');
+    test('skips noise (receipt headers, thank-yous) → medium', () {
+      final m = heur().guessMerchant([
+        'RECEIPT',
+        'THANK YOU FOR VISITING!',
+        'BOSTON MARKET',
+        'BOSTON, MA',
+      ])!;
+      expect(m.name, 'BOSTON MARKET');
+      expect(m.confidence, FieldConfidence.medium);
     });
 
     test('all-noise returns null (review sheet will ask)', () {
       expect(heur().guessMerchant(['123 456', '***', '05/05/2026']), isNull);
+    });
+  });
+
+  group('E2 spec alignment (e2-capture.md §3)', () {
+    test('anchor-line currency code overrides base', () {
+      final t = heur().guessTotal(['HOTEL', 'TOTAL 58.00 EUR'])!;
+      expect(t.amount.currency.code, 'EUR');
+      expect(t.amount.minorUnits, 5800);
+    });
+
+    test('euro/pound/rupee symbols resolve', () {
+      expect(
+          heur()
+              .guessTotal(['Cafe', 'TOTAL \u20AC12.50'])!
+              .amount
+              .currency
+              .code,
+          'EUR');
+      expect(
+          heur().guessTotal(['SHOP', 'TOTAL \u00A34.20'])!.amount.currency.code,
+          'GBP');
+      expect(
+          heur()
+              .guessTotal(['KIRANA', 'TOTAL \u20B9950.00'])!
+              .amount
+              .currency
+              .code,
+          'INR');
+    });
+
+    test('yen without decimals is JPY, with decimals is CNY', () {
+      expect(
+          heur()
+              .guessTotal(['RAMEN', 'TOTAL \u00A51,200'])!
+              .amount
+              .currency
+              .code,
+          'JPY');
+      expect(
+          heur().guessTotal(['RAMEN', 'TOTAL \u00A51,200'])!.amount.minorUnits,
+          1200);
+      expect(
+          heur()
+              .guessTotal(['MARKET', 'TOTAL \u00A512.40'])!
+              .amount
+              .currency
+              .code,
+          'CNY');
+      expect(
+          heur().guessTotal(['MARKET', 'TOTAL \u00A512.40'])!.amount.minorUnits,
+          1240);
+    });
+
+    test('dollar stays base currency — never re-guessed', () {
+      final t = heur().guessTotal(['CAFE', 'TOTAL \$12.99'])!;
+      expect(t.amount.currency.code, 'USD');
+    });
+
+    test('NET TOTAL is high confidence (substring trap vs bare TOTAL)', () {
+      final t = heur().guessTotal(['ORDER', 'NET TOTAL 50.00'])!;
+      expect(t.confidence, FieldConfidence.high);
+      expect(t.amount.minorUnits, 5000);
+    });
+
+    test('GRAND TOTAL anchor works', () {
+      final t = heur().guessTotal(['BANQUET', 'GRAND TOTAL 1,250.00'])!;
+      expect(t.confidence, FieldConfidence.high);
+      expect(t.amount.minorUnits, 125000);
+    });
+
+    test('bare AMOUNT is a low-confidence last resort', () {
+      final t = heur().guessTotal(['DONATION', 'AMOUNT 20.00'])!;
+      expect(t.confidence, FieldConfidence.low);
+      expect(t.amount.minorUnits, 2000);
+    });
+
+    test('AMOUNT TENDERED / AMOUNT PAID are never totals', () {
+      expect(heur().guessTotal(['SHOP', 'AMOUNT TENDERED 20.00']), isNull);
+      expect(
+          heur()
+              .guessTotal(['CLUB', 'AMOUNT PAID 100.00', 'BALANCE DUE 40.00'])!
+              .amount
+              .minorUnits,
+          4000);
     });
   });
 

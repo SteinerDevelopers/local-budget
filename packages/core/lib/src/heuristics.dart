@@ -19,14 +19,21 @@ class ReceiptHeuristics {
   /// is deliberately absent — `TOTAL DUE` is the strongest positive anchor.
   static final RegExp _totalBlacklist = RegExp(
     r'SUB[\s\-]?TOTAL|TOTAL[\s\-]?(TAX|VAT|DISCOUNT|SAVINGS|ITEMS|COUNT|'
-    r'CARD|CASH|CHANGE|TENDERED|AUTH|APPROVED|BALANCE)|GRATUITY|TIP[\s\-]?LINE',
+    r'CARD|CASH|CHANGE|TENDERED|AUTH|APPROVED|BALANCE)|GRATUITY|TIP[\s\-]?LINE'
+    r'|AMOUNT[\s\-]?(TENDERED|PAID|CHANGE|CREDIT|CASH)',
     caseSensitive: false,
   );
 
-  /// Grand-total anchors with their confidence, best first. `TOTAL DUE`
-  /// (utility bills) and `AMOUNT DUE` rank above bare `TOTAL` because on
-  /// utility statements a bare TOTAL is often a subtotal of charges.
+  /// Grand-total anchors with their confidence, most specific first — the
+  /// first anchor matching a line wins, so `NET TOTAL` must precede the bare
+  /// `TOTAL` that is a substring of it (e2-capture.md §3 priority). `TOTAL
+  /// DUE`/`AMOUNT DUE` (utility bills) and the `*TOTAL` compounds rank above
+  /// bare `TOTAL`; bare `AMOUNT` is a last resort at low confidence.
   static final List<({RegExp re, FieldConfidence confidence})> _totalAnchors = [
+    (
+      re: RegExp(r'\bGRAND\s+TOTAL\b', caseSensitive: false),
+      confidence: FieldConfidence.high
+    ),
     (
       re: RegExp(r'\bTOTAL\s+DUE\b', caseSensitive: false),
       confidence: FieldConfidence.high
@@ -36,16 +43,20 @@ class ReceiptHeuristics {
       confidence: FieldConfidence.high
     ),
     (
-      re: RegExp(r'\bTOTAL\b', caseSensitive: false),
-      confidence: FieldConfidence.medium
+      re: RegExp(r'\bNET\s+TOTAL\b', caseSensitive: false),
+      confidence: FieldConfidence.high
     ),
     (
       re: RegExp(r'\bBALANCE\s+DUE\b', caseSensitive: false),
       confidence: FieldConfidence.medium
     ),
     (
-      re: RegExp(r'\bNET\s+TOTAL\b', caseSensitive: false),
+      re: RegExp(r'\bTOTAL\b', caseSensitive: false),
       confidence: FieldConfidence.medium
+    ),
+    (
+      re: RegExp(r'\bAMOUNT\b', caseSensitive: false),
+      confidence: FieldConfidence.low
     ),
   ];
 
@@ -54,10 +65,15 @@ class ReceiptHeuristics {
   );
 
   /// Merchant heuristic: first line with letters, short, not address-like,
-  /// not a pure number/date.
-  String? guessMerchant(List<String> lines) {
+  /// not a pure number/date. `high` when the very first line is already
+  /// plausible (the usual printed-receipt layout), `medium` when the guess
+  /// had to skip noise to find it (e2-capture.md §3).
+  ({String name, FieldConfidence confidence})? guessMerchant(
+      List<String> lines) {
+    var index = 0;
     for (final raw in lines.take(6)) {
       final line = raw.trim();
+      index++;
       if (line.length < 2 || line.length > 40) continue;
       final letters = line.replaceAll(RegExp('[^A-Za-zÀ-ÿ]'), '').length;
       if (letters < 2) continue; // pure numbers/dates/punctuation
@@ -74,14 +90,19 @@ class ReceiptHeuristics {
           .hasMatch(line)) {
         continue;
       }
-      return line;
+      return (
+        name: line,
+        confidence: index == 1 ? FieldConfidence.high : FieldConfidence.medium,
+      );
     }
     return null;
   }
 
   /// Extract the grand total. Scans bottom-up because the grand total sits
   /// near the bottom of nearly every real receipt; the first anchor hit from
-  /// the bottom wins, blacklist excluded.
+  /// the bottom wins, blacklist excluded. An explicit currency code/symbol on
+  /// the anchor line overrides the device base currency (e2-capture.md §3:
+  /// currency comes from the anchor line, falling back to base).
   ({Money amount, FieldConfidence confidence})? guessTotal(List<String> lines) {
     for (var i = lines.length - 1; i >= 0; i--) {
       final line = lines[i].trim();
@@ -94,16 +115,52 @@ class ReceiptHeuristics {
         final tail = line.substring(match.end);
         final parsed = _firstAmount(tail);
         if (parsed == null) continue;
-        return (amount: parsed, confidence: anchor.confidence);
+        final cur = _lineCurrency(line, parsed.token);
+        final amount = cur == null || cur.code == parsed.amount.currency.code
+            ? parsed.amount
+            : (Money.tryParse(parsed.token, cur) ?? parsed.amount);
+        return (amount: amount, confidence: anchor.confidence);
       }
     }
     return null;
   }
 
-  Money? _firstAmount(String s) {
+  ({String token, Money amount})? _firstAmount(String s) {
     for (final m in _amountRe.allMatches(s)) {
-      final parsed = Money.tryParse(m.namedGroup('amount')!, currency);
-      if (parsed != null && parsed.isPositive) return parsed;
+      final token = m.namedGroup('amount')!;
+      final parsed = Money.tryParse(token, currency);
+      if (parsed != null && parsed.isPositive) {
+        return (token: token, amount: parsed);
+      }
+    }
+    return null;
+  }
+
+  static final RegExp _currencyCodeRe = RegExp(
+    r'\b(USD|EUR|GBP|JPY|KRW|CNY|RMB|CHF|SEK|NOK|DKK|PLN|CZK|HUF|INR|BRL|MXN'
+    r'|NZD|SGD|ISK|BHD|KWD|CAD|AUD)\b',
+  );
+
+  /// Explicit currency written on the anchor line: a 3-letter code (exact)
+  /// or an unambiguous symbol. `$` is deliberately never re-resolved — it is
+  /// ambiguous across a dozen currencies and already parses cleanly as the
+  /// user's base — and `¥` means JPY unless the token has decimals (JPY has
+  /// zero minor units, so `¥12.40` is a Chinese receipt).
+  Currency? _lineCurrency(String line, String amountToken) {
+    final code = _currencyCodeRe.firstMatch(line);
+    if (code != null) {
+      final c = code.group(1)!;
+      return Currency.find(c == 'RMB' ? 'CNY' : c);
+    }
+    if (line.contains('\u20AC')) return Currency.find('EUR'); // €
+    if (line.contains('\u00A3')) return Currency.find('GBP'); // £
+    if (line.contains('\u20B9')) return Currency.find('INR'); // ₹
+    if (line.contains('\u00A5') || line.contains('\uFFE5')) {
+      // ¥ — halfwidth and fullwidth forms. A trailing decimal separator with
+      // 1–2 digits (never a 3-digit thousands group) rules out JPY.
+      return RegExp(r'\d[.,]\d{1,2}\s*$').hasMatch(amountToken)
+          ? Currency.find('CNY')
+          : Currency.find('JPY');
     }
     return null;
   }
@@ -225,9 +282,9 @@ class ReceiptHeuristics {
     final total = guessTotal(lines);
     final date = guessDate(lines);
     return ReceiptDraft(
-      merchant: merchant,
+      merchant: merchant?.name,
       merchantConfidence:
-          merchant == null ? FieldConfidence.low : FieldConfidence.medium,
+          merchant == null ? FieldConfidence.low : merchant.confidence,
       total: total?.amount,
       totalConfidence: total?.confidence ?? FieldConfidence.low,
       date: date?.date,

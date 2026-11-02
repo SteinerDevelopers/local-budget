@@ -104,10 +104,15 @@ the app behind these interfaces:
 ```
 TextExtractor.extractText(Uint8List image) -> List<String> lines   // Tier 1
 PdfText.readTextLayer(ByteFile pdf) -> List<String>                // §2.5 case A
-ReceiptParser.parse(lines, {locale, baseCurrency}) -> ReceiptDraft // Tier 2
 LlmStructurer.isAvailable() -> bool
 LlmStructurer.structure(image, lines) -> ReceiptDraft?             // Tier 3
+CapturePipeline.fromImage(image) / .fromTextLines(lines) -> ReceiptDraft
 ```
+
+Tier 2 is core's existing `ReceiptHeuristics(currency: base).extract(lines)`
+— reserved since E1 and hardened for E2; `packages/capture` adds the tier
+interfaces above and the orchestration (`CapturePipeline`) so the app never
+sequences tiers by hand.
 
 Pipeline (async, runs while the Review sheet is already open):
 Tier 1 (or PDF text layer) → Tier 2 always → **Tier 3 only if**
@@ -117,7 +122,7 @@ overwrites `medium/high` values and never touches a field the user edited.
 `usedLlm` is metadata only — zero UI promises about AI.
 
 **Tier 2 heuristics (deterministic, 100 % unit-tested):**
-- **Merchant** = first line in the top 5 that contains letters, length ≥ 2,
+- **Merchant** = first line in the top 6 that contains letters, length ≥ 2,
   and isn't all digits/phone/punctuation. `high` when it is the first line,
   `medium` deeper in the block.
 - **Date** = last date token in the top 8 lines. Accepted shapes: ISO
@@ -125,12 +130,17 @@ overwrites `medium/high` values and never touches a field the user edited.
   when day ≤ 12 and both orders valid → `dateIsAmbiguous`, shown highlighted),
   `MMM D, YYYY`. Dates > 1 day in the future are rejected (receipts don't
   pre-date), dates > 2 years back are accepted silently.
-- **Total** = amount on the *last* line matching the anchor list, priority
-  `NET TOTAL > GRAND TOTAL > TOTAL DUE > AMOUNT DUE > TOTAL > AMOUNT`;
-  `SUBTOTAL`, `TAX`, `CHANGE`, `BALANCE` are anti-anchors — never the total.
-  Amount = `Money.tryParse` of the largest numeric token on that line
-  (already total-safe, #21). Currency = explicit symbol/code on the anchor
-  line, else the device base currency.
+- **Total** = amount on the *last* (bottom-most) line matching the anchor
+  list; within one line the most specific anchor wins, priority
+  `GRAND TOTAL = NET TOTAL = TOTAL DUE = AMOUNT DUE > BALANCE DUE > TOTAL >
+  AMOUNT` (specificity order is what makes `NET TOTAL` beat its own substring
+  `TOTAL`). `SUBTOTAL`, `TOTAL TAX/VAT/…`, `AMOUNT TENDERED/PAID`,
+  `GRATUITY` are anti-anchors — never the total. Amount = the first positive
+  token after the anchor word via `Money.tryParse` (already total-safe, #21).
+  Currency = explicit 3-letter code or symbol on the anchor line, else the
+  device base: `€`→EUR, `£`→GBP, `₹`→INR, `¥`→JPY (no decimals) / CNY
+  (decimals); `$` is deliberately *not* re-resolved — it stays the base
+  currency because it is ambiguous across a dozen of them.
 - **Failures are states, not errors**: no lines (blurry scan) → empty draft +
   helper *"Couldn't read this — retype or try the image again."* Nothing ever
   crashes the review; Save only needs amount + category anyway.
