@@ -6,10 +6,10 @@ plugins {
 
 android {
     namespace = "dev.steiner.local_budget"
-    // receive_sharing_intent compiles against SDK 37; Gradle requires the app
-    // to compile against the highest version any plugin declares (backward
-    // compatible, so everything else is unaffected).
-    compileSdk = 37
+    // Highest *released* platform. 37 does not exist in the sdkmanager repo
+    // yet (pipeline 43), and the share plugin is pinned to 1.8.1 (compileSdk
+    // 34), so nothing in the graph demands 37.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
