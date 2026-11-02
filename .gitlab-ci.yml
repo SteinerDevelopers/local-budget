@@ -13,6 +13,28 @@ workflow:
 variables:
   PUB_CACHE: "$CI_PROJECT_DIR/.pub-cache"
 
+commit-lint:
+  stage: test
+  image: alpine
+  tags: [SteinerRunner]
+  script:
+    - |
+      set -e
+      apk add --no-cache git >/dev/null
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        RANGE="$CI_MERGE_REQUEST_DIFF_BASE_SHA..HEAD"
+      elif git cat-file -e "$CI_COMMIT_BEFORE_SHA" 2>/dev/null; then
+        RANGE="$CI_COMMIT_BEFORE_SHA..HEAD"
+      else
+        RANGE="HEAD~1..HEAD"
+      fi
+      git log --no-merges --pretty=%s $RANGE | while IFS= read -r subject; do
+        echo "checking: $subject"
+        echo "$subject" | grep -Eq '^(feat|fix|test|docs|refactor|chore|ci|perf|style|build|revert)(\([a-z0-9-]+\))?!?: .{3,}' \
+          || { echo "NOT conventional-commits: $subject"; exit 1; }
+      done
+      echo "commit subjects OK"
+
 core-test:
   stage: test
   image: dart:stable
