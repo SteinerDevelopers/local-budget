@@ -79,18 +79,19 @@ void main() {
       await settle(tester);
       final foodChip = find.descendant(
         of: find.byKey(const Key('chip-row')),
-        matching: find.text('Food'),
+        matching: find.widgetWithText(FilterChip, 'Food'),
       );
       if (foodChip.evaluate().isNotEmpty) {
         // On the phone-sized viewport the chip row sits below the sheet's
-        // clip edge — tapping the finder's centre hits the barrier instead
-        // (pipeline 61 trace). Scroll it into the sheet, then tap.
+        // clip edge — tapping the Text's centre hit a clipped neighbour
+        // (pipeline 62 warning), so select the whole FilterChip: its centre
+        // is always inside its own ink area once scrolled into view.
         await tester.ensureVisible(foodChip);
         await tester.pumpAndSettle();
         await tester.tap(foodChip);
         await tester.pump();
         for (final d in ['1', '0', '0', '0']) {
-          // $100.00 — keypad digits are major units with an implied dot.
+          // $1,000.00 — keypad digits are MAJOR units (1200 → 120000).
           await tester.tap(find.byKey(Key('keypad-$d')));
           await tester.pump();
         }
@@ -106,46 +107,47 @@ void main() {
     // A progress row ('$spent / $limit') is on screen either way.
     expect(find.textContaining(' / \$'), findsWidgets);
 
-    // A bill due today, paid off through the detail sheet (§2.3).
+    // A bill due TODAY, paid off through the detail sheet (§2.3). The name
+    // is unique per run: the emulator image persists data across pipelines,
+    // and a leftover already-paid rule's cursor sits in a future month — its
+    // detail would no longer offer `Mark paid` (pipeline 62 post-mortem).
+    final billName = 'E2E ${DateTime.now().millisecondsSinceEpoch}';
     await tester.tap(find.text('Bills'));
     await settle(tester);
-    if (find.text('E2E bill').evaluate().isEmpty) {
-      final add = find.byKey(const Key('bill-add'));
-      await tester.tap(
-        add.evaluate().isNotEmpty
-            ? add
-            : find.byKey(const Key('bill-add-empty')),
-      );
-      await settle(tester);
-      await tester.enterText(find.byKey(const Key('bill-name')), 'E2E bill');
-      // Defocus: the soft keyboard shrinks the viewport and moved sheet
-      // content out from under the finder (pipeline 61 — the Utilities tap
-      // hit a modal barrier at stale geometry). Unfocus, do NOT tap the
-      // barrier: that would dismiss the sheet mid-form.
-      FocusManager.instance.primaryFocus?.unfocus();
-      await settle(tester);
-      final utilChip = find.descendant(
-        of: find.byKey(const Key('bill-categories')),
-        matching: find.text('Utilities'),
-      );
-      await tester.ensureVisible(utilChip);
-      await tester.pumpAndSettle();
-      await tester.tap(utilChip);
+    final add = find.byKey(const Key('bill-add'));
+    await tester.tap(
+      add.evaluate().isNotEmpty ? add : find.byKey(const Key('bill-add-empty')),
+    );
+    await settle(tester);
+    await tester.enterText(find.byKey(const Key('bill-name')), billName);
+    // Defocus: the soft keyboard shrinks the viewport and moved sheet
+    // content out from under the finder (pipeline 61 — the Utilities tap
+    // hit a modal barrier at stale geometry). Unfocus, do NOT tap the
+    // barrier: that would dismiss the sheet mid-form.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester);
+    final utilChip = find.descendant(
+      of: find.byKey(const Key('bill-categories')),
+      matching: find.widgetWithText(FilterChip, 'Utilities'),
+    );
+    await tester.ensureVisible(utilChip);
+    await tester.pumpAndSettle();
+    await tester.tap(utilChip);
+    await tester.pump();
+    for (final k in ['2', '0', 'dot', '0', '0']) {
+      // $20.00 — digits are MAJOR units with an explicit dot (pipeline 62:
+      // '2000' meant $2,000.00, so the home row never read '−$20.00').
+      await tester.tap(find.byKey(Key('keypad-$k')));
       await tester.pump();
-      for (final d in ['2', '0', '0', '0']) {
-        // $20.00 — monthly default falls due today.
-        await tester.tap(find.byKey(Key('keypad-$d')));
-        await tester.pump();
-      }
-      await tester.ensureVisible(find.byKey(const Key('bill-save')));
-      await tester.tap(find.byKey(const Key('bill-save')));
-      await settle(tester);
     }
-    expect(find.text('E2E bill'), findsWidgets);
+    await tester.ensureVisible(find.byKey(const Key('bill-save')));
+    await tester.tap(find.byKey(const Key('bill-save')));
+    await settle(tester);
+    expect(find.text(billName), findsWidgets);
 
     // Open the detail and mark paid: a real ledger row is written and the
     // cursor advances (§3.4 — the pass is a hint, this tap is the record).
-    await tester.tap(find.text('E2E bill').first);
+    await tester.tap(find.text(billName).first);
     await settle(tester);
     await tester.ensureVisible(find.byKey(const Key('bill-mark-paid')));
     await tester.tap(find.byKey(const Key('bill-mark-paid')));
@@ -155,7 +157,7 @@ void main() {
     // now stand out on the home ledger as today's expense.
     await tester.tapAt(const Offset(5, 5));
     await settle(tester);
-    expect(find.textContaining('Bill: E2E bill'), findsWidgets);
+    expect(find.textContaining('Bill: $billName'), findsWidgets);
     expect(find.text('\u2212\$20.00'), findsWidgets);
   });
 }
