@@ -14,6 +14,11 @@ DateTime dateFromEpochDay(int days) => DateTime.fromMillisecondsSinceEpoch(
   isUtc: true,
 );
 
+/// A UTC calendar day read back as a local calendar day — same Y/M/D at
+/// local midnight, so ledger day headers never shift a day west/east of UTC.
+DateTime _localDay(DateTime utcDay) =>
+    DateTime(utcDay.year, utcDay.month, utcDay.day);
+
 /// `2026-11` -> inclusive epoch-day bounds of that calendar month.
 ({int fromDays, int toDays}) monthRange(String yearMonth) {
   final parts = yearMonth.split('-');
@@ -100,6 +105,7 @@ class LedgerRepository {
     String? imageRef,
     String? baseCurrencyCode,
     double? fxRate,
+    bool isIncome = false,
   }) async {
     int? merchantId;
     if (merchant != null && merchant.trim().isNotEmpty) {
@@ -130,6 +136,7 @@ class LedgerRepository {
             imageRef: Value(imageRef),
             baseAmountMinor: Value(baseMinor),
             fxRate: Value(rate),
+            isIncome: Value(isIncome),
           ),
         );
   }
@@ -252,4 +259,181 @@ class LedgerRepository {
   }
 
   Future<String?> baseCurrency() => setting(settingBaseCurrency);
+}
+
+/// A month-list row joined with its category name — the projection the
+/// Ledger screen renders (#17); keeps drift row types out of the UI layer.
+class LedgerEntryData {
+  const LedgerEntryData({
+    required this.id,
+    required this.day,
+    required this.amountMinor,
+    required this.currencyCode,
+    required this.isIncome,
+    required this.categoryId,
+    required this.categoryName,
+    required this.note,
+  });
+
+  final int id;
+  final DateTime day;
+  final int amountMinor;
+  final String currencyCode;
+  final bool isIncome;
+  final int? categoryId;
+  final String? categoryName;
+  final String? note;
+}
+
+// ---- E1 ledger (design §2.1) ------------------------------------------------
+
+extension LedgerE1 on LedgerRepository {
+  /// The single implicit account E1 needs; created by [ensureDefaults].
+  Future<Account> defaultAccount() async {
+    final list = await accounts();
+    if (list.isNotEmpty) return list.first;
+    final base = await baseCurrency() ?? 'USD';
+    await createAccount(name: 'Cash', currencyCode: base);
+    return (await accounts()).first;
+  }
+
+  /// Names seeded on first launch; the UI maps names to icons (§2.2 chips).
+  static const defaultExpenseCategories = [
+    'Food',
+    'Housing',
+    'Transport',
+    'Utilities',
+    'Fun',
+    'Health',
+    'Other',
+  ];
+  static const defaultIncomeCategories = ['Salary', 'Other income'];
+
+  /// Idempotent first-launch seeding: default account + category list.
+  Future<void> ensureDefaults() async {
+    await defaultAccount();
+    if ((await categories()).isNotEmpty) return;
+    var sort = 0;
+    for (final name in defaultExpenseCategories) {
+      await addCategory(name, sortOrder: sort++);
+    }
+    for (final name in defaultIncomeCategories) {
+      await addCategory(name, sortOrder: sort++, isIncome: true);
+    }
+  }
+
+  Future<int> addCategory(
+    String name, {
+    int sortOrder = 0,
+    bool isIncome = false,
+  }) => db
+      .into(db.categories)
+      .insert(
+        CategoriesCompanion.insert(
+          name: name,
+          sortOrder: Value(sortOrder),
+          isIncome: Value(isIncome),
+        ),
+      );
+
+  Future<List<Category>> categories({bool? income}) {
+    final q = db.select(db.categories)
+      ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]);
+    if (income != null) q.where((t) => t.isIncome.equals(income));
+    return q.get();
+  }
+
+  Stream<List<Category>> watchCategories() => (db.select(
+    db.categories,
+  )..orderBy([(t) => OrderingTerm.asc(t.sortOrder)])).watch();
+
+  /// One QuickAdd insert: unsigned amount + explicit kind (§3 sign rule —
+  /// the row stores magnitude, the label carries the sign).
+  Future<int> addEntry({
+    required DateTime date,
+    required Money amount,
+    required bool isIncome,
+    required int categoryId,
+    String? note,
+  }) async {
+    if (amount.isNegative) {
+      throw ArgumentError('ledger amounts are unsigned; kind carries the sign');
+    }
+    final account = await defaultAccount();
+    return addTransaction(
+      accountId: account.id,
+      date: date,
+      amount: amount,
+      source: TransactionSource.manual,
+      categoryId: categoryId,
+      note: note,
+      isIncome: isIncome,
+    );
+  }
+
+  /// Reactive month list, newest day/entry first (spec §2.1: the saved row
+  /// is already visible at the top). Category name joined in, so the UI
+  /// needs no second query.
+  Stream<List<LedgerEntryData>> watchMonth(String yearMonth) {
+    final r = monthRange(yearMonth);
+    final tx = db.transactions;
+    // JoinedSelectStatement takes plain expressions (no row-typed callbacks).
+    final q =
+        db.select(tx).join([
+            leftOuterJoin(
+              db.categories,
+              db.categories.id.equalsExp(tx.categoryId),
+            ),
+          ])
+          ..where(tx.dateDays.isBetweenValues(r.fromDays, r.toDays))
+          ..orderBy([OrderingTerm.desc(tx.dateDays), OrderingTerm.desc(tx.id)]);
+    return q.watch().map(
+      (rows) => [
+        for (final row in rows)
+          LedgerEntryData(
+            id: row.readTable(tx).id,
+            // Epoch days are calendar days: rebuild local wall-clock so day
+            // headers never shift across time zones (negative offsets!).
+            day: _localDay(dateFromEpochDay(row.readTable(tx).dateDays)),
+            amountMinor: row.readTable(tx).amountMinor,
+            currencyCode: row.readTable(tx).currencyCode,
+            isIncome: row.readTable(tx).isIncome,
+            categoryId: row.readTable(tx).categoryId,
+            // Outer-joined: null category must not throw.
+            categoryName: row.read(db.categories.name),
+            note: row.readTable(tx).note,
+          ),
+      ],
+    );
+  }
+
+  /// Fetch-then-delete so a SnackBar Undo (§2.1, zero dialogs) can re-insert
+  /// the exact row.
+  Future<Transaction?> deleteEntry(int id) async {
+    final row = await (db.select(
+      db.transactions,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (row == null) return null;
+    await (db.delete(db.transactions)..where((t) => t.id.equals(id))).go();
+    return row;
+  }
+
+  Future<void> restoreEntry(Transaction row) => db
+      .into(db.transactions)
+      .insert(
+        TransactionsCompanion.insert(
+          accountId: row.accountId,
+          dateDays: row.dateDays,
+          amountMinor: row.amountMinor,
+          currencyCode: row.currencyCode,
+          source: row.source,
+          categoryId: Value(row.categoryId),
+          merchantId: Value(row.merchantId),
+          note: Value(row.note),
+          imageRef: Value(row.imageRef),
+          baseAmountMinor: Value(row.baseAmountMinor),
+          fxRate: Value(row.fxRate),
+          isIncome: Value(row.isIncome),
+        ),
+      );
 }

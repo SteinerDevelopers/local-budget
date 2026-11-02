@@ -432,6 +432,21 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isIncomeMeta = const VerificationMeta(
+    'isIncome',
+  );
+  @override
+  late final GeneratedColumn<bool> isIncome = GeneratedColumn<bool>(
+    'is_income',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_income" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -439,6 +454,7 @@ class $CategoriesTable extends Categories
     parentId,
     sortOrder,
     colorHint,
+    isIncome,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -481,6 +497,12 @@ class $CategoriesTable extends Categories
         colorHint.isAcceptableOrUnknown(data['color_hint']!, _colorHintMeta),
       );
     }
+    if (data.containsKey('is_income')) {
+      context.handle(
+        _isIncomeMeta,
+        isIncome.isAcceptableOrUnknown(data['is_income']!, _isIncomeMeta),
+      );
+    }
     return context;
   }
 
@@ -510,6 +532,10 @@ class $CategoriesTable extends Categories
         DriftSqlType.int,
         data['${effectivePrefix}color_hint'],
       ),
+      isIncome: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_income'],
+      )!,
     );
   }
 
@@ -529,12 +555,16 @@ class Category extends DataClass implements Insertable<Category> {
 
   /// Optional UI tint (ARGB int); semantics stay UI-side.
   final int? colorHint;
+
+  /// True = income category (QuickAdd shows it under the Income toggle).
+  final bool isIncome;
   const Category({
     required this.id,
     required this.name,
     this.parentId,
     required this.sortOrder,
     this.colorHint,
+    required this.isIncome,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -548,6 +578,7 @@ class Category extends DataClass implements Insertable<Category> {
     if (!nullToAbsent || colorHint != null) {
       map['color_hint'] = Variable<int>(colorHint);
     }
+    map['is_income'] = Variable<bool>(isIncome);
     return map;
   }
 
@@ -562,6 +593,7 @@ class Category extends DataClass implements Insertable<Category> {
       colorHint: colorHint == null && nullToAbsent
           ? const Value.absent()
           : Value(colorHint),
+      isIncome: Value(isIncome),
     );
   }
 
@@ -576,6 +608,7 @@ class Category extends DataClass implements Insertable<Category> {
       parentId: serializer.fromJson<int?>(json['parentId']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       colorHint: serializer.fromJson<int?>(json['colorHint']),
+      isIncome: serializer.fromJson<bool>(json['isIncome']),
     );
   }
   @override
@@ -587,6 +620,7 @@ class Category extends DataClass implements Insertable<Category> {
       'parentId': serializer.toJson<int?>(parentId),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'colorHint': serializer.toJson<int?>(colorHint),
+      'isIncome': serializer.toJson<bool>(isIncome),
     };
   }
 
@@ -596,12 +630,14 @@ class Category extends DataClass implements Insertable<Category> {
     Value<int?> parentId = const Value.absent(),
     int? sortOrder,
     Value<int?> colorHint = const Value.absent(),
+    bool? isIncome,
   }) => Category(
     id: id ?? this.id,
     name: name ?? this.name,
     parentId: parentId.present ? parentId.value : this.parentId,
     sortOrder: sortOrder ?? this.sortOrder,
     colorHint: colorHint.present ? colorHint.value : this.colorHint,
+    isIncome: isIncome ?? this.isIncome,
   );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
@@ -610,6 +646,7 @@ class Category extends DataClass implements Insertable<Category> {
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       colorHint: data.colorHint.present ? data.colorHint.value : this.colorHint,
+      isIncome: data.isIncome.present ? data.isIncome.value : this.isIncome,
     );
   }
 
@@ -620,13 +657,15 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('name: $name, ')
           ..write('parentId: $parentId, ')
           ..write('sortOrder: $sortOrder, ')
-          ..write('colorHint: $colorHint')
+          ..write('colorHint: $colorHint, ')
+          ..write('isIncome: $isIncome')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, parentId, sortOrder, colorHint);
+  int get hashCode =>
+      Object.hash(id, name, parentId, sortOrder, colorHint, isIncome);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -635,7 +674,8 @@ class Category extends DataClass implements Insertable<Category> {
           other.name == this.name &&
           other.parentId == this.parentId &&
           other.sortOrder == this.sortOrder &&
-          other.colorHint == this.colorHint);
+          other.colorHint == this.colorHint &&
+          other.isIncome == this.isIncome);
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
@@ -644,12 +684,14 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<int?> parentId;
   final Value<int> sortOrder;
   final Value<int?> colorHint;
+  final Value<bool> isIncome;
   const CategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.colorHint = const Value.absent(),
+    this.isIncome = const Value.absent(),
   });
   CategoriesCompanion.insert({
     this.id = const Value.absent(),
@@ -657,6 +699,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.colorHint = const Value.absent(),
+    this.isIncome = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Category> custom({
     Expression<int>? id,
@@ -664,6 +707,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<int>? parentId,
     Expression<int>? sortOrder,
     Expression<int>? colorHint,
+    Expression<bool>? isIncome,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -671,6 +715,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (parentId != null) 'parent_id': parentId,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (colorHint != null) 'color_hint': colorHint,
+      if (isIncome != null) 'is_income': isIncome,
     });
   }
 
@@ -680,6 +725,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<int?>? parentId,
     Value<int>? sortOrder,
     Value<int?>? colorHint,
+    Value<bool>? isIncome,
   }) {
     return CategoriesCompanion(
       id: id ?? this.id,
@@ -687,6 +733,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       parentId: parentId ?? this.parentId,
       sortOrder: sortOrder ?? this.sortOrder,
       colorHint: colorHint ?? this.colorHint,
+      isIncome: isIncome ?? this.isIncome,
     );
   }
 
@@ -708,6 +755,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (colorHint.present) {
       map['color_hint'] = Variable<int>(colorHint.value);
     }
+    if (isIncome.present) {
+      map['is_income'] = Variable<bool>(isIncome.value);
+    }
     return map;
   }
 
@@ -718,7 +768,8 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('name: $name, ')
           ..write('parentId: $parentId, ')
           ..write('sortOrder: $sortOrder, ')
-          ..write('colorHint: $colorHint')
+          ..write('colorHint: $colorHint, ')
+          ..write('isIncome: $isIncome')
           ..write(')'))
         .toString();
   }
@@ -1050,6 +1101,21 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   ).withConverter<TransactionSource>($TransactionsTable.$convertersource);
+  static const VerificationMeta _isIncomeMeta = const VerificationMeta(
+    'isIncome',
+  );
+  @override
+  late final GeneratedColumn<bool> isIncome = GeneratedColumn<bool>(
+    'is_income',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_income" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1064,6 +1130,7 @@ class $TransactionsTable extends Transactions
     note,
     imageRef,
     source,
+    isIncome,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1157,6 +1224,12 @@ class $TransactionsTable extends Transactions
         imageRef.isAcceptableOrUnknown(data['image_ref']!, _imageRefMeta),
       );
     }
+    if (data.containsKey('is_income')) {
+      context.handle(
+        _isIncomeMeta,
+        isIncome.isAcceptableOrUnknown(data['is_income']!, _isIncomeMeta),
+      );
+    }
     return context;
   }
 
@@ -1216,6 +1289,10 @@ class $TransactionsTable extends Transactions
           data['${effectivePrefix}source'],
         )!,
       ),
+      isIncome: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_income'],
+      )!,
     );
   }
 
@@ -1252,6 +1329,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
 
   /// How the row entered the ledger (feasibility §5 discriminator).
   final TransactionSource source;
+
+  /// E1 §2.1: expense vs income — amountMinor stays unsigned, the sign
+  /// lives in the display layer (spec §3).
+  final bool isIncome;
   const Transaction({
     required this.id,
     required this.accountId,
@@ -1265,6 +1346,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     this.note,
     this.imageRef,
     required this.source,
+    required this.isIncome,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1297,6 +1379,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         $TransactionsTable.$convertersource.toSql(source),
       );
     }
+    map['is_income'] = Variable<bool>(isIncome);
     return map;
   }
 
@@ -1324,6 +1407,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? const Value.absent()
           : Value(imageRef),
       source: Value(source),
+      isIncome: Value(isIncome),
     );
   }
 
@@ -1345,6 +1429,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       note: serializer.fromJson<String?>(json['note']),
       imageRef: serializer.fromJson<String?>(json['imageRef']),
       source: serializer.fromJson<TransactionSource>(json['source']),
+      isIncome: serializer.fromJson<bool>(json['isIncome']),
     );
   }
   @override
@@ -1363,6 +1448,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'note': serializer.toJson<String?>(note),
       'imageRef': serializer.toJson<String?>(imageRef),
       'source': serializer.toJson<TransactionSource>(source),
+      'isIncome': serializer.toJson<bool>(isIncome),
     };
   }
 
@@ -1379,6 +1465,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     Value<String?> note = const Value.absent(),
     Value<String?> imageRef = const Value.absent(),
     TransactionSource? source,
+    bool? isIncome,
   }) => Transaction(
     id: id ?? this.id,
     accountId: accountId ?? this.accountId,
@@ -1394,6 +1481,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     note: note.present ? note.value : this.note,
     imageRef: imageRef.present ? imageRef.value : this.imageRef,
     source: source ?? this.source,
+    isIncome: isIncome ?? this.isIncome,
   );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -1419,6 +1507,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       note: data.note.present ? data.note.value : this.note,
       imageRef: data.imageRef.present ? data.imageRef.value : this.imageRef,
       source: data.source.present ? data.source.value : this.source,
+      isIncome: data.isIncome.present ? data.isIncome.value : this.isIncome,
     );
   }
 
@@ -1436,7 +1525,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('fxRate: $fxRate, ')
           ..write('note: $note, ')
           ..write('imageRef: $imageRef, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('isIncome: $isIncome')
           ..write(')'))
         .toString();
   }
@@ -1455,6 +1545,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     note,
     imageRef,
     source,
+    isIncome,
   );
   @override
   bool operator ==(Object other) =>
@@ -1471,7 +1562,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.fxRate == this.fxRate &&
           other.note == this.note &&
           other.imageRef == this.imageRef &&
-          other.source == this.source);
+          other.source == this.source &&
+          other.isIncome == this.isIncome);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -1487,6 +1579,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> note;
   final Value<String?> imageRef;
   final Value<TransactionSource> source;
+  final Value<bool> isIncome;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.accountId = const Value.absent(),
@@ -1500,6 +1593,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.note = const Value.absent(),
     this.imageRef = const Value.absent(),
     this.source = const Value.absent(),
+    this.isIncome = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -1514,6 +1608,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.note = const Value.absent(),
     this.imageRef = const Value.absent(),
     required TransactionSource source,
+    this.isIncome = const Value.absent(),
   }) : accountId = Value(accountId),
        dateDays = Value(dateDays),
        amountMinor = Value(amountMinor),
@@ -1532,6 +1627,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? note,
     Expression<String>? imageRef,
     Expression<String>? source,
+    Expression<bool>? isIncome,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1546,6 +1642,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (note != null) 'note': note,
       if (imageRef != null) 'image_ref': imageRef,
       if (source != null) 'source': source,
+      if (isIncome != null) 'is_income': isIncome,
     });
   }
 
@@ -1562,6 +1659,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<String?>? note,
     Value<String?>? imageRef,
     Value<TransactionSource>? source,
+    Value<bool>? isIncome,
   }) {
     return TransactionsCompanion(
       id: id ?? this.id,
@@ -1576,6 +1674,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       note: note ?? this.note,
       imageRef: imageRef ?? this.imageRef,
       source: source ?? this.source,
+      isIncome: isIncome ?? this.isIncome,
     );
   }
 
@@ -1620,6 +1719,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
         $TransactionsTable.$convertersource.toSql(source.value),
       );
     }
+    if (isIncome.present) {
+      map['is_income'] = Variable<bool>(isIncome.value);
+    }
     return map;
   }
 
@@ -1637,7 +1739,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('fxRate: $fxRate, ')
           ..write('note: $note, ')
           ..write('imageRef: $imageRef, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('isIncome: $isIncome')
           ..write(')'))
         .toString();
   }
@@ -2926,6 +3029,7 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   Value<int?> parentId,
   Value<int> sortOrder,
   Value<int?> colorHint,
+  Value<bool> isIncome,
 });
 typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<int> id,
@@ -2933,6 +3037,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<int?> parentId,
   Value<int> sortOrder,
   Value<int?> colorHint,
+  Value<bool> isIncome,
 });
 
 class $$CategoriesTableFilterComposer
@@ -2966,6 +3071,11 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<int> get colorHint => $composableBuilder(
     column: $table.colorHint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isIncome => $composableBuilder(
+    column: $table.isIncome,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3003,6 +3113,11 @@ class $$CategoriesTableOrderingComposer
     column: $table.colorHint,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isIncome => $composableBuilder(
+    column: $table.isIncome,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -3028,6 +3143,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get colorHint =>
       $composableBuilder(column: $table.colorHint, builder: (column) => column);
+
+  GeneratedColumn<bool> get isIncome =>
+      $composableBuilder(column: $table.isIncome, builder: (column) => column);
 }
 
 class $$CategoriesTableTableManager
@@ -3063,12 +3181,14 @@ class $$CategoriesTableTableManager
                 Value<int?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> colorHint = const Value.absent(),
+                Value<bool> isIncome = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
                 name: name,
                 parentId: parentId,
                 sortOrder: sortOrder,
                 colorHint: colorHint,
+                isIncome: isIncome,
               ),
           createCompanionCallback:
               ({
@@ -3077,12 +3197,14 @@ class $$CategoriesTableTableManager
                 Value<int?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> colorHint = const Value.absent(),
+                Value<bool> isIncome = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
                 name: name,
                 parentId: parentId,
                 sortOrder: sortOrder,
                 colorHint: colorHint,
+                isIncome: isIncome,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3241,6 +3363,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> note,
       Value<String?> imageRef,
       required TransactionSource source,
+      Value<bool> isIncome,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
     TransactionsCompanion Function({
@@ -3256,6 +3379,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> note,
       Value<String?> imageRef,
       Value<TransactionSource> source,
+      Value<bool> isIncome,
     });
 
 class $$TransactionsTableFilterComposer
@@ -3327,6 +3451,11 @@ class $$TransactionsTableFilterComposer
     column: $table.source,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<bool> get isIncome => $composableBuilder(
+    column: $table.isIncome,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$TransactionsTableOrderingComposer
@@ -3397,6 +3526,11 @@ class $$TransactionsTableOrderingComposer
     column: $table.source,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isIncome => $composableBuilder(
+    column: $table.isIncome,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -3453,6 +3587,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<TransactionSource, String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<bool> get isIncome =>
+      $composableBuilder(column: $table.isIncome, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager
@@ -3498,6 +3635,7 @@ class $$TransactionsTableTableManager
                 Value<String?> note = const Value.absent(),
                 Value<String?> imageRef = const Value.absent(),
                 Value<TransactionSource> source = const Value.absent(),
+                Value<bool> isIncome = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
                 accountId: accountId,
@@ -3511,6 +3649,7 @@ class $$TransactionsTableTableManager
                 note: note,
                 imageRef: imageRef,
                 source: source,
+                isIncome: isIncome,
               ),
           createCompanionCallback:
               ({
@@ -3526,6 +3665,7 @@ class $$TransactionsTableTableManager
                 Value<String?> note = const Value.absent(),
                 Value<String?> imageRef = const Value.absent(),
                 required TransactionSource source,
+                Value<bool> isIncome = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
                 accountId: accountId,
@@ -3539,6 +3679,7 @@ class $$TransactionsTableTableManager
                 note: note,
                 imageRef: imageRef,
                 source: source,
+                isIncome: isIncome,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

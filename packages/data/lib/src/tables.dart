@@ -23,6 +23,9 @@ class Categories extends Table {
 
   /// Optional UI tint (ARGB int); semantics stay UI-side.
   IntColumn get colorHint => integer().nullable()();
+
+  /// True = income category (QuickAdd shows it under the Income toggle).
+  BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
 }
 
 class Merchants extends Table {
@@ -57,6 +60,10 @@ class Transactions extends Table {
 
   /// How the row entered the ledger (feasibility §5 discriminator).
   TextColumn get source => text().map(const TransactionSourceConverter())();
+
+  /// E1 §2.1: expense vs income — amountMinor stays unsigned, the sign
+  /// lives in the display layer (spec §3).
+  BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
