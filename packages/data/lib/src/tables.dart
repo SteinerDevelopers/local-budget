@@ -92,6 +92,10 @@ class Goals extends Table {
 
   /// Key into the app's icon registry, same convention as [Categories.icon].
   TextColumn get icon => text().nullable()();
+
+  /// §2.4 editor note ("Editor: name, optional target amount, note").
+  /// Arrives as a v5 ADD COLUMN — v4 created this table before B6's editor.
+  TextColumn get note => text().nullable()();
   BoolColumn get archived => boolean().withDefault(const Constant(false))();
   IntColumn get createdAtMs => integer()();
 }

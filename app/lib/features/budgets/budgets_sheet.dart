@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,8 @@ import '../bills/bill_detail_sheet.dart';
 import '../bills/bill_editor_sheet.dart';
 import '../bills/bills_service.dart';
 import '../bills/bills_tab.dart';
+import '../goals/goals_service.dart';
+import '../goals/goals_tab.dart';
 import '../ledger/ledger_screen.dart' show monthTitle;
 import 'budgets_service.dart';
 import 'budgets_tab.dart';
@@ -67,6 +71,8 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
   bool _billsLoaded = false;
   Currency _billCurrency = Currency.resolve('USD');
   late final Future<void> _billsFuture;
+  List<GoalLine> _goals = const [];
+  bool _goalsLoaded = false;
 
   @override
   void initState() {
@@ -75,6 +81,8 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
     // Kick the bills load NOW: the tab body only reads `_billsLoaded`, so a
     // lazy future here would never start when the user just taps the tab.
     _billsFuture = _loadBills();
+    // Same eager rule as the bills load — the Goals body reads `_goalsLoaded`.
+    unawaited(_loadGoals());
     final focus = widget.focusBillId;
     if (focus != null) _openFocused(focus);
   }
@@ -125,6 +133,15 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
       _billCats = cats;
       _billsLoaded = true;
       _billCurrency = base;
+    });
+  }
+
+  Future<void> _loadGoals() async {
+    final lines = await loadGoalLines(widget.repository);
+    if (!mounted) return;
+    setState(() {
+      _goals = lines;
+      _goalsLoaded = true;
     });
   }
 
@@ -230,11 +247,15 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
                           onChanged: _loadBills,
                         ),
                       ),
-              2 => const _Placeholder(
-                icon: Icons.savings_outlined,
-                title: 'Savings goals are coming in this update',
-                body: 'Transfers to goals stay out of spending.',
-                slotKey: 'tab-goals',
+              2 => KeyedSubtree(
+                key: const Key('tab-goals'),
+                child: !_goalsLoaded
+                    ? const Center(child: CircularProgressIndicator())
+                    : GoalsTab(
+                        repository: widget.repository,
+                        goals: _goals,
+                        onChanged: _loadGoals,
+                      ),
               ),
               _ =>
                 _snapshot == null || _snapshotIndex != _index
@@ -304,42 +325,6 @@ class _Chevron extends StatelessWidget {
       icon: Icon(icon, size: 28),
       tooltip: semantic,
       onPressed: onTap,
-    );
-  }
-}
-
-/// Bills/Goals slots ship in B4/B6; the segment and slot exist now so the
-/// sheet never rearranges later (§2.1).
-class _Placeholder extends StatelessWidget {
-  const _Placeholder({
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.slotKey,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-  final String slotKey;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return KeyedSubtree(
-      key: Key(slotKey),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: scheme.onSurfaceVariant),
-            const SizedBox(height: Tokens.space3),
-            Text(title, style: Tokens.body(context)),
-            const SizedBox(height: Tokens.space1),
-            Text(body, style: Tokens.labelCaps(context)),
-          ],
-        ),
-      ),
     );
   }
 }

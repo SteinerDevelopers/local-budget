@@ -143,7 +143,10 @@ integer arithmetic and injected `DateTime now`, mirroring `core`'s test style.
   frequency TEXT, dayOfMonth INTEGER NULL, dayOfWeek INTEGER NULL,
   startMs, nextDueMs, notify INTEGER default 1, archived INTEGER default 0`.
 - New `Goals`: `id, name, targetMinor INTEGER NULL, currencyCode, icon TEXT
-  NULL, archived INTEGER default 0, createdAtMs`.
+  NULL, note TEXT NULL, archived INTEGER default 0, createdAtMs`. (`note`
+  ships with the B6 editor that offers it; v4 created the table before the
+  editor existed, so it arrives as a v5 `ADD COLUMN` — an addition, not a
+  redesign.)
 - Settings keys (no table): `budget_rollover` (`on|off`),
   `bills_last_materialize_ms`.
 

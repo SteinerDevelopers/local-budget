@@ -3070,6 +3070,15 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _archivedMeta = const VerificationMeta(
     'archived',
   );
@@ -3103,6 +3112,7 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
     targetMinor,
     currencyCode,
     icon,
+    note,
     archived,
     createdAtMs,
   ];
@@ -3155,6 +3165,12 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
         icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
       );
     }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
     if (data.containsKey('archived')) {
       context.handle(
         _archivedMeta,
@@ -3201,6 +3217,10 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, Goal> {
         DriftSqlType.string,
         data['${effectivePrefix}icon'],
       ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
       archived: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}archived'],
@@ -3226,6 +3246,10 @@ class Goal extends DataClass implements Insertable<Goal> {
 
   /// Key into the app's icon registry, same convention as [Categories.icon].
   final String? icon;
+
+  /// §2.4 editor note ("Editor: name, optional target amount, note").
+  /// Arrives as a v5 ADD COLUMN — v4 created this table before B6's editor.
+  final String? note;
   final bool archived;
   final int createdAtMs;
   const Goal({
@@ -3234,6 +3258,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     this.targetMinor,
     required this.currencyCode,
     this.icon,
+    this.note,
     required this.archived,
     required this.createdAtMs,
   });
@@ -3249,6 +3274,9 @@ class Goal extends DataClass implements Insertable<Goal> {
     if (!nullToAbsent || icon != null) {
       map['icon'] = Variable<String>(icon);
     }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
     map['archived'] = Variable<bool>(archived);
     map['created_at_ms'] = Variable<int>(createdAtMs);
     return map;
@@ -3263,6 +3291,7 @@ class Goal extends DataClass implements Insertable<Goal> {
           : Value(targetMinor),
       currencyCode: Value(currencyCode),
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       archived: Value(archived),
       createdAtMs: Value(createdAtMs),
     );
@@ -3279,6 +3308,7 @@ class Goal extends DataClass implements Insertable<Goal> {
       targetMinor: serializer.fromJson<int?>(json['targetMinor']),
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
       icon: serializer.fromJson<String?>(json['icon']),
+      note: serializer.fromJson<String?>(json['note']),
       archived: serializer.fromJson<bool>(json['archived']),
       createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
     );
@@ -3292,6 +3322,7 @@ class Goal extends DataClass implements Insertable<Goal> {
       'targetMinor': serializer.toJson<int?>(targetMinor),
       'currencyCode': serializer.toJson<String>(currencyCode),
       'icon': serializer.toJson<String?>(icon),
+      'note': serializer.toJson<String?>(note),
       'archived': serializer.toJson<bool>(archived),
       'createdAtMs': serializer.toJson<int>(createdAtMs),
     };
@@ -3303,6 +3334,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     Value<int?> targetMinor = const Value.absent(),
     String? currencyCode,
     Value<String?> icon = const Value.absent(),
+    Value<String?> note = const Value.absent(),
     bool? archived,
     int? createdAtMs,
   }) => Goal(
@@ -3311,6 +3343,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     targetMinor: targetMinor.present ? targetMinor.value : this.targetMinor,
     currencyCode: currencyCode ?? this.currencyCode,
     icon: icon.present ? icon.value : this.icon,
+    note: note.present ? note.value : this.note,
     archived: archived ?? this.archived,
     createdAtMs: createdAtMs ?? this.createdAtMs,
   );
@@ -3325,6 +3358,7 @@ class Goal extends DataClass implements Insertable<Goal> {
           ? data.currencyCode.value
           : this.currencyCode,
       icon: data.icon.present ? data.icon.value : this.icon,
+      note: data.note.present ? data.note.value : this.note,
       archived: data.archived.present ? data.archived.value : this.archived,
       createdAtMs: data.createdAtMs.present
           ? data.createdAtMs.value
@@ -3340,6 +3374,7 @@ class Goal extends DataClass implements Insertable<Goal> {
           ..write('targetMinor: $targetMinor, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('icon: $icon, ')
+          ..write('note: $note, ')
           ..write('archived: $archived, ')
           ..write('createdAtMs: $createdAtMs')
           ..write(')'))
@@ -3353,6 +3388,7 @@ class Goal extends DataClass implements Insertable<Goal> {
     targetMinor,
     currencyCode,
     icon,
+    note,
     archived,
     createdAtMs,
   );
@@ -3365,6 +3401,7 @@ class Goal extends DataClass implements Insertable<Goal> {
           other.targetMinor == this.targetMinor &&
           other.currencyCode == this.currencyCode &&
           other.icon == this.icon &&
+          other.note == this.note &&
           other.archived == this.archived &&
           other.createdAtMs == this.createdAtMs);
 }
@@ -3375,6 +3412,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
   final Value<int?> targetMinor;
   final Value<String> currencyCode;
   final Value<String?> icon;
+  final Value<String?> note;
   final Value<bool> archived;
   final Value<int> createdAtMs;
   const GoalsCompanion({
@@ -3383,6 +3421,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     this.targetMinor = const Value.absent(),
     this.currencyCode = const Value.absent(),
     this.icon = const Value.absent(),
+    this.note = const Value.absent(),
     this.archived = const Value.absent(),
     this.createdAtMs = const Value.absent(),
   });
@@ -3392,6 +3431,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     this.targetMinor = const Value.absent(),
     required String currencyCode,
     this.icon = const Value.absent(),
+    this.note = const Value.absent(),
     this.archived = const Value.absent(),
     required int createdAtMs,
   }) : name = Value(name),
@@ -3403,6 +3443,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     Expression<int>? targetMinor,
     Expression<String>? currencyCode,
     Expression<String>? icon,
+    Expression<String>? note,
     Expression<bool>? archived,
     Expression<int>? createdAtMs,
   }) {
@@ -3412,6 +3453,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
       if (targetMinor != null) 'target_minor': targetMinor,
       if (currencyCode != null) 'currency_code': currencyCode,
       if (icon != null) 'icon': icon,
+      if (note != null) 'note': note,
       if (archived != null) 'archived': archived,
       if (createdAtMs != null) 'created_at_ms': createdAtMs,
     });
@@ -3423,6 +3465,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     Value<int?>? targetMinor,
     Value<String>? currencyCode,
     Value<String?>? icon,
+    Value<String?>? note,
     Value<bool>? archived,
     Value<int>? createdAtMs,
   }) {
@@ -3432,6 +3475,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
       targetMinor: targetMinor ?? this.targetMinor,
       currencyCode: currencyCode ?? this.currencyCode,
       icon: icon ?? this.icon,
+      note: note ?? this.note,
       archived: archived ?? this.archived,
       createdAtMs: createdAtMs ?? this.createdAtMs,
     );
@@ -3455,6 +3499,9 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
     if (icon.present) {
       map['icon'] = Variable<String>(icon.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     if (archived.present) {
       map['archived'] = Variable<bool>(archived.value);
     }
@@ -3472,6 +3519,7 @@ class GoalsCompanion extends UpdateCompanion<Goal> {
           ..write('targetMinor: $targetMinor, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('icon: $icon, ')
+          ..write('note: $note, ')
           ..write('archived: $archived, ')
           ..write('createdAtMs: $createdAtMs')
           ..write(')'))
@@ -5774,6 +5822,7 @@ typedef $$GoalsTableCreateCompanionBuilder =
       Value<int?> targetMinor,
       required String currencyCode,
       Value<String?> icon,
+      Value<String?> note,
       Value<bool> archived,
       required int createdAtMs,
     });
@@ -5784,6 +5833,7 @@ typedef $$GoalsTableUpdateCompanionBuilder =
       Value<int?> targetMinor,
       Value<String> currencyCode,
       Value<String?> icon,
+      Value<String?> note,
       Value<bool> archived,
       Value<int> createdAtMs,
     });
@@ -5818,6 +5868,11 @@ class $$GoalsTableFilterComposer extends Composer<_$AppDatabase, $GoalsTable> {
 
   ColumnFilters<String> get icon => $composableBuilder(
     column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5866,6 +5921,11 @@ class $$GoalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get archived => $composableBuilder(
     column: $table.archived,
     builder: (column) => ColumnOrderings(column),
@@ -5904,6 +5964,9 @@ class $$GoalsTableAnnotationComposer
 
   GeneratedColumn<String> get icon =>
       $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 
   GeneratedColumn<bool> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
@@ -5947,6 +6010,7 @@ class $$GoalsTableTableManager
                 Value<int?> targetMinor = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
+                Value<String?> note = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
                 Value<int> createdAtMs = const Value.absent(),
               }) => GoalsCompanion(
@@ -5955,6 +6019,7 @@ class $$GoalsTableTableManager
                 targetMinor: targetMinor,
                 currencyCode: currencyCode,
                 icon: icon,
+                note: note,
                 archived: archived,
                 createdAtMs: createdAtMs,
               ),
@@ -5965,6 +6030,7 @@ class $$GoalsTableTableManager
                 Value<int?> targetMinor = const Value.absent(),
                 required String currencyCode,
                 Value<String?> icon = const Value.absent(),
+                Value<String?> note = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
                 required int createdAtMs,
               }) => GoalsCompanion.insert(
@@ -5973,6 +6039,7 @@ class $$GoalsTableTableManager
                 targetMinor: targetMinor,
                 currencyCode: currencyCode,
                 icon: icon,
+                note: note,
                 archived: archived,
                 createdAtMs: createdAtMs,
               ),

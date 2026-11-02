@@ -173,6 +173,9 @@ class LedgerRepository {
   Future<List<Transaction>> transactionsInRange(int fromDays, int toDays) =>
       (db.select(db.transactions)
             ..where((t) => t.dateDays.isBetweenValues(fromDays, toDays))
+            // §3.5: goal movements are transfers, not income or expense —
+            // the engine feed must never see them.
+            ..where((t) => t.goalId.isNull())
             ..orderBy([
               (t) => OrderingTerm.asc(t.dateDays),
               (t) => OrderingTerm.asc(t.id),
@@ -439,6 +442,7 @@ class LedgerRepository {
     required String currencyCode,
     int? targetMinor,
     String? icon,
+    String? note,
   }) async {
     if (name.trim().isEmpty) throw ArgumentError('goal name required');
     return db
@@ -449,6 +453,7 @@ class LedgerRepository {
             currencyCode: currencyCode,
             targetMinor: Value(targetMinor),
             icon: Value(icon),
+            note: Value(note),
             createdAtMs: DateTime.now().millisecondsSinceEpoch,
           ),
         );
@@ -461,30 +466,38 @@ class LedgerRepository {
     return q.get();
   }
 
+  /// Column presence follows [Value]: passing nothing leaves a column
+  /// alone, `Value(null)` clears it (the editor's blank target = open-
+  /// ended), `Value(x)` writes. Plain-nullable args cannot express
+  /// "clear", which the editor needs.
   Future<void> updateGoal(
     int id, {
     String? name,
-    int? targetMinor,
+    Value<int?>? targetMinor,
     String? icon,
+    Value<String?>? note,
     bool? archived,
   }) => (db.update(db.goals)..where((t) => t.id.equals(id))).write(
     GoalsCompanion(
       name: name == null ? const Value.absent() : Value(name.trim()),
-      targetMinor: targetMinor == null
-          ? const Value.absent()
-          : Value(targetMinor),
+      targetMinor: targetMinor ?? const Value.absent(),
       icon: icon == null ? const Value.absent() : Value(icon),
+      note: note ?? const Value.absent(),
       archived: archived == null ? const Value.absent() : Value(archived),
     ),
   );
 
-  /// A goal transfer is a [Transactions] row carrying [goalId] — invisible to
-  /// the ledger and budget sums (B6), visible only in the goal detail (§3.5).
+  /// A goal movement is a [Transactions] row carrying [goalId] — invisible
+  /// to the ledger list, the balance strip and budget sums (B6, §3.5),
+  /// visible only in the goal detail. [isIncome] is repurposed as the
+  /// transfer's direction: false = deposit (money into the goal), true =
+  /// withdraw. Either way it is neither income nor expense anywhere else.
   Future<int> addGoalTransfer({
     required int accountId,
     required int goalId,
     required DateTime date,
     required Money amount,
+    bool isIncome = false,
     String? note,
     String? baseCurrencyCode,
     double? fxRate,
@@ -493,11 +506,23 @@ class LedgerRepository {
     date: date,
     amount: amount,
     source: TransactionSource.manual,
+    isIncome: isIncome,
     note: note,
     baseCurrencyCode: baseCurrencyCode,
     fxRate: fxRate,
     goalId: goalId,
   );
+
+  /// The goal detail's transfer list, newest first (§2.4). The only read
+  /// that surfaces goal-tagged rows.
+  Future<List<Transaction>> goalTransfers(int goalId) =>
+      (db.select(db.transactions)
+            ..where((t) => t.goalId.equals(goalId))
+            ..orderBy([
+              (t) => OrderingTerm.desc(t.dateDays),
+              (t) => OrderingTerm.desc(t.id),
+            ]))
+          .get();
 }
 
 /// A month-list row joined with its category name — the projection the
@@ -663,6 +688,9 @@ extension LedgerE1 on LedgerRepository {
             ),
           ])
           ..where(tx.dateDays.isBetweenValues(r.fromDays, r.toDays))
+          // §3.5: goal movements never appear in the ledger list — and the
+          // balance strip sums these rows, so it is excluded there too.
+          ..where(tx.goalId.isNull())
           ..orderBy([OrderingTerm.desc(tx.dateDays), OrderingTerm.desc(tx.id)]);
     return q.watch().map(
       (rows) => [

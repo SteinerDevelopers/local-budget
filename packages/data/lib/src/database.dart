@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(NativeDatabase(File(path)));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,12 +73,19 @@ class AppDatabase extends _$AppDatabase {
           'ON budgets (category_id, year_month, period_type)',
         );
       }
+      if (from < 5) {
+        // B6 (spec §2.4 editor): goals gained a note. Upgrades below 4
+        // create the table with the column already present, so re-running
+        // through here is safe via the same table_info check as v4.
+        await _addColumnIfAbsent(m, goals, goals.note);
+      }
     },
     // v2: icon key on categories (Manage screen, #18). Line items remain a
     // feature flag — the table shipped in v1 (decision 2), not a migration.
     // v3: tx_date index for the month query (hardening #23).
     // v4: E3 — Goals, RecurringRules, budget periodType/rolloverCapMinor,
     //     transactions.goalId, budget_month → budget_month_period (#33).
+    // v5: goals.note for the B6 goals editor (#37).
   );
 
   /// SQLite has no `ADD COLUMN IF NOT EXISTS`, and the from<4 step re-runs
