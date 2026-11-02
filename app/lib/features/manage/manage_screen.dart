@@ -1,7 +1,9 @@
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
+import '../budgets/budgets_sheet.dart';
 import '../help/help_screen.dart';
+import '../ledger/ledger_screen.dart' show monthIndexOf;
 import 'base_currency_sheet.dart';
 import 'category_list_screen.dart';
 
@@ -45,6 +47,15 @@ class _ManageScreenState extends State<ManageScreen> {
                 builder: (_) =>
                     CategoryListScreen(repository: widget.repository),
               ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.savings_outlined),
+            title: const Text('Budgets & bills'),
+            onTap: () => showBudgetsSheet(
+              context,
+              repository: widget.repository,
+              monthIndex: monthIndexOf(DateTime.now()),
             ),
           ),
           ListTile(

@@ -7,9 +7,13 @@ import 'view_models.dart';
 /// Labels are `label-caps`; values are 16 pt tabular. Income & expenses render
 /// as positive numbers (the label carries the sign), net uses `primary`.
 class BalanceStrip extends StatelessWidget {
-  const BalanceStrip({super.key, required this.summary});
+  const BalanceStrip({super.key, required this.summary, this.onExpensesTap});
 
   final BalanceSummary summary;
+
+  /// Opens the budgets sheet — wired in B3; null keeps the stat inert
+  /// (goldens unchanged).
+  final VoidCallback? onExpensesTap;
 
   static const double _height = 56; // §2.1, not promoted to a §3 token
 
@@ -32,6 +36,7 @@ class BalanceStrip extends StatelessWidget {
               label: 'Expenses',
               value: summary.expensesDisplay(),
               valueColor: scheme.onSurface,
+              onTap: onExpensesTap,
             ),
             _Stat(
               label: 'Net',
@@ -50,11 +55,13 @@ class _Stat extends StatelessWidget {
     required this.label,
     required this.value,
     required this.valueColor,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final Color valueColor;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -64,21 +71,27 @@ class _Stat extends StatelessWidget {
       child: Semantics(
         label: '$label $value',
         excludeSemantics: true,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
-            const SizedBox(height: Tokens.space1),
-            Flexible(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Tokens.amount(context).copyWith(color: valueColor),
+        button: onTap != null,
+        onTap: onTap,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
+              const SizedBox(height: Tokens.space1),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Tokens.amount(context).copyWith(color: valueColor),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

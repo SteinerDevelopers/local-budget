@@ -6,6 +6,7 @@ import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../budgets/budgets_sheet.dart';
 import '../capture/capture_intake.dart';
 import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
@@ -564,7 +565,15 @@ class _MonthPageState extends State<_MonthPage> {
         final rows = snapshot.data ?? const <LedgerEntryData>[];
         return Column(
           children: [
-            BalanceStrip(summary: summarizeMonth(rows, widget.currency)),
+            BalanceStrip(
+              summary: summarizeMonth(rows, widget.currency),
+              onExpensesTap: () => showBudgetsSheet(
+                context,
+                repository: widget.repository,
+                monthIndex: widget.index,
+                currency: widget.currency,
+              ),
+            ),
             Expanded(
               // Empty month keeps header + strip (zeros) on screen (§2.1).
               child: rows.isEmpty
