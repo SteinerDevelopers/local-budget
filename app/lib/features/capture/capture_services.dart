@@ -1,4 +1,5 @@
 import 'package:capture/capture.dart';
+import 'package:core/core.dart';
 import 'package:data/data.dart';
 
 import 'capture_intake.dart';
@@ -13,6 +14,11 @@ abstract interface class ShareIngest {
   /// Shares delivered while the app runs.
   Stream<List<CapturePick>> get stream;
 }
+
+/// A Tier-3 on-device structurer view bound to one currency (issue #29).
+/// Resolved per capture because the ledger currency is runtime-mutable; the
+/// app hands the pipeline a fresh view, never a stale currency.
+typedef StructurerFor = LlmStructurer Function(Currency currency);
 
 /// Everything the Ledger needs to run the capture flow (E2 §5). Android's
 /// real services (image_picker / ML Kit / SAF — issue #28) get assembled in
@@ -32,6 +38,7 @@ class CaptureServices {
     this.renderer,
     this.store,
     this.shares,
+    this.structurerFor,
   });
 
   final CaptureIntake intake;
@@ -39,4 +46,8 @@ class CaptureServices {
   final TextRenderer? renderer;
   final AttachmentStore? store;
   final ShareIngest? shares;
+
+  /// Tier-3 fill-only structurer (Gemini Nano where the device offers it);
+  /// null means the review draft is exactly what Tier 1–2 saw.
+  final StructurerFor? structurerFor;
 }

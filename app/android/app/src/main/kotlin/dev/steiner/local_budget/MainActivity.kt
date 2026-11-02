@@ -8,14 +8,25 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.graphics.pdf.PdfRenderer
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
+import com.google.mlkit.genai.common.FeatureStatus
+import com.google.mlkit.genai.prompt.GenerateContentRequest
+import com.google.mlkit.genai.prompt.GenerateContentResponse
+import com.google.mlkit.genai.prompt.Generation
+import com.google.mlkit.genai.prompt.ImagePart
+import com.google.mlkit.genai.prompt.TextPart
+import com.google.mlkit.genai.prompt.java.GenerativeModelFutures
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.util.concurrent.Executors
 
 /**
  * Native half of the capture intake (issue #28, design e2-capture §5).
- * Three surfaces, none of them a runtime permission:
+ * Surfaces, none of them a runtime permission:
  *
  *  - `openDocument`: SAF ACTION_OPEN_DOCUMENT accepting image/* and
  *    application/pdf; the picked content:// stream is read into bytes here,
@@ -27,6 +38,9 @@ import java.io.File
  *  - `renderPdfFirstPage`: page 1 rasterized to PNG by the platform
  *    PdfRenderer — no pdfium to bundle, no native asset to compile, parsing
  *    stays on device (decision 8).
+ *  - `nanoStatus` / `nanoPrompt`: feature detection and fill-only inference
+ *    for Gemini Nano via ML Kit GenAI (issue #29) — see the nano section
+ *    below for why this is a platform channel and never a download.
  *
  * Shares (ACTION_SEND / SEND_MULTIPLE) arrive through the manifest intent
  * filters and are handled entirely in Dart by receive_sharing_intent.
@@ -35,6 +49,11 @@ class MainActivity : FlutterActivity() {
 
     /** One SAF dialog at a time; its reply waits on the activity callback. */
     private var pendingReply: MethodChannel.Result? = null
+
+    /** Lazily bound Gemini Nano handle; callbacks reply off the main thread,
+     *  which MethodChannel.Result explicitly allows. */
+    private var nanoModel: GenerativeModelFutures? = null
+    private val nanoExecutor = Executors.newSingleThreadExecutor()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -76,6 +95,10 @@ class MainActivity : FlutterActivity() {
                             result.success(renderPdfFirstPage(pdf))
                         }
                     }
+
+                    "nanoStatus" -> nanoStatus(result)
+
+                    "nanoPrompt" -> nanoPrompt(call, result)
 
                     else -> result.notImplemented()
                 }
@@ -207,8 +230,95 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * Gemini Nano, tier 3 of the capture pipeline (issue #29, decision 10).
+     * The official Flutter wrapper of ML Kit GenAI stubs its inference call,
+     * so the app reaches `com.google.mlkit:genai-prompt` through these two
+     * methods instead - exactly the "thin platform channel" the feasibility
+     * doc prescribes. Status is answered as a plain bool (anything that is
+     * not AVAILABLE is unavailable); inference answers with the model's raw
+     * text, or null on any failure - Dart's parser owns the contract.
+     *
+     * No download is ever triggered here: the model is multi-GB and the app
+     * has no consent UI to ask for it (decision 10). An already-installed
+     * AICore feature is used; everything else behaves like E1.
+     */
+    private fun nanoStatus(result: MethodChannel.Result) {
+        val client = nanoClient()
+        if (client == null) {
+            result.success(false)
+            return
+        }
+        try {
+            Futures.addCallback(
+                client.checkStatus(),
+                object : FutureCallback<Int> {
+                    override fun onSuccess(status: Int?) {
+                        result.success(status == FeatureStatus.AVAILABLE)
+                    }
+
+                    override fun onFailure(t: Throwable) {
+                        result.success(false)
+                    }
+                },
+                nanoExecutor,
+            )
+        } catch (e: Throwable) {
+            result.success(false)
+        }
+    }
+
+    private fun nanoPrompt(call: MethodCall, result: MethodChannel.Result) {
+        val text = call.argument<String>("text")
+        if (text == null) {
+            result.error("bad_args", "text required", null)
+            return
+        }
+        val client = nanoClient()
+        if (client == null) {
+            result.success(null)
+            return
+        }
+        try {
+            // ImagePart accepts the encoded receipt bytes directly; without
+            // an image this degrades to a plain-text prompt over OCR lines.
+            val builder = when (val image = call.argument<ByteArray>("image")) {
+                null -> GenerateContentRequest.Builder(TextPart(text))
+                else -> GenerateContentRequest.Builder(ImagePart(image), TextPart(text))
+            }
+            builder.maxOutputTokens = NANO_MAX_TOKENS
+            val request = builder.build()
+            Futures.addCallback(
+                client.generateContent(request),
+                object : FutureCallback<GenerateContentResponse> {
+                    override fun onSuccess(response: GenerateContentResponse?) {
+                        result.success(response?.candidates?.firstOrNull()?.text)
+                    }
+
+                    override fun onFailure(t: Throwable) {
+                        result.success(null)
+                    }
+                },
+                nanoExecutor,
+            )
+        } catch (e: Throwable) {
+            result.success(null)
+        }
+    }
+
+    /** Created once per engine; a device without GenAI support fails here
+     *  (and in checkStatus) exactly once, quietly. */
+    private fun nanoClient(): GenerativeModelFutures? =
+        nanoModel ?: try {
+            GenerativeModelFutures.from(Generation.getClient())
+                .also { nanoModel = it }
+        } catch (e: Throwable) {
+            null
+        }
+
     companion object {
         private const val CHANNEL = "localbudget/capture"
         private const val REQ_OPEN_DOCUMENT = 0x4305
+        private const val NANO_MAX_TOKENS = 400
     }
 }

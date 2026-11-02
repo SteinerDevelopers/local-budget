@@ -22,7 +22,9 @@ android {
         applicationId = "dev.steiner.local_budget"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // ML Kit GenAI (Gemini Nano via AICore, issue #29) requires API 26;
+        // the feasibility doc's Android floor is 8.0 either way.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
@@ -49,4 +51,11 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Tier-3 structurer (issue #29): ML Kit GenAI prompt API. The Flutter
+    // wrapper package stubs inference, so MainActivity talks to this
+    // artifact through the localbudget/capture channel.
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
 }

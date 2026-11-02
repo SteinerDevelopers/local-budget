@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'design/theme.dart';
 import 'features/capture/android_capture_intake.dart';
 import 'features/capture/adapters/channel_pdf_text_renderer.dart';
+import 'features/capture/adapters/gemini_nano_structurer.dart';
 import 'features/capture/adapters/ml_kit_text_extractor.dart';
 
 import 'features/capture/capture_services.dart';
@@ -39,6 +40,9 @@ CaptureServices? _androidCapture(Directory docsDir) {
     renderer: ChannelPdfTextRenderer(),
     store: AttachmentStore(docsDir),
     shares: PluginShareIngest(),
+    // Tier 3 (issue #29): one fire-and-forget availability probe at startup;
+    // absent AICore means false and the pipeline behaves exactly like E1.
+    structurerFor: GeminiNanoStructurer().forCurrency,
   );
 }
 

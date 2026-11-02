@@ -307,6 +307,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       pipeline: CapturePipeline(
         currency: _currency,
         extractor: services.extractor,
+        // Currency-bound Tier-3 view (issue #29); null = OCR only.
+        structurer: services.structurerFor?.call(_currency),
       ),
       categories: [
         for (final c in cats)
