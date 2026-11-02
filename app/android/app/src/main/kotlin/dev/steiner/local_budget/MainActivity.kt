@@ -193,15 +193,17 @@ class MainActivity : FlutterActivity() {
                 tmp,
                 ParcelFileDescriptor.MODE_READ_ONLY,
             )
-            renderer = PdfRenderer(pfd)
-            if (renderer.numPages == 0) return null
-            page = renderer.openPage(0)
-            val scale = (1200.0 / page.width).coerceIn(0.25, 4.0)
-            val width = (page.width * scale).toInt().coerceAtLeast(1)
-            val height = (page.height * scale).toInt().coerceAtLeast(1)
+            val r = PdfRenderer(pfd)
+            renderer = r
+            if (r.numPages == 0) return null
+            val pg = r.openPage(0)
+            page = pg
+            val scale = (1200.0 / pg.width).coerceIn(0.25, 4.0)
+            val width = (pg.width * scale).toInt().coerceAtLeast(1)
+            val height = (pg.height * scale).toInt().coerceAtLeast(1)
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             bitmap.eraseColor(Color.WHITE) // PDF pages are transparent-paper
-            page.render(
+            pg.render(
                 bitmap,
                 null,
                 null,
