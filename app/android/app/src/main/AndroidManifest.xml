@@ -24,6 +24,25 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Share / open-with into Review (design e2-capture §5,
+                 decision 5): receipts are images and PDFs, so those are the
+                 only accepted mime types. receive_sharing_intent ships an
+                 empty manifest — these filters are what deliver
+                 ACTION_SEND / SEND_MULTIPLE to the Dart ingest. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="image/png"/>
+                <data android:mimeType="image/jpeg"/>
+                <data android:mimeType="application/pdf"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="image/png"/>
+                <data android:mimeType="image/jpeg"/>
+                <data android:mimeType="application/pdf"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

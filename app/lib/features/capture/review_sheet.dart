@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:capture/capture.dart';
@@ -40,6 +41,7 @@ Future<CapturedEntry?> showCaptureReview(
   required List<CategoryOption> categories,
   int? warmCategoryId,
   VoidCallback? onManageCategories,
+  TextRenderer? renderer,
 }) => showModalBottomSheet<CapturedEntry>(
   context: context,
   isScrollControlled: true,
@@ -54,6 +56,7 @@ Future<CapturedEntry?> showCaptureReview(
       categories: categories,
       warmCategoryId: warmCategoryId,
       onManageCategories: onManageCategories,
+      renderer: renderer,
     ),
   ),
 );
@@ -67,6 +70,7 @@ class CaptureReviewSheet extends StatefulWidget {
     required this.categories,
     this.warmCategoryId,
     this.onManageCategories,
+    this.renderer,
   });
 
   final TransactionSource source;
@@ -75,6 +79,10 @@ class CaptureReviewSheet extends StatefulWidget {
   final List<CategoryOption> categories;
   final int? warmCategoryId;
   final VoidCallback? onManageCategories;
+
+  /// Page-1 rasterizer for PDFs (§2.3 thumbnail / §3 scanned fallback).
+  /// Null keeps the PDF icon placeholder — goldens never load pdfium.
+  final TextRenderer? renderer;
 
   @override
   State<CaptureReviewSheet> createState() => _CaptureReviewSheetState();
@@ -89,6 +97,11 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
 
   bool _busy = true;
   ReceiptDraft? _draft;
+
+  /// Rendered page 1 of a PDF (§2.3 "PDF page 1" thumbnail); null while
+  /// pending or when there is no renderer / the rasterizer failed — the
+  /// icon placeholder then stands, never a blank box.
+  Uint8List? _page1;
 
   // "The highlight clears the moment the user edits the field" (§2.3) —
   // three one-way latches, set by the corresponding user gesture.
@@ -111,8 +124,14 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
     final bytes = widget.imageBytes;
     ReceiptDraft? draft;
     if (bytes != null) {
-      draft = widget.source == TransactionSource.pdfImport
-          ? await widget.pipeline.fromPdf(bytes)
+      final isPdf = widget.source == TransactionSource.pdfImport;
+      if (isPdf && widget.renderer != null) {
+        // Kick the thumbnail render off first; the strip shows it as soon
+        // as it lands, independent of how the OCR draft is doing.
+        unawaited(_loadPage1(bytes));
+      }
+      draft = isPdf
+          ? await widget.pipeline.fromPdf(bytes, renderer: widget.renderer)
           : await widget.pipeline.fromImage(bytes);
     }
     if (!mounted) return;
@@ -130,6 +149,20 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
   void dispose() {
     _merchant.dispose();
     super.dispose();
+  }
+
+  /// Page-1 raster for the source strip / viewer (§2.3). Failures leave the
+  /// icon placeholder in place — never a blank box, never an error dialog.
+  Future<void> _loadPage1(Uint8List bytes) async {
+    final renderer = widget.renderer;
+    if (renderer == null) return;
+    try {
+      final png = await renderer.renderPage1(bytes);
+      if (!mounted) return;
+      setState(() => _page1 = png);
+    } catch (_) {
+      // Icon placeholder stands.
+    }
   }
 
   /// Identical gate to QuickAdd (§2.3 item 2): amount > 0 and category.
@@ -209,6 +242,7 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
               imageBytes: widget.imageBytes,
               busy: _busy,
               noTotal: _noTotal,
+              page1: _page1,
             ),
             const SizedBox(height: Tokens.space2),
             // Fields appear as extraction lands (§2.3, §6: 150 ms fade).
@@ -447,12 +481,17 @@ class _SourceStrip extends StatelessWidget {
     required this.imageBytes,
     required this.busy,
     required this.noTotal,
+    this.page1,
   });
 
   final TransactionSource source;
   final Uint8List? imageBytes;
   final bool busy;
   final bool noTotal;
+
+  /// Rasterized PDF page 1 (§2.3); null until the renderer lands — the
+  /// icon placeholder then stands.
+  final Uint8List? page1;
 
   String get _badge => switch (source) {
     TransactionSource.pdfImport => 'PDF',
@@ -516,7 +555,13 @@ class _SourceStrip extends StatelessWidget {
       return const ColoredBox(color: Color(0x00000000), child: SizedBox());
     }
     if (_isPdf) {
-      // PDF bytes are not an image; page-1 rasterizing is the M2 renderer.
+      // PDF bytes are not an image; the renderer (C5) rasterizes page 1 and
+      // it lands here asynchronously. The icon is the placeholder until —
+      // and unless — that render succeeds (§2.3, never a blank box).
+      final page = page1;
+      if (page != null) {
+        return Image.memory(page, fit: BoxFit.cover, gaplessPlayback: true);
+      }
       return ColoredBox(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: const Center(
@@ -538,13 +583,13 @@ class _SourceStrip extends StatelessWidget {
           body: GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Center(
-              child: _isPdf
+              child: _isPdf && page1 == null
                   ? const Icon(
                       Icons.picture_as_pdf_outlined,
                       size: 96,
                       color: Colors.white70,
                     )
-                  : Image.memory(bytes, fit: BoxFit.contain),
+                  : Image.memory(_isPdf ? page1! : bytes, fit: BoxFit.contain),
             ),
           ),
         ),

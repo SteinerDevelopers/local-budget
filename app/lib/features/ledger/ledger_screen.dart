@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:capture/capture.dart' show CapturePipeline;
 import 'package:core/core.dart';
 import 'package:data/data.dart';
@@ -145,10 +147,63 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// the screen instead of a month frozen since process start.
   late final int _index0 = monthIndexOf(DateTime.now());
 
+  // ---- external share / open-with (§5, decision 5) -------------------------
+
+  StreamSubscription<List<CapturePick>>? _shareSub;
+
+  /// A share delivered before the first frame must wait for layout — the
+  /// bottom sheet needs a built context to open into.
+  bool _shareReady = false;
+  final List<List<CapturePick>> _pendingShares = [];
+
   @override
   void initState() {
     super.initState();
     _loadCurrency();
+    _listenShares();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _shareReady = true;
+      for (final batch in List<List<CapturePick>>.of(_pendingShares)) {
+        _pendingShares.remove(batch);
+        _onShares(batch);
+      }
+    });
+  }
+
+  /// Share / open-with ingest: cold-start share + the running stream, both
+  /// routed through [_onShares]. Null `shares` (iOS until E5, tests without
+  /// the plugin) means nothing is ever listened to.
+  void _listenShares() {
+    final ingest = widget.capture?.shares;
+    if (ingest == null) return;
+    _shareSub = ingest.stream.listen(_onShares);
+    ingest.initial().then(_onShares);
+  }
+
+  /// Decision 5 verbatim: multiple shared files import **the first**, the
+  /// rest get one honest snackbar — never a queue, never auto-commit.
+  void _onShares(List<CapturePick> picks) {
+    if (picks.isEmpty) return;
+    if (!_shareReady) {
+      _pendingShares.add(picks);
+      return;
+    }
+    if (picks.length > 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Files import one at a time — the first one opened.'),
+        ),
+      );
+    }
+    _reviewPick(picks.first);
+  }
+
+  @override
+  void dispose() {
+    _shareSub?.cancel();
+    _pages.dispose();
+    super.dispose();
   }
 
   /// Base currency feeds the strip + QuickAdd's keypad; re-read after Manage
@@ -156,12 +211,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _loadCurrency() async {
     final code = await widget.repository.baseCurrency();
     if (mounted) setState(() => _currency = Currency.resolve(code ?? 'USD'));
-  }
-
-  @override
-  void dispose() {
-    _pages.dispose();
-    super.dispose();
   }
 
   void _animate(int target) {
@@ -240,11 +289,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (pick == null || !mounted) return;
+    await _reviewPick(pick);
+  }
+
+  /// The Review half of every capture entry point — source-sheet picks and
+  /// external shares converge here (decision 5: one document → one review →
+  /// at most one write, whoever initiated it).
+  Future<void> _reviewPick(CapturePick pick) async {
+    final services = widget.capture;
+    if (services == null || !mounted) return;
     final cats = await widget.repository.categories();
     if (!mounted) return;
     final captured = await showCaptureReview(
       context,
-      source: choice.source,
+      source: pick.choice.source,
       imageBytes: pick.bytes,
       pipeline: CapturePipeline(
         currency: _currency,
@@ -256,9 +314,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ],
       warmCategoryId: _warmCategoryId,
       onManageCategories: _openManage,
+      renderer: services.renderer,
     );
     if (captured == null || !mounted) return;
-    await _saveCaptured(captured, fileExtension: choice.fileExtension);
+    await _saveCaptured(captured, fileExtension: pick.choice.fileExtension);
   }
 
   /// The one write (decision 5): original saved first so the row can carry

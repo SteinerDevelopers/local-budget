@@ -24,7 +24,10 @@ dependencies:
   # to load on device (host test runs use the system libsqlite3).
   sqlite3_flutter_libs: ^0.5.24
   cupertino_icons: ^1.0.8
-
+  image_picker: ^1.2.4
+  google_mlkit_text_recognition: ^0.17.1
+  google_mlkit_document_scanner: ^0.6.1
+  receive_sharing_intent: ^1.9.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

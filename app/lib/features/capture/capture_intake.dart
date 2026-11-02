@@ -47,6 +47,16 @@ class CapturePick {
   final CaptureChoice choice;
 }
 
+/// External share / open-with (§5, decision 5): a shared image arrives like
+/// the screenshot row, a shared PDF like the PDF row; text and url shares are
+/// not receipts and map to null so they are ignored, never half-imported.
+/// Pure so the unit tier tests it without the sharing plugin.
+CaptureChoice? shareChoiceFor(String? mimeType) => switch (mimeType) {
+  'application/pdf' => CaptureChoice.pdf,
+  'image/png' || 'image/jpeg' || 'image/jpg' => CaptureChoice.screenshot,
+  _ => null,
+};
+
 /// Platform intake (design §5): the picker/scanner half of capture, injected
 /// into the Ledger. Android implements it over image_picker / ML Kit / SAF
 /// (issue #28); tests and goldens drive a fake, which is what makes every

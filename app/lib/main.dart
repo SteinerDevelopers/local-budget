@@ -1,8 +1,14 @@
+import 'dart:io' show Directory, Platform;
+
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'design/theme.dart';
+import 'features/capture/android_capture_intake.dart';
+import 'features/capture/adapters/channel_pdf_text_renderer.dart';
+import 'features/capture/adapters/ml_kit_text_extractor.dart';
+
 import 'features/capture/capture_services.dart';
 import 'features/ledger/ledger_screen.dart';
 
@@ -16,14 +22,31 @@ Future<void> main() async {
   );
   // First launch seeds the Cash account + default categories; idempotent.
   await repository.ensureDefaults();
-  runApp(LocalBudgetApp(repository: repository));
+  runApp(LocalBudgetApp(repository: repository, capture: _androidCapture(dir)));
+}
+
+/// Real capture services on Android (issue #28): scanner/picker/SAF intake,
+/// on-device ML Kit OCR, the platform PdfRenderer page rasterizer, the
+/// and the share/open-with ingest. Constructors arm nothing eagerly — no
+/// model loads until a capture actually runs. Every other build (iOS until
+/// E5, unit/golden tiers inject their own fakes) passes null, and the
+/// capture FAB then explains instead of dead-ending (§2.1).
+CaptureServices? _androidCapture(Directory docsDir) {
+  if (!Platform.isAndroid) return null;
+  return CaptureServices(
+    intake: AndroidCaptureIntake(),
+    extractor: MlKitTextExtractor(),
+    renderer: ChannelPdfTextRenderer(),
+    store: AttachmentStore(docsDir),
+    shares: PluginShareIngest(),
+  );
 }
 
 class LocalBudgetApp extends StatelessWidget {
   /// [theme]/[darkTheme]/[themeMode] exist for the §6 golden harness (CI
   /// injects a font-pinned text theme); the app itself runs on AppTheme.
-  /// [capture] is injected by tests/goldens with fakes; the real Android
-  /// services arrive with issue #28 (null → the capture FAB explains).
+  /// [capture] is injected by tests/goldens with fakes; `main()` wires the
+  /// real Android services (null → the capture FAB explains).
   const LocalBudgetApp({
     super.key,
     required this.repository,
