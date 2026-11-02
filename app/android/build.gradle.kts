@@ -19,24 +19,28 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Legacy plugins (e.g. receive_sharing_intent 1.8.1) declare no compileOptions,
-// so AGP floors their javac at 11 while KGP defaults Kotlin to the running
-// JDK (21) — AGP's JVM-target validation fails (pipeline 44). Each module's
-// Kotlin bytecode target now lazily follows its own compileDebugJavaWithJavac
-// target (app keeps 17; the provider resolves at execution, after all
-// configuration). No afterEvaluate — Flutter's evaluationDependsOn(":app")
-// can evaluate projects before this block reaches them — and no AGP/KGP
-// imports, since neither plugin is on this script's compile classpath.
-fun kotlinTargetNameFor(javac: JavaCompile?): String? =
+// Legacy plugins (e.g. receive_sharing_intent 1.8.1) declare no compileOptions
+// and carry their own KGP 1.9.22 on their buildscript classpath, so AGP floors
+// their javac at 11 while Kotlin defaults to the running JDK (21) — the KGP
+// JVM-target validation fails (pipelines 44/46/47). Best effort per module:
+// KGP 2.x tasks follow their own compileDebugJavaWithJavac target through the
+// lazy compilerOptions.jvmTarget provider; KGP 1.x tasks get kotlinOptions
+// patched in doFirst (its getCompilerOptions DSL only arrived in KGP 2.0).
+// kotlin.jvm.target.validation.mode=warning in gradle.properties is the
+// backstop if neither reflection shape matches. No afterEvaluate — Flutter's
+// evaluationDependsOn(":app") can evaluate projects before this block reaches
+// them — and no AGP/KGP imports, since neither plugin is on this script's
+// compile classpath.
+fun javacLegacyNameFor(javac: JavaCompile?): String? =
     when (javac?.targetCompatibility) {
-        "1.8" -> "JVM_1_8"
-        "11" -> "JVM_11"
-        "17" -> "JVM_17"
-        "21" -> "JVM_21"
+        "1.8" -> "1.8"
+        "11" -> "11"
+        "17" -> "17"
+        "21" -> "21"
         else -> null
     }
 
-fun alignKotlinJvmTarget(task: Task) {
+fun alignViaCompilerOptions(task: Task): Boolean =
     runCatching {
         val loader = task.javaClass.classLoader
         val options = task.javaClass.getMethod("getCompilerOptions").invoke(task)
@@ -50,21 +54,41 @@ fun alignKotlinJvmTarget(task: Task) {
                 .provider {
                     val javac =
                         project.tasks.findByName("compileDebugJavaWithJavac") as? JavaCompile
-                    kotlinTargetNameFor(javac)
-                        ?.let { enumClass.getMethod("valueOf", String::class.java).invoke(null, it) }
+                    javacLegacyNameFor(javac)
+                        ?.let { name ->
+                            val kotlinName =
+                                if (name == "1.8") "JVM_1_8" else "JVM_$name"
+                            enumClass.getMethod("valueOf", String::class.java).invoke(null, kotlinName)
+                        }
                 }.map { it ?: current }
         val providerClass = Class.forName("org.gradle.api.provider.Provider", false, loader)
         jvmTarget.javaClass.getMethod("set", providerClass).invoke(jvmTarget, mapped)
+    }.isSuccess
+
+fun alignKotlinJvmTarget(task: Task) {
+    if (alignViaCompilerOptions(task)) return
+    runCatching {
+        val options = task.javaClass.getMethod("getKotlinOptions").invoke(task)
+        val setter =
+            options.javaClass.methods.first {
+                it.name == "setJvmTarget" && it.parameterCount == 1
+            }
+        val project = task.project
+        task.doFirst {
+            runCatching {
+                val javac =
+                    project.tasks.findByName("compileDebugJavaWithJavac") as? JavaCompile
+                javacLegacyNameFor(javac)?.let { setter.invoke(options, it) }
+            }
+        }
     }
 }
 
 subprojects {
     pluginManager.withPlugin("org.jetbrains.kotlin.android") {
         tasks.configureEach {
-            val isKotlinJvmCompile =
-                generateSequence<Class<*>>(javaClass) { it.superclass }
-                    .any { it.canonicalName == "org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile" }
-            if (isKotlinJvmCompile) {
+            val name = javaClass.simpleName
+            if (name == "KotlinCompile" || name == "KotlinJvmCompile") {
                 alignKotlinJvmTarget(this)
             }
         }
