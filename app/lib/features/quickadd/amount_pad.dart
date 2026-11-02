@@ -30,6 +30,13 @@ final class AmountPad {
     assert(RegExp(r'^[0-9]$').hasMatch(d));
     final dot = _buffer.indexOf('.');
     if (dot < 0) {
+      // No leading zeros (hardening #20): a lone '0' behaves like a
+      // calculator's fresh display — the next digit replaces it, so the
+      // buffer never grows '00' or '007' into the 40 pt display.
+      if (_buffer == '0') {
+        _buffer = d;
+        return;
+      }
       if (_buffer.length >= maxIntegerDigits) return;
       _buffer += d;
     } else {

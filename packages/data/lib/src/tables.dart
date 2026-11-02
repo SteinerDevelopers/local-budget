@@ -37,6 +37,10 @@ class Merchants extends Table {
   TextColumn get name => text().unique()();
 }
 
+/// Hardening #23: the ledger month page ranges on [dateDays] with no
+/// accountId predicate, so it needs a leading-column index of its own —
+/// [tx_account_date] cannot serve it.
+@TableIndex(name: 'tx_date', columns: {#dateDays})
 @TableIndex(name: 'tx_account_date', columns: {#accountId, #dateDays})
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();

@@ -114,4 +114,62 @@ void main() {
       expect(Money(12345678, usd).format(), r'$123,456.78');
     });
   });
+
+  // Hardening #21: tryParse is TOTAL — raw OCR text must never crash ingest.
+  group('tryParse total contract (#21)', () {
+    test('oversized digit runs are null, not FormatException', () {
+      expect(Money.tryParse('9' * 30, usd), isNull); // barcode-like run
+      expect(Money.tryParse('9780262033843999999999999', usd), isNull);
+      expect(Money.tryParse('99,999,999,999,999,999,999.99', usd), isNull);
+      expect(Money.tryParse('9' * 40, jpy), isNull);
+    });
+
+    test(
+      'boundary: last representable major length parses, one more does not',
+      () {
+        // USD cap is 16 integer digits (18 minor digits total).
+        expect(Money.tryParse('9999999999999999.99', usd)?.minorUnits,
+            999999999999999999);
+        expect(Money.tryParse('99999999999999999.99', usd), isNull);
+      },
+    );
+
+    test('zero-padded amounts still parse (leading zeros are not overflow)',
+        () {
+      expect(
+          Money.tryParse('00000000000000000000005.00', usd)?.minorUnits, 500);
+    });
+
+    test('adversarial corpus never throws', () {
+      final garbage = [
+        '',
+        ' ',
+        ',',
+        '.',
+        ',,,',
+        '...',
+        r'$$$$$',
+        '(',
+        '-(',
+        '()',
+        '1e999',
+        '1.2.3.4',
+        '0.0.0',
+        'ABC€**',
+        '123 456 789 012 345 678 901 234 567',
+        '1,234,567,890,123,456,789,012',
+        '.5.',
+        '-.-',
+        '9' * 300,
+        '−',
+        'USD ',
+        '\u00A0\u00A0',
+        '1\u00A0234\u00A0567\u00A0890\u00A0123\u00A0456\u00A0789',
+      ];
+      for (final g in garbage) {
+        expect(() => Money.tryParse(g, usd), returnsNormally, reason: g);
+        expect(() => Money.tryParse(g, jpy), returnsNormally, reason: g);
+      }
+    });
+  });
 }

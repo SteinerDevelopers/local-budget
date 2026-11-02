@@ -34,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(NativeDatabase(File(path)));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,8 +46,17 @@ class AppDatabase extends _$AppDatabase {
         // sortOrder already shipped in v1.
         await m.addColumn(categories, categories.icon);
       }
+      if (from < 3) {
+        // Hardening #23: watchMonth ranges on dateDays alone, which the
+        // (accountId, dateDays) index cannot serve — dev installs get the
+        // new index exactly as fresh installs do.
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS tx_date ON transactions (date_days)',
+        );
+      }
     },
     // v2: icon key on categories (Manage screen, #18). Line items remain a
     // feature flag — the table shipped in v1 (decision 2), not a migration.
+    // v3: tx_date index for the month query (hardening #23).
   );
 }

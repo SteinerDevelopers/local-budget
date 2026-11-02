@@ -70,5 +70,30 @@ void main() {
     test('12.4 in USD is 1240 minor units (pad, not float round)', () {
       expect(type('12.4').money, Money(1240, usd));
     });
+
+    // Hardening #20: the buffer never grows leading zeros.
+    test('leading zeros collapse (00 -> 0, 007 -> 7)', () {
+      expect(type('00').display, '0');
+      expect(type('000000').display, '0');
+      expect(type('007').display, '7');
+      expect(type('007').money, Money(700, usd));
+    });
+
+    test('zero then decimal still works (0.5 = 50 cents)', () {
+      expect(type('0.5').display, '0.5');
+      expect(type('0.5').money, Money(50, usd));
+    });
+
+    test('zero inside a number is untouched (101, 10.05)', () {
+      expect(type('101').display, '101');
+      expect(type('10.05').money, Money(1005, usd));
+    });
+
+    test('back to 0 then retype replaces, does not append', () {
+      final pad = type('5')..back(); // back from '5' → empty
+      pad.digit('0');
+      pad.digit('3');
+      expect(pad.display, '3');
+    });
   });
 }

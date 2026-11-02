@@ -74,15 +74,24 @@ EntryTile tileFor(LedgerEntryData row) => EntryTile(
   day: row.day, // spoken in the row's TalkBack label (§5)
 );
 
-/// Sums one month; income/expenses unsigned, the labels carry the sign (§2.1).
+/// Sums one month **in the device base currency** (hardening #22): base-
+/// currency rows count at face value, foreign rows at their FX snapshot
+/// (`baseAmountMinor`) — raw minor units must never be added across
+/// currencies (¥1,485 is not $14.85). A foreign row without a snapshot is
+/// skipped, never guessed. Income/expenses stay unsigned, the labels carry
+/// the sign (§2.1).
 BalanceSummary summarizeMonth(List<LedgerEntryData> rows, Currency currency) {
   var income = 0;
   var expenses = 0;
   for (final r in rows) {
+    final minor = r.currencyCode == currency.code
+        ? r.amountMinor
+        : r.baseAmountMinor;
+    if (minor == null) continue;
     if (r.isIncome) {
-      income += r.amountMinor;
+      income += minor;
     } else {
-      expenses += r.amountMinor;
+      expenses += minor;
     }
   }
   return BalanceSummary(
@@ -121,7 +130,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Device base currency (decision 6); 'USD' until the setting resolves.
   Currency _currency = Currency.resolve('USD');
 
-  static final int _index0 = monthIndexOf(DateTime.now());
+  /// Home month resolved per State instance, not per class load (hardening
+  /// #20): an app left open overnight gets a fresh "today" on relaunch of
+  /// the screen instead of a month frozen since process start.
+  late final int _index0 = monthIndexOf(DateTime.now());
 
   @override
   void initState() {

@@ -119,6 +119,11 @@ final class Money implements Comparable<Money> {
   /// codes, thousands separators (space, nbsp, comma or dot depending on the
   /// decimal convention), and a leading minus.
   ///
+  /// **Total function**: every input yields a [Money] or null — it never
+  /// throws, so the E2 ingest pipeline can call it blindly on raw OCR text.
+  /// Amounts beyond ~int64 range (e.g. a misread barcode) are null, not an
+  /// exception.
+  ///
   /// [decimalComma] = true for `1.234,56`; false for `1,234.56`. Auto-detected
   /// when null: the last separator character decides the decimal one.
   static Money? tryParse(String raw, Currency currency, {bool? decimalComma}) {
@@ -167,6 +172,11 @@ final class Money implements Comparable<Money> {
     var fracPart = dotPos == -1 ? '' : digits.substring(dotPos + 1);
     if (intPart.isEmpty && fracPart.isEmpty) return null;
     if (intPart.isEmpty) intPart = '0';
+    // Total-contract guard (hardening #21): the int.parse calls below throw
+    // FormatException once the digits exceed int64 (a 40-digit barcode run
+    // parses fine as a *string* — as a number it is simply "not an amount").
+    intPart = intPart.replaceFirst(RegExp('^0+(?=\\d)'), '');
+    if (intPart.length > 18 - currency.minorUnits) return null;
 
     // More fraction digits than the currency has => round the excess.
     if (fracPart.length > currency.minorUnits) {

@@ -269,6 +269,7 @@ class LedgerEntryData {
     required this.day,
     required this.amountMinor,
     required this.currencyCode,
+    this.baseAmountMinor,
     required this.isIncome,
     required this.categoryId,
     required this.categoryName,
@@ -280,6 +281,12 @@ class LedgerEntryData {
   final DateTime day;
   final int amountMinor;
   final String currencyCode;
+
+  /// FX snapshot in device-base minor units for foreign-currency rows
+  /// (null for base-currency rows and for legacy rows without a snapshot).
+  /// The month summary must never add raw [amountMinor] across currencies
+  /// (hardening #22).
+  final int? baseAmountMinor;
   final bool isIncome;
   final int? categoryId;
   final String? categoryName;
@@ -428,6 +435,7 @@ extension LedgerE1 on LedgerRepository {
             day: _localDay(dateFromEpochDay(row.readTable(tx).dateDays)),
             amountMinor: row.readTable(tx).amountMinor,
             currencyCode: row.readTable(tx).currencyCode,
+            baseAmountMinor: row.readTable(tx).baseAmountMinor,
             isIncome: row.readTable(tx).isIncome,
             categoryId: row.readTable(tx).categoryId,
             // Outer-joined: null category must not throw.

@@ -111,7 +111,14 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   bool get _canSave => _pad.money.isPositive && _categoryId != null;
 
+  /// Hardening #20: sheet routes stay hit-testable during the pop
+  /// animation, so a fast double-tap on Save would pop the ledger too.
+  /// The first pop wins; every later call is a no-op.
+  bool _popped = false;
+
   void _save() {
+    if (_popped) return;
+    _popped = true;
     final note = _note.text.trim();
     Navigator.pop(
       context,

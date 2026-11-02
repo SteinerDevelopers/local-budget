@@ -2853,6 +2853,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $LineItemsTable lineItems = $LineItemsTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final Index txDate = Index(
+    'tx_date',
+    'CREATE INDEX tx_date ON transactions (date_days)',
+  );
   late final Index txAccountDate = Index(
     'tx_account_date',
     'CREATE INDEX tx_account_date ON transactions (account_id, date_days)',
@@ -2873,6 +2877,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     budgets,
     lineItems,
     settings,
+    txDate,
     txAccountDate,
     budgetMonth,
   ];

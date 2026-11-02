@@ -185,5 +185,25 @@ void main() {
       await tester.pumpAndSettle();
       expect(result!.note, 'stationery');
     });
+
+    // Hardening #20: sheet routes stay hit-testable during the pop
+    // animation — the second tap of a double-tap must not pop the host.
+    testWidgets('double-tap Save pops exactly once, host survives', (
+      tester,
+    ) async {
+      await openSheet(tester);
+      await press(tester, '5');
+      await tester.tap(find.text('Food'));
+      await tester.pump();
+
+      await tester.tap(find.text('Save'));
+      await tester.pump(); // exit animation begins; sheet still hittable
+      await tester.tap(find.text('Save')); // the dangerous second tap
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SegmentedButton<EntryKind>), findsNothing); // popped
+      expect(result, isNotNull); // and only its own pop returned a value
+      expect(find.text('open'), findsOneWidget); // host route survives
+    });
   });
 }
