@@ -32,7 +32,7 @@ void main() {
     expect(find.text(monthTitle(monthIndexOf(now))), findsOneWidget);
 
     // QuickAdd: 25.43 Food → save.
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
     await settle(tester);
     for (final key in [
       'keypad-2',

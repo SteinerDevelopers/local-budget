@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'design/theme.dart';
+import 'features/capture/capture_services.dart';
 import 'features/ledger/ledger_screen.dart';
 
 Future<void> main() async {
@@ -21,15 +22,19 @@ Future<void> main() async {
 class LocalBudgetApp extends StatelessWidget {
   /// [theme]/[darkTheme]/[themeMode] exist for the §6 golden harness (CI
   /// injects a font-pinned text theme); the app itself runs on AppTheme.
+  /// [capture] is injected by tests/goldens with fakes; the real Android
+  /// services arrive with issue #28 (null → the capture FAB explains).
   const LocalBudgetApp({
     super.key,
     required this.repository,
+    this.capture,
     this.theme,
     this.darkTheme,
     this.themeMode,
   });
 
   final LedgerRepository repository;
+  final CaptureServices? capture;
   final ThemeData? theme;
   final ThemeData? darkTheme;
   final ThemeMode? themeMode;
@@ -41,7 +46,7 @@ class LocalBudgetApp extends StatelessWidget {
       theme: theme ?? AppTheme.light(),
       darkTheme: darkTheme ?? AppTheme.dark(),
       themeMode: themeMode,
-      home: LedgerScreen(repository: repository),
+      home: LedgerScreen(repository: repository, capture: capture),
     );
   }
 }

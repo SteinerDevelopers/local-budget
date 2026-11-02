@@ -96,4 +96,30 @@ void main() {
       expect(pad.display, '3');
     });
   });
+
+  group('fill (E2 review prefill, §2.3)', () {
+    test('prefills the display and round-trips the money', () {
+      final pad = AmountPad(currency: usd)..fill(Money(1234, usd));
+      expect(pad.display, '12.34');
+      expect(pad.money, Money(1234, usd));
+      expect(pad.isPlaceholder, isFalse);
+    });
+
+    test('zero-decimal currency fills whole majors only', () {
+      final pad = AmountPad(currency: jpy)..fill(Money(1200, jpy));
+      expect(pad.display, '1200');
+      expect(pad.money, Money(1200, jpy));
+    });
+
+    test(
+      'fill replaces a typed buffer; filling zero clears to placeholder',
+      () {
+        final pad = type('99')..fill(Money(50, usd));
+        expect(pad.display, '0.5');
+        pad.fill(Money.zero(usd));
+        expect(pad.display, '0');
+        expect(pad.isPlaceholder, isTrue);
+      },
+    );
+  });
 }

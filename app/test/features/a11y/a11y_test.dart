@@ -47,7 +47,7 @@ void main() {
   Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
   Future<void> openQuickAdd(WidgetTester tester) async {
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
     await tester.pumpAndSettle();
   }
 
@@ -219,7 +219,7 @@ void main() {
         // This SDK exposes Tooltip as a `tooltip:` semantics property on the
         // FAB node — TalkBack reads it exactly.
         expect(
-          tester.getSemantics(find.byType(FloatingActionButton)),
+          tester.getSemantics(find.byKey(const ValueKey('fab-quickadd'))),
           isSemantics(tooltip: 'Add transaction'),
         );
 

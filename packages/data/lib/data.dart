@@ -3,6 +3,10 @@
 /// directly for domain types.
 library;
 
+// Value is part of the DataClass copyWith contract (e.g. clearing a row's
+// imageRef on undo); callers shouldn't need a direct drift dependency.
+export 'package:drift/drift.dart' show Value;
+
 export 'src/attachment_store.dart';
 export 'src/converters.dart';
 export 'src/database.dart';

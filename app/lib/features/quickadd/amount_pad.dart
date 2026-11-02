@@ -65,6 +65,29 @@ final class AmountPad {
 
   void clear() => _buffer = '';
 
+  /// Prefill from an extracted total (E2 Review sheet): the same buffer the
+  /// keypad would have typed, trailing fraction zeros trimmed exactly like a
+  /// hand-typed `12.3`. Zero clears to the dimmed placeholder — an empty
+  /// pad IS the "no total found" state (§2.3), never a fake `0` entry.
+  void fill(Money m) {
+    final units = m.minorUnits;
+    if (units <= 0) {
+      _buffer = '';
+      return;
+    }
+    final major = units ~/ currency.pow10;
+    final frac = units % currency.pow10;
+    if (_decimals == 0 || frac == 0) {
+      _buffer = '$major';
+      return;
+    }
+    var f = frac.toString().padLeft(_decimals, '0');
+    while (f.endsWith('0')) {
+      f = f.substring(0, f.length - 1);
+    }
+    _buffer = '$major.$f';
+  }
+
   /// Exact minor-unit value of the buffer; 0 while empty. The padded-fraction
   /// split means `12.4` in USD is 1240, in JPY (0 decimals) `12.` is 12.
   Money get money {

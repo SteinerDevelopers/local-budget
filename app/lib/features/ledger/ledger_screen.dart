@@ -1,8 +1,13 @@
+import 'package:capture/capture.dart' show CapturePipeline;
 import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../capture/capture_intake.dart';
+import '../capture/capture_services.dart';
+import '../capture/capture_source_sheet.dart';
+import '../capture/review_sheet.dart';
 import '../manage/icon_registry.dart';
 import '../manage/manage_screen.dart';
 import '../quickadd/quick_add_sheet.dart';
@@ -16,9 +21,14 @@ import 'view_models.dart';
 /// Everything is derived from the drift stream; this screen only keeps paging
 /// position and the QuickAdd warm state (§2.2 rule 5 lives with the caller).
 class LedgerScreen extends StatefulWidget {
-  const LedgerScreen({super.key, required this.repository});
+  const LedgerScreen({super.key, required this.repository, this.capture});
 
   final LedgerRepository repository;
+
+  /// E2 capture services (intake + extractor + attachment store). Null on
+  /// builds without platform capture (iOS until E5); the FAB then explains
+  /// instead of dead-ending (§2.1 "never a dead end").
+  final CaptureServices? capture;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -195,6 +205,111 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _animate(monthIndexOf(entry.day));
   }
 
+  /// E2 §1/§2.1: source sheet → platform picker → Review → one write. A
+  /// null return at any step (back-out, cancelled picker) leaves the ledger
+  /// untouched — decision 5's "never auto-commit" in code form.
+  Future<void> _openCapture() async {
+    final services = widget.capture;
+    if (services == null) {
+      // Real intake lands with the Android adapters (#28); iOS is E5.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Receipt capture is not available in this build.'),
+        ),
+      );
+      return;
+    }
+    final choice = await showCaptureSourceSheet(
+      context,
+      showScreenshotRow: services.intake.hasScreenshotRow,
+    );
+    if (choice == null || !mounted) return;
+    CapturePick? pick;
+    try {
+      pick = await services.intake.pick(choice);
+    } catch (_) {
+      // A picker that fails is "user changed their mind" plus one honest
+      // line — the ledger is still untouched (§2.1).
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not read that file — nothing was saved.'),
+          ),
+        );
+      }
+      return;
+    }
+    if (pick == null || !mounted) return;
+    final cats = await widget.repository.categories();
+    if (!mounted) return;
+    final captured = await showCaptureReview(
+      context,
+      source: choice.source,
+      imageBytes: pick.bytes,
+      pipeline: CapturePipeline(
+        currency: _currency,
+        extractor: services.extractor,
+      ),
+      categories: [
+        for (final c in cats)
+          CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name)),
+      ],
+      warmCategoryId: _warmCategoryId,
+      onManageCategories: _openManage,
+    );
+    if (captured == null || !mounted) return;
+    await _saveCaptured(captured, fileExtension: choice.fileExtension);
+  }
+
+  /// The one write (decision 5): original saved first so the row can carry
+  /// its path, then the transaction with `source` + `imageRef` + merchant —
+  /// upsert of the merchant row is the repository's job (§4, case-insensitive).
+  /// A failed insert unlinks the orphaned original; nothing else is rolled
+  /// back because nothing else happened.
+  Future<void> _saveCaptured(
+    CapturedEntry captured, {
+    required String fileExtension,
+  }) async {
+    final store = widget.capture?.store;
+    final bytes = captured.imageBytes;
+    String? imageRef;
+    if (store != null && bytes != null) {
+      imageRef = store.saveOriginal(
+        bytes,
+        extension: fileExtension,
+        source: captured.source,
+      );
+    }
+    try {
+      final account = await widget.repository.defaultAccount();
+      await widget.repository.addTransaction(
+        accountId: account.id,
+        date: captured.entry.day,
+        amount: captured.entry.amount,
+        source: captured.source,
+        categoryId: captured.entry.categoryId,
+        merchant: captured.merchant,
+        isIncome: captured.entry.kind == EntryKind.income,
+        imageRef: imageRef,
+      );
+    } catch (_) {
+      if (imageRef != null && store != null) {
+        try {
+          store.delete(imageRef);
+        } catch (_) {
+          // An orphaned original is harmless; Review already closed.
+        }
+      }
+      rethrow;
+    }
+    if (!mounted) return;
+    setState(() {
+      _warmKind = captured.entry.kind;
+      _warmCategoryId = captured.entry.categoryId;
+    });
+    _animate(monthIndexOf(captured.entry.day));
+  }
+
   Future<void> _openManage() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -211,13 +326,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _delete(int id) async {
     final removed = await widget.repository.deleteEntry(id);
     if (removed == null || !mounted) return;
+    final image = removed.imageRef;
+    final store = widget.capture?.store;
+    if (image != null && store != null) {
+      // E2 §4: the original unlinks only after the row is committed gone,
+      // and Undo restores the row without the image (no re-save).
+      try {
+        store.delete(image);
+      } catch (_) {
+        // Orphaned file — harmless until M2 sweeps.
+      }
+    }
+    final restored = image == null
+        ? removed
+        : removed.copyWith(imageRef: const Value(null));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         duration: const Duration(seconds: 5),
         content: const Text('Deleted'),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => widget.repository.restoreEntry(removed),
+          onPressed: () => widget.repository.restoreEntry(restored),
         ),
       ),
     );
@@ -250,11 +379,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ],
         ),
       ),
-      // Only FAB in the app (§2.1). The tooltip is also its TalkBack label (§5).
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openQuickAdd,
-        tooltip: 'Add transaction',
-        child: const Icon(Icons.add),
+      // E2 §1: two FABs live here and nowhere else — capture is secondary,
+      // 12 dp above the primary add. Keys keep test finders unambiguous
+      // now that the slot holds two FloatingActionButton-derived widgets.
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            key: const ValueKey('fab-capture'),
+            // The two FABs share one route, so only one may hold the
+            // default hero tag — the primary keeps E1's exact behavior.
+            heroTag: null,
+            onPressed: _openCapture,
+            tooltip: 'Add from receipt',
+            child: const Icon(Icons.document_scanner_outlined),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            key: const ValueKey('fab-quickadd'),
+            onPressed: _openQuickAdd,
+            tooltip: 'Add transaction',
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }

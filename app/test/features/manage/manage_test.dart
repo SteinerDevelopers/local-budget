@@ -32,7 +32,7 @@ void main() {
   /// FAB → QuickAdd → its Manage chip → the Manage screen. The chip is the
   /// last child of a row that can overflow, so scroll it into view first.
   Future<void> openManage(WidgetTester tester) async {
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
     await tester.pumpAndSettle();
     await tester.dragUntilVisible(
       find.text('Manage'),
@@ -136,7 +136,7 @@ void main() {
       await tester.pageBack(); // Ledger
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(FilterChip, 'Coffee'), findsOneWidget);
     } finally {
@@ -248,7 +248,7 @@ void main() {
       await pumpApp(tester, r.repo);
 
       // One Food entry first…
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
       await tester.pumpAndSettle();
       for (final k in ['1', '2']) {
         await tester.tap(find.byKey(Key('keypad-$k')));

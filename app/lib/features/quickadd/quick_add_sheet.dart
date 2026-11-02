@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import '../../design/tokens.dart';
 import '../ledger/day_label.dart';
 import '../ledger/view_models.dart';
+import 'amount_display.dart';
 import 'amount_pad.dart';
+import 'category_chips.dart';
 import 'keypad.dart';
 
 /// A category as QuickAdd renders it (icon + label). #18 sources these from
@@ -173,7 +175,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                 ),
               ),
               const SizedBox(height: Tokens.space2),
-              _AmountDisplay(pad: _pad, currency: widget.currency),
+              AmountDisplay(pad: _pad, currency: widget.currency),
               const SizedBox(height: Tokens.space2),
               Expanded(
                 child: Keypad(
@@ -183,7 +185,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                   dotEnabled: widget.currency.minorUnits > 0,
                 ),
               ),
-              _CategoryChips(
+              CategoryChips(
                 categories: widget.categories,
                 selectedId: _categoryId,
                 onSelect: (id) => setState(() => _categoryId = id),
@@ -232,103 +234,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       lastDate: DateTime.now(),
     );
     if (picked != null) setState(() => _day = picked);
-  }
-}
-
-/// §2.2 item 2: right-aligned 40 pt tabular value, leading symbol 24 pt
-/// onSurfaceVariant, `0` dimmed until the first digit.
-class _AmountDisplay extends StatelessWidget {
-  const _AmountDisplay({required this.pad, required this.currency});
-
-  final AmountPad pad;
-  final Currency currency;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    // §5: the hero is the one amount that shrink-wraps under text scale —
-    // FittedBox scaleDown keeps long amounts readable instead of clipped.
-    return Semantics(
-      label: 'Amount ${pad.display}',
-      excludeSemantics: true,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerRight,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              currency.symbol,
-              style: TextStyle(fontSize: 24, color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(width: Tokens.space2),
-            Text(
-              pad.display,
-              key: const Key('amount-value'),
-              style: Tokens.amount(context, size: Tokens.amountHeroSize)
-                  .copyWith(
-                    color: pad.isPlaceholder
-                        ? scheme.outline
-                        : scheme.onSurface,
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// §2.2 item 4: single scrolling FilterChip row, `⚙︎` chip last.
-class _CategoryChips extends StatelessWidget {
-  const _CategoryChips({
-    required this.categories,
-    required this.selectedId,
-    required this.onSelect,
-    required this.onManage,
-  });
-
-  final List<CategoryOption> categories;
-  final int? selectedId;
-  final ValueChanged<int> onSelect;
-  final VoidCallback? onManage;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        // Test handle: the Manage chip sits at the end of a row that can
-        // overflow with many categories (#18).
-        key: const Key('chip-row'),
-        scrollDirection: Axis.horizontal,
-        children: [
-          for (final c in categories)
-            Padding(
-              padding: const EdgeInsets.only(right: Tokens.space2),
-              child: FilterChip(
-                selected: c.id == selectedId,
-                onSelected: (_) => onSelect(c.id),
-                avatar: Icon(c.icon, size: 18),
-                label: Text(c.name),
-              ),
-            ),
-          if (onManage != null)
-            ActionChip(
-              avatar: const Icon(Icons.settings_outlined, size: 18),
-              label: const Text('Manage'),
-              // §2.4: jump to Manage. The sheet closes first — its chips are
-              // an open-time snapshot anyway, so the next FAB re-reads.
-              onPressed: () {
-                Navigator.of(context).pop();
-                onManage!();
-              },
-            ),
-        ],
-      ),
-    );
   }
 }
 

@@ -2,7 +2,6 @@ import 'dart:ffi';
 
 import 'package:core/core.dart';
 import 'package:data/data.dart';
-import 'package:drift/drift.dart' show Value;
 import 'package:sqlite3/open.dart' as sqlite3_open;
 import 'package:test/test.dart';
 

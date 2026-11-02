@@ -26,6 +26,12 @@ abstract final class Tokens {
   static const String minus = '\u2212';
   static const String plus = '+';
 
+  /// The `warning` token E2 §6 points at for low-confidence outlines:
+  /// Material's standard warning amber (Yellow 800). It paints 1.5 dp
+  /// outlines only — never text — so no contrast rule is touched and the
+  /// seed-derived scheme stays the app's only other color source.
+  static const Color warning = Color(0xFFF9A825);
+
   /// §3: all amounts and stat values render with tabular figures.
   static const List<FontFeature> tabular = [FontFeature.tabularFigures()];
 
