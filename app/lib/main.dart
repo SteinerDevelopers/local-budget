@@ -7,7 +7,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'design/theme.dart';
 import 'features/bills/bill_notifier.dart';
-import 'features/bills/bills_service.dart' show materializeDueBills;
+import 'features/bills/bills_service.dart'
+    show MaterializeOutcome, materializeDueBills;
 import 'features/budgets/budgets_sheet.dart';
 import 'features/capture/android_capture_intake.dart';
 import 'features/capture/adapters/channel_pdf_text_renderer.dart';
@@ -34,8 +35,17 @@ Future<void> main() async {
   await BillNotifier.bootstrap();
   // §3.4 lazy materialization before the first frame, so the ledger the
   // user lands on already contains this pass's occurrences. The pass is
-  // day-gated + race-gated: warm resumes below are cheap replays.
-  final pass = await materializeDueBills(repository);
+  // day-gated + race-gated: warm resumes below are cheap replays. Bounded
+  // because a wedged pass must not eat the first frame — the bill still
+  // surfaces as a Due row and the next open replays the pass (§5 ethos).
+  MaterializeOutcome? pass;
+  try {
+    pass = await materializeDueBills(
+      repository,
+    ).timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('bill materialization skipped: $e');
+  }
   runApp(
     LocalBudgetApp(
       repository: repository,
@@ -43,7 +53,7 @@ Future<void> main() async {
       navigatorKey: appNavigatorKey,
     ),
   );
-  _surfaceStaleBills(pass.pausedRuleIds);
+  if (pass case final outcome?) _surfaceStaleBills(outcome.pausedRuleIds);
   WidgetsBinding.instance.addObserver(_BillMaterializeObserver(repository));
   BillNotifier.onOpen = (ruleId) => _openBillRule(repository, ruleId);
   final pending = BillNotifier.pendingOpenRuleId;

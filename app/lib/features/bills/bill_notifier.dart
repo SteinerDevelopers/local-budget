@@ -2,6 +2,8 @@
 // the Bills list is the truth. We schedule the NEXT occurrence at 09:00
 // local in an inexact ±60-min window and never ask for exact-alarm
 // permission — the Doze caveat ships as help text, not as a workaround.
+import 'dart:async' show TimeoutException;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -29,7 +31,22 @@ class BillNotifier {
 
   static const _window = Duration(minutes: 60);
 
+  /// Hard cap on the whole bootstrap: a wedged platform channel or an
+  /// untappable runtime-permission dialog (headless emulators, background
+  /// launches) must never hold `main()` before the first frame — the hint
+  /// stays optional, the Due rows stay the truth (§5). If the orphaned
+  /// inner future still completes, [active] flips on for later schedules.
   static Future<void> bootstrap() async {
+    if (active) return;
+    try {
+      await _bootstrap().timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      debugPrint('BillNotifier bootstrap timed out; staying inert');
+      active = false;
+    }
+  }
+
+  static Future<void> _bootstrap() async {
     if (active) return;
     try {
       tzdata.initializeTimeZones();

@@ -51,6 +51,16 @@ void main() {
     expect(find.text('Why is a field highlighted?'), findsNothing);
   });
 
+  // #39 — the E3 article rides the same index; searching a rollover word
+  // must land on it and nothing else.
+  testWidgets('“rollover” finds the budgets article', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'rollover');
+    expect(find.text('Budgets, bills & goals'), findsOneWidget);
+    expect(find.text('Scanning receipts'), findsNothing);
+    expect(find.text('Tips for better scans'), findsNothing);
+  });
+
   testWidgets('no match points at terms that do work', (tester) async {
     await pumpHelp(tester);
     await search(tester, 'zebra');

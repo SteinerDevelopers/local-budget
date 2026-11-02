@@ -105,6 +105,44 @@ const List<HelpArticle> kHelpArticles = [
           'Clutter around the edges is noise the reader has to skip.',
     ],
   ),
+  HelpArticle(
+    icon: Icons.savings_outlined,
+    title: 'Budgets, bills & goals',
+    paragraphs: [
+      'Open the Budgets sheet from the Expenses stat on the month screen, '
+          'or through Manage. A budget counts every expense in its '
+          'period, across all your accounts, and its bar fills as the '
+          'period fills up. Weekly and yearly budgets track their own '
+          'week or year; the month switcher stays your waypoint either '
+          'way.',
+      'Rollover is a switch at the bottom of the Budgets sheet, and it '
+          'has exact rules. With it on, a month you did not fully spend '
+          'passes the remainder along: a badge like +\$20 from Oct means '
+          'last month’s leftover is part of this month’s limit. A '
+          'surplus never grows past your own limit — a \$30 budget '
+          'carries at most \$30, however many good months came before '
+          'it — and a month you overspent passes the hole along whole: '
+          'a \$50 budget finished \$80 over starts the next month at '
+          '−\$30. A category with no budget for a month breaks the '
+          'chain, and that roll stops there.',
+      'Rollover works on monthly budgets only. A weekly or yearly budget '
+          'shows progress for its own period and never carries anything '
+          'forward, and a Monthly budget needs no label at all — the '
+          'badge tells you when a roll has happened.',
+      'Money you move to a goal is saving, not spending — so goal '
+          'transfers never appear in the day list, the month totals, or '
+          'a budget’s spent number. Open the goal to read every deposit '
+          'and withdrawal it received; archiving a goal pauses new '
+          'transfers and keeps its history intact.',
+      'A bill can ask to be remembered on its due day, and the app '
+          'keeps that promise honestly: the notification is a hint, the '
+          'Bills tab is the truth. Android sometimes delays or drops '
+          'notifications to save battery — an overdue bill always waits '
+          'for you as a Due row in the list, and tapping Mark paid (or '
+          'simply opening the app again) is what records the payment. '
+          'Nothing hinges on a notification arriving on time.',
+    ],
+  ),
 ];
 
 /// Case-insensitive substring search over title and body — enough for a
