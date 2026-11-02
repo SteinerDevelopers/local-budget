@@ -28,9 +28,9 @@ import java.util.concurrent.Executors
  * Native half of the capture intake (issue #28, design e2-capture §5).
  * Surfaces, none of them a runtime permission:
  *
- *  - `openDocument`: SAF ACTION_OPEN_DOCUMENT accepting image/* and
- *    application/pdf; the picked content:// stream is read into bytes here,
- *    so Dart never touches a storage permission.
+ *  - `openDocument`: SAF ACTION_OPEN_DOCUMENT accepting image and
+ *    application/pdf MIME types; the picked content:// stream is read into
+ *    bytes here, so Dart never touches a storage permission.
  *  - `latestScreenshot`: an opportunistic MediaStore probe. Without
  *    READ_MEDIA_* the platform yields nothing (Android 13+) or throws
  *    SecurityException (older APIs); both collapse to `null`, the app hides
