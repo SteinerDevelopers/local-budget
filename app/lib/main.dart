@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Directory, Platform;
 
 import 'package:data/data.dart';
@@ -6,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'design/theme.dart';
 import 'features/bills/bill_notifier.dart';
+import 'features/bills/bills_service.dart' show materializeDueBills;
 import 'features/budgets/budgets_sheet.dart';
 import 'features/capture/android_capture_intake.dart';
 import 'features/capture/adapters/channel_pdf_text_renderer.dart';
@@ -30,6 +32,10 @@ Future<void> main() async {
   await repository.ensureDefaults();
   // Bill reminders: time zone + channel init (inert where unavailable, §5).
   await BillNotifier.bootstrap();
+  // §3.4 lazy materialization before the first frame, so the ledger the
+  // user lands on already contains this pass's occurrences. The pass is
+  // day-gated + race-gated: warm resumes below are cheap replays.
+  final pass = await materializeDueBills(repository);
   runApp(
     LocalBudgetApp(
       repository: repository,
@@ -37,6 +43,8 @@ Future<void> main() async {
       navigatorKey: appNavigatorKey,
     ),
   );
+  _surfaceStaleBills(pass.pausedRuleIds);
+  WidgetsBinding.instance.addObserver(_BillMaterializeObserver(repository));
   BillNotifier.onOpen = (ruleId) => _openBillRule(repository, ruleId);
   final pending = BillNotifier.pendingOpenRuleId;
   if (pending != null) {
@@ -45,6 +53,45 @@ Future<void> main() async {
       (_) => _openBillRule(repository, pending),
     );
   }
+}
+
+/// Warm resume runs the same pass (§3.4: "cold or warm resume"). Same-day
+/// and in-flight gates inside the service keep rapid resumes idempotent.
+class _BillMaterializeObserver with WidgetsBindingObserver {
+  _BillMaterializeObserver(this.repository);
+
+  final LedgerRepository repository;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    unawaited(
+      materializeDueBills(
+        repository,
+      ).then((outcome) => _surfaceStaleBills(outcome.pausedRuleIds)),
+    );
+  }
+}
+
+bool _pausedSurfaced = false;
+
+/// §3.4 "paused?": one gentle nudge per session; the Bills rows keep
+/// asking afterwards, so missing the snack bar loses nothing.
+void _surfaceStaleBills(List<int> pausedRuleIds) {
+  if (pausedRuleIds.isEmpty || _pausedSurfaced) return;
+  _pausedSurfaced = true;
+  final context = appNavigatorKey.currentContext;
+  if (context == null) return;
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text(
+          'A bill hasn’t come due in over a year — open Bills to resume '
+          'or pause it.',
+        ),
+      ),
+    );
 }
 
 /// Notification tap → the budgets sheet on the Bills tab with this rule's

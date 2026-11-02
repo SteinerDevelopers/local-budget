@@ -114,7 +114,8 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
   }
 
   Future<void> _loadBills() async {
-    final base = widget.currency ??
+    final base =
+        widget.currency ??
         Currency.resolve(await widget.repository.baseCurrency() ?? 'USD');
     final lines = await loadBillLines(widget.repository);
     final cats = await widget.repository.categories(income: false);
@@ -213,21 +214,22 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
           const SizedBox(height: Tokens.space2),
           Expanded(
             child: switch (_tab) {
-              1 => !_billsLoaded
-                  ? const KeyedSubtree(
-                      key: Key('tab-bills'),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  : KeyedSubtree(
-                      key: const Key('tab-bills'),
-                      child: BillsTab(
-                        repository: widget.repository,
-                        bills: _bills,
-                        currency: _billCurrency,
-                        categories: _billCats,
-                        onChanged: _loadBills,
+              1 =>
+                !_billsLoaded
+                    ? const KeyedSubtree(
+                        key: Key('tab-bills'),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : KeyedSubtree(
+                        key: const Key('tab-bills'),
+                        child: BillsTab(
+                          repository: widget.repository,
+                          bills: _bills,
+                          currency: _billCurrency,
+                          categories: _billCats,
+                          onChanged: _loadBills,
+                        ),
                       ),
-                    ),
               2 => const _Placeholder(
                 icon: Icons.savings_outlined,
                 title: 'Savings goals are coming in this update',

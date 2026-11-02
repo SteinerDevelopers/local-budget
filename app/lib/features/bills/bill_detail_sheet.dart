@@ -101,7 +101,7 @@ class _BillDetailSheet extends StatelessWidget {
           Text.rich(
             TextSpan(
               children: [
-                const TextSpan(text: 'Due '),
+                TextSpan(text: line.isStale ? 'Paused? ' : 'Due '),
                 TextSpan(
                   text: line.dueText,
                   style: line.isOverdue
@@ -127,15 +127,44 @@ class _BillDetailSheet extends StatelessWidget {
             ).copyWith(fontSize: 13, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: Tokens.space5),
-          FilledButton.icon(
-            key: const Key('bill-mark-paid'),
-            icon: const Icon(Icons.check, size: 20),
-            label: const Text('Mark paid'),
-            onPressed: () async {
-              await markBillPaid(repository, line);
-              if (context.mounted) Navigator.of(context).pop('paid');
-            },
-          ),
+          if (line.isStale) ...[
+            // §3.4: a rule this stale never auto-inserts; the sheet asks
+            // "paused?" and lets the user answer either way.
+            Text(
+              'This bill hasn’t come due in over a year. Resume it, or pause '
+              'it so it stops asking.',
+              style: Tokens.body(context),
+            ),
+            const SizedBox(height: Tokens.space3),
+            FilledButton.icon(
+              key: const Key('bill-resume'),
+              icon: const Icon(Icons.play_arrow, size: 20),
+              label: const Text('Resume from today'),
+              onPressed: () async {
+                await resumeBill(repository, line);
+                if (context.mounted) Navigator.of(context).pop('resumed');
+              },
+            ),
+            const SizedBox(height: Tokens.space2),
+            TextButton.icon(
+              key: const Key('bill-pause'),
+              icon: const Icon(Icons.pause, size: 20),
+              label: const Text('Pause this bill'),
+              onPressed: () async {
+                await pauseBill(repository, line);
+                if (context.mounted) Navigator.of(context).pop('paused');
+              },
+            ),
+          ] else
+            FilledButton.icon(
+              key: const Key('bill-mark-paid'),
+              icon: const Icon(Icons.check, size: 20),
+              label: const Text('Mark paid'),
+              onPressed: () async {
+                await markBillPaid(repository, line);
+                if (context.mounted) Navigator.of(context).pop('paid');
+              },
+            ),
           const SizedBox(height: Tokens.space2),
           TextButton.icon(
             key: const Key('bill-edit'),

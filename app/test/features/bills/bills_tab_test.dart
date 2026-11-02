@@ -292,6 +292,50 @@ void main() {
       expect(find.byKey(const Key('bill-mark-paid')), findsOneWidget);
       await db.close();
     });
+
+    testWidgets(
+      'a >365-day bill surfaces "Paused?" and resume fixes it (§3.4)',
+      (tester) async {
+        final (:db, :repo) = freshRepo();
+        final stale = DateTime(now.year, now.month, now.day - 400);
+        final id = await seedWeekly(repo, name: 'Dormant', due: stale);
+        await openBillsTab(tester, repo);
+        final row = find.byKey(Key('bill-row-$id'));
+        expect(
+          find.descendant(of: row, matching: find.textContaining('Paused?')),
+          findsOneWidget,
+        );
+
+        await tapKey(tester, Key('bill-row-$id'));
+        expect(find.byKey(const Key('bill-resume')), findsOneWidget);
+        expect(find.byKey(const Key('bill-mark-paid')), findsNothing);
+        await tapKey(tester, const Key('bill-resume'));
+
+        final r = (await repo.rules()).single;
+        final dueEpoch = r.nextDueMs ~/ 86400000;
+        expect(dueEpoch, greaterThanOrEqualTo(epochDayOf(now))); // from today
+        expect(dueEpoch, lessThanOrEqualTo(epochDayOf(now) + 6)); // weekly
+        expect(find.textContaining('Paused?'), findsNothing);
+        expect(find.textContaining('Due '), findsWidgets);
+        await db.close();
+      },
+    );
+
+    testWidgets('pause archives a stale rule, nothing deleted', (tester) async {
+      final (:db, :repo) = freshRepo();
+      final stale = DateTime(now.year, now.month, now.day - 400);
+      final id = await seedWeekly(repo, name: 'Dormant', due: stale);
+      await openSheet(tester, repo, focusBillId: id);
+      await settle(tester);
+      expect(find.byKey(const Key('bill-pause')), findsOneWidget);
+      await tapKey(tester, const Key('bill-pause'));
+
+      expect(find.text('No bills yet'), findsOneWidget);
+      expect(await repo.rules(), isEmpty);
+      final archived = (await repo.rules(includeArchived: true)).single;
+      expect(archived.archived, isTrue);
+      await db.close();
+    });
   });
 }
 

@@ -177,10 +177,17 @@ class _BillRow extends StatelessWidget {
                   ),
                   Text.rich(
                     TextSpan(
-                      children: [
-                        const TextSpan(text: 'Due '),
-                        TextSpan(text: line.dueText),
-                      ],
+                      children: line.isStale
+                          ? [
+                              // §3.4: over a year without materializing —
+                              // the row asks the question the pass asks.
+                              const TextSpan(text: 'Paused? · '),
+                              TextSpan(text: line.dueText),
+                            ]
+                          : [
+                              const TextSpan(text: 'Due '),
+                              TextSpan(text: line.dueText),
+                            ],
                     ),
                     style: TextStyle(
                       fontSize: 13,

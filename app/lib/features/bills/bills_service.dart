@@ -58,6 +58,7 @@ final class BillLine {
     required this.dueEpoch,
     required this.state,
     required this.amount,
+    this.isStale = false,
   });
 
   final RecurringRule rule;
@@ -66,6 +67,10 @@ final class BillLine {
   final int dueEpoch;
   final BillDueState state;
   final Money amount;
+
+  /// Over [bud.kStaleAfterDays] days past due (§3.4: the app-open pass
+  /// surfaces "paused?" for these instead of inserting).
+  final bool isStale;
 
   String get dueText => billDueText(dueEpoch);
   bool get isOverdue => state == BillDueState.overdue;
@@ -92,6 +97,7 @@ Future<List<BillLine>> loadBillLines(
         due: dayFromEpoch(r.nextDueMs ~/ 86400000),
         dueEpoch: r.nextDueMs ~/ 86400000,
         state: billDueState(r.nextDueMs ~/ 86400000, todayEpoch),
+        isStale: todayEpoch - r.nextDueMs ~/ 86400000 > bud.kStaleAfterDays,
         amount: Money(r.amountMinor, Currency.resolve(r.currencyCode)),
       ),
   ];
@@ -164,4 +170,138 @@ Future<DateTime> markBillPaid(
     );
   }
   return line.due;
+}
+
+/// Result of one app-open materialization pass (§3.4).
+final class MaterializeOutcome {
+  const MaterializeOutcome({
+    required this.insertedRuleIds,
+    required this.pausedRuleIds,
+    required this.skipped,
+  });
+
+  /// Rules whose occurrence was inserted this pass, oldest first.
+  final List<int> insertedRuleIds;
+
+  /// Rules >365 days stale — surfaced as "paused?", never inserted (§3.4).
+  final List<int> pausedRuleIds;
+
+  /// The pass was a no-op: same calendar day already ran, or a pass is
+  /// already in flight (rapid resumes, issue #36).
+  final bool skipped;
+}
+
+bool _materializeRunning = false;
+
+/// The app-open pass (§3.4): rules with `nextDue ≤ today` get one
+/// as-if-manual transaction (source `manual`, note `Bill: <name>`) through
+/// the same repository path QuickAdd uses, and their cursor advances —
+/// one occurrence per rule per pass, oldest first, never a backfill dump.
+/// Idempotent under rapid resumes: at most one pass per calendar day, and
+/// concurrent calls never race each other. [now] is injectable for tests.
+Future<MaterializeOutcome> materializeDueBills(
+  LedgerRepository repo, {
+  DateTime? now,
+}) async {
+  if (_materializeRunning) {
+    return const MaterializeOutcome(
+      insertedRuleIds: [],
+      pausedRuleIds: [],
+      skipped: true,
+    );
+  }
+  _materializeRunning = true;
+  try {
+    final today = now ?? DateTime.now();
+    final todayEpoch = epochDayOf(today);
+    final last = await repo.billsLastMaterializeMs();
+    if (last != null &&
+        epochDayOf(DateTime.fromMillisecondsSinceEpoch(last)) == todayEpoch) {
+      return const MaterializeOutcome(
+        insertedRuleIds: [],
+        pausedRuleIds: [],
+        skipped: true,
+      );
+    }
+    final outcome = const MaterializeOutcome(
+      insertedRuleIds: [],
+      pausedRuleIds: [],
+      skipped: false,
+    );
+    final rules = await repo.rules();
+    if (rules.isEmpty) {
+      await repo.setBillsLastMaterializeMs(today.millisecondsSinceEpoch);
+      return outcome;
+    }
+    final byId = {for (final r in rules) r.id: r};
+    final plan = bud.planMaterialization(
+      rules: [for (final r in rules) engineRule(r)],
+      todayEpochDay: todayEpoch,
+    );
+    final acc = await repo.defaultAccount();
+    for (final occ in plan.due) {
+      // Oldest-first order is the engine's contract (materialize.dart).
+      final r = byId[occ.ruleId]!;
+      await repo.addTransaction(
+        accountId: acc.id,
+        date: dayFromEpoch(occ.dueEpochDay),
+        amount: Money(occ.amountMinor, Currency.resolve(r.currencyCode)),
+        source: TransactionSource.manual,
+        categoryId: r.categoryId,
+        note: 'Bill: ${r.name}',
+      );
+      await repo.updateRuleDue(
+        id: r.id,
+        nextDue: dayFromEpoch(occ.nextDueEpochDay),
+      );
+      if (r.notify) {
+        await BillNotifier.schedule(
+          ruleId: r.id,
+          name: r.name,
+          due: dayFromEpoch(occ.nextDueEpochDay),
+        );
+      }
+    }
+    await repo.setBillsLastMaterializeMs(today.millisecondsSinceEpoch);
+    return MaterializeOutcome(
+      insertedRuleIds: [for (final o in plan.due) o.ruleId],
+      pausedRuleIds: plan.pausedRuleIds,
+      skipped: false,
+    );
+  } finally {
+    _materializeRunning = false;
+  }
+}
+
+/// The user's answer to "paused?" (§3.4): roll the cursor forward to the
+/// first occurrence on or after today and re-arm the reminder — the rule
+/// survives, the stale backlog does not.
+Future<void> resumeBill(
+  LedgerRepository repo,
+  BillLine line, {
+  DateTime? now,
+}) async {
+  final today = now ?? DateTime.now();
+  final r = line.rule;
+  final next = firstDueOnOrAfter(
+    frequency: bud.BillFrequency.fromStorage(r.frequency),
+    dayOfMonth: r.dayOfMonth,
+    dayOfWeek: r.dayOfWeek,
+    startEpochDay: epochDayOf(today),
+  );
+  await repo.updateRuleDue(id: r.id, nextDue: dayFromEpoch(next));
+  if (r.notify) {
+    await BillNotifier.schedule(
+      ruleId: r.id,
+      name: r.name,
+      due: dayFromEpoch(next),
+    );
+  }
+}
+
+/// The other answer: the rule stops reminding and leaves the list. Nothing
+/// is deleted — paid history stays (same guarantee as delete).
+Future<void> pauseBill(LedgerRepository repo, BillLine line) async {
+  await BillNotifier.cancel(line.rule.id);
+  await repo.archiveRule(line.rule.id);
 }
