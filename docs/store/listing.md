@@ -1,0 +1,120 @@
+# Store listing copy — Local Budget (Android / Google Play)
+
+_Draft v1 — 2026-11-03. Character limits counted on-device, not
+approximated. `<…>` marks owner decisions to fill before publishing._
+
+## Identity
+
+- **Name:** Local Budget (12 chars)
+- **Package:** `dev.steiner.local_budget` (frozen, #10)
+- **Category:** Finance · **Tags:** budget, expense tracker, offline
+- **Contact email:** `<OWNER-CONTACT — same as privacy policy>`
+- **Privacy policy URL:** `<hosted copy of docs/legal/privacy-policy.md>`
+
+## Short description (80 max)
+
+> Budget by hand, keep every receipt — your data never leaves your phone.
+
+(73 chars. Leads with the two things we are actually best at: honest
+manual capture with proof attached, and literal local-only storage.)
+
+## Full description (Play, 4000 max)
+
+> Most budgeting apps want your bank login, your cloud, or your
+> attention. Local Budget wants nothing. You type what you spent —
+> or photograph the receipt and tap the numbers it found — and it all
+> stays on your phone. No account. No analytics. No ads. Uninstalling
+> removes every byte.
+>
+> **Capture that respects your time**
+> · Quick-add a coffee in four taps, keypad first like a calculator
+> · Photograph or scan a receipt: the app highlights the words it
+>   actually read, and you approve. No silent guesses.
+> · PDFs, screenshots, shared images — the same review screen, always
+>   offline. Attachments live with the entry, so “what was this?” has
+>   a picture as an answer.
+> · Import a bank statement (CSV or OFX) when you want to catch up on
+>   a month. Re-importing the same file never doubles your ledger.
+>
+> **A month you can actually read**
+> · Spent, income, and per-category limits against real spending
+> · Budget vs actual, trends, and month-by-month reports — on-device
+> · Multi-currency with a rate for every entry, so a holiday doesn't
+>   warp your totals
+> · Bills and savings goals that roll into the month view
+>
+> **Built to be left alone**
+> · Every screen works on a plane. The only network calls are ones you
+>   start: optional currency rates and your own encrypted backups.
+> · Pro is a one-time unlock, not a subscription: detailed insights,
+>   PDF reports, home-screen widgets, encrypted backup to your own
+>   cloud, and cloud sync of your ledger to a WebDAV server you run.
+> · **Paid only ever adds.** Nothing free becomes paid — the free app
+>   budgets a whole household forever. Buying Pro can't move, hide or
+>   gate anything that was already there.
+>
+> One tap on “?” opens offline Help with an article for every screen —
+> it even searches without internet.
+>
+> Local Budget is made by one person who answers email. Feature
+> requests shape it more than dashboards do, because there are no
+> dashboards.
+
+(≈1 900 chars — leaves headroom for screenshots-driven edits.)
+
+## Data safety form, as filled
+
+- Collects: **nothing.** (Rate lookups and your-own-storage backup are
+  user-initiated device functions; nothing reaches the developer.)
+- Shared: nothing. Encrypted: n/a (nothing collected).
+- Delete flow: uninstalling is the deletion; say so in the form's
+  free text.
+- Family policy: not children's app; utility.
+
+## What Pro adds (store listing graphic, one screen)
+
+| | Free | Pro (one-time) |
+|---|---|---|
+| Manual + receipt capture, attachments | ✓ | ✓ |
+| Statements import, budgets, bills, goals | ✓ | ✓ |
+| Month/Year reports, export | ✓ | ✓ |
+| Detailed insights & analytics | — | ✓ |
+| PDF report export | — | ✓ |
+| Home-screen widgets | — | ✓ |
+| Encrypted backup to your own cloud | — | ✓ |
+| WebDAV sync (your server) | — | ✓ |
+
+Caption: “One purchase, yours forever. Nothing free ever moves behind
+the paywall.”
+
+## Screenshots checklist (owner — needs a real device/emulator)
+
+Eight shots, 9:16, in this order (tells the story top-to-bottom):
+1. Month screen with a filled balance strip (populate with a demo
+   month, delete first — see below)
+2. Capture review sheet with highlighted fields (proves OCR honesty)
+3. A transaction detail with an attached receipt photo
+4. Budgets sheet, one category mid-amber
+5. Reports → Budget vs actual
+6. Statement import preview
+7. Help screen with a search typed in
+8. Settings/About showing the privacy promise line
+
+**Before capturing:** wipe demo data (`adb shell pm clear
+dev.steiner.local_budget`) and re-enter a tidy month so nothing real
+or e2e-junk is in frame; dark mode `<pick one and stay consistent>`.
+
+## Feature graphic + icon (owner)
+
+- Icon direction: wallet/receipt silhouette, one accent colour, reads
+  at 48 px. `<needs design — not generated copy>`
+- Feature graphic repeats the short description at legible size.
+
+## Release notes template (each Play rollout)
+
+> **What changed**
+> · <user-visible change in plain words>
+>
+> **Fixes** · <one line each>
+>
+> Still offline, still no accounts, still yours.
