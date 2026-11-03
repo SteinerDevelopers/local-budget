@@ -294,6 +294,8 @@ package-apk:
 # Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
   stage: probe
+  needs: [] # playable the instant the pipeline exists — first job after a
+  # runner restart is the memory probe, BEFORE any heavy job touches the box
   when: manual
   allow_failure: true
   tags: [SteinerRunner]
