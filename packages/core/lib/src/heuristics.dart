@@ -264,10 +264,8 @@ class ReceiptHeuristics {
         // 2. …or to its left on the same line (`42.50 TOTAL` POS layouts).
         //    Must look like money (symbol or decimal) — digits glued to the
         //    label (`TOTAL2`) are OCR noise, not a left-aligned amount.
-        if (parsed == null) {
-          parsed = _bestAmount(line.substring(0, match.start),
-              requireExact: true);
-        }
+        parsed ??= _bestAmount(line.substring(0, match.start),
+            requireExact: true);
         // 3. …or on one of the next two lines (anchor and right-aligned
         //    amount OCR'd as separate blocks; e2-capture.md §3 v1.1).
         if (parsed == null) {

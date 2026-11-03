@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 
 void main() {
   // USD base, fixed clock — same harness as heuristics_test.dart.
-  final heur = () => ReceiptHeuristics(
+  ReceiptHeuristics heur() => ReceiptHeuristics(
       currency: Currency.find('USD')!, now: DateTime.utc(2026, 11, 3));
 
   group('OcrLineAssembly', () {

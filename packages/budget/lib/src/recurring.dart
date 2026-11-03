@@ -68,7 +68,7 @@ abstract final class RecurringDetector {
     // canonical key -> (epoch day -> summed amount), plus display identity.
     final byDay = <String, Map<int, int>>{};
     final display = <String, String>{};
-    var displayDay = <String, int>{};
+    final displayDay = <String, int>{};
     for (final t in transactions) {
       final raw = t.merchantName;
       if (raw == null || !t.countsTowardBudgets) continue;
