@@ -207,6 +207,10 @@ e2e-android:
   stage: e2e
   image: localbudget-e2e:latest
   tags: [SteinerRunner]
+  # Serialize against package-apk: both can trigger an sdkmanager auto-install
+  # into the same host-mounted SDK, and two concurrent installs corrupt it and
+  # OOM the box (three runner crashes traced to exactly this overlap).
+  resource_group: android-build
   # On-device runs gate on the app itself, not on golden refs: without this,
   # a goldens failure (stale PNG) skips the whole e2e stage (#53 taught this).
   needs: [app-test]
@@ -264,6 +268,7 @@ package-apk:
   needs: []
   image: localbudget-e2e:latest
   tags: [SteinerRunner]
+  resource_group: android-build # one Gradle/SDK build at a time (see e2e-android)
   variables:
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   cache:
