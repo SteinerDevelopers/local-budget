@@ -1,4 +1,4 @@
-// #30 — the Help section (E2 §7): four offline articles behind a search
+// #30 — the Help section (E2 §7): offline articles behind a search
 // box, entered from the About & help sheet. Search must find the terms
 // the acceptance criteria name, and the no-match copy must never dead
 // end — it hands the reader words that do work.
@@ -20,10 +20,28 @@ Future<void> search(WidgetTester tester, String query) async {
   await tester.pump();
 }
 
+// The topic list is lazy (ListView.separated); at the test viewport the
+// later articles only exist once the list has reached them.
+Future<void> reveal(WidgetTester tester, String text) async {
+  final item = find.text(text);
+  if (item.evaluate().isEmpty) {
+    // Positive delta reveals rows below the fold (scrollUntilVisible
+    // negates it into a finger swipe).
+    await tester.scrollUntilVisible(
+      item,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+  }
+  await tester.ensureVisible(item);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('every article is listed', (tester) async {
     await pumpHelp(tester);
     for (final article in kHelpArticles) {
+      await reveal(tester, article.title);
       expect(find.text(article.title), findsOneWidget);
     }
   });
@@ -66,6 +84,39 @@ void main() {
     await search(tester, 'zebra');
     expect(find.textContaining('Nothing found'), findsOneWidget);
     expect(find.text('Scanning receipts'), findsNothing);
+  });
+
+  // #9 — E8: the corpus covers every screen now; the issue’s acceptance
+  // terms must surface the article a reader would actually need.
+  testWidgets('“statement” finds the import guide', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'statement');
+    expect(find.text('Importing a bank statement'), findsOneWidget);
+    expect(find.text('Scanning receipts'), findsNothing);
+  });
+
+  testWidgets('“passphrase” finds the backup article', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'passphrase');
+    expect(find.text('Backup and restore'), findsOneWidget);
+  });
+
+  testWidgets('“privacy” finds the promise', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'privacy');
+    expect(find.text('Your data stays yours'), findsOneWidget);
+  });
+
+  testWidgets('“widget” finds the Pro extras', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'widget');
+    expect(find.text('Pro extras: cloud, widgets & insights'), findsOneWidget);
+  });
+
+  testWidgets('a half-typed word still lands', (tester) async {
+    await pumpHelp(tester);
+    await search(tester, 'passphras');
+    expect(find.text('Backup and restore'), findsOneWidget);
   });
 
   testWidgets('opening an article reads and backs out', (tester) async {
