@@ -349,9 +349,12 @@ e2e-android:
   tags: [SteinerRunner]
   # Own lock (was shared with e2e-android): this job lives on VM2 and
   # e2e on runner 2, different host-mounted SDKs, so there is nothing left
-  # to serialize between them. Fresh name also dodges the wedged android-build
-  # lock (stale mid-cancel holder on VM2, see e2e-android).
-  resource_group: apk-build
+  # to serialize between them. Renamed to apk-build-2 after p109: the
+  # force-cancel of a wedged package-apk-free left a stale mid-cancel
+  # holder that parked every later attempt in waiting_for_resource —
+  # renaming the group is the known dodge (same trick that retired
+  # 'android-build' before).
+  resource_group: apk-build-2
   variables:
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   cache:
