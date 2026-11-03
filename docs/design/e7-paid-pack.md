@@ -91,6 +91,13 @@ Failures: 3 retries with backoff inside the worker, then a quiet badge on
 Settings → Paid pack — never a notification unless the user enabled one
 (default off, respecting the notification minimalism of E3 reminders).
 
+Enabling the toggle enrols a *backup key* once (passphrase sheet with
+confirm) and keeps it in flutter_secure_storage (`cloud-autokey-<id>`) —
+the same trust domain already used for the destination secret, which
+unattended uploads need anyway. The worker only encrypts fresh snapshots
+with that key (E5 containers stay self-describing, so restore is
+unchanged); disabling the toggle or removing the destination scrubs it.
+
 ### 3.4 Restore
 
 Version list → download to cache → passphrase prompt → the E5 restore flow
