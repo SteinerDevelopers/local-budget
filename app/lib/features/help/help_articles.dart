@@ -222,13 +222,283 @@ const List<HelpArticle> kHelpArticles = [
           'path always works.',
     ],
   ),
+  // ── E8 §2: the remaining screens, one article each ───────────────────────
+  HelpArticle(
+    icon: Icons.calendar_month_outlined,
+    title: 'Your month at a glance',
+    paragraphs: [
+      'The main screen is one month at a time. The name across the top is '
+          'the month you are looking at; the arrows beside it step to the '
+          'next or previous month, and you can also drag the row left or '
+          'right. Underneath, the spending and income readings summarise '
+          'the month, and the chart icon opens Reports for the deeper '
+          'views.',
+      'Below the summary, your entries sit in day groups, newest day '
+          'first. Tap any row to edit it. Swipe a row to delete it, and '
+          'the bar that appears offers five seconds of Undo — a deleted '
+          'entry is only really gone when that bar is gone.',
+      'The plus button adds an entry by hand: an amount, a category, and '
+          'whether it is an expense or income. “Today”, “Yesterday” and '
+          'the calendar set its date, and everything stays editable '
+          'afterwards like any scanned entry.',
+      'The camera button next to it scans a receipt — that flow has its '
+          'own article. Money moved to a goal counts as saving, not '
+          'spending, so it never appears in the day list or the spending '
+          'reading; income lands in its own reading and never eats a '
+          'budget.',
+    ],
+  ),
+  HelpArticle(
+    icon: Icons.file_download_outlined,
+    title: 'Importing a bank statement',
+    paragraphs: [
+      'Manage → Import statement turns a bank export into entries. Two '
+          'kinds of file work: a CSV (the spreadsheet export your bank’s '
+          'website offers) and an OFX statement, the bank-format file. '
+          'Everything is read on this device; nothing is uploaded.',
+      'Pick which account the rows belong to, then tell the app which '
+          'column holds the date, the description and the amount — CSV '
+          'files vary wildly here, which is why the wizard asks instead '
+          'of guessing. OFX files carry their own labels, so there is '
+          'less to map. If your card writes expenses as positive numbers, '
+          'leave “Debit means expense” on; turn it off only for statements '
+          'that flip the sign.',
+      'Before anything is saved you see a preview of every row. Rows with '
+          'an unreadable date or amount are listed as skipped — fix them '
+          'in the file or add them by hand. Rows the app has seen before '
+          'are marked “already imported” and stay out of the count, so '
+          'importing the same statement twice never doubles your ledger.',
+      'Import adds the checked rows; save the mapping as a profile and '
+          'next month’s export from the same bank arrives already mapped. '
+          'Once imported, the rows are ordinary entries: tap to edit, '
+          'swipe to delete, and the ledger stays the single place your '
+          'money is written down.',
+    ],
+  ),
+  HelpArticle(
+    icon: Icons.backup_outlined,
+    title: 'Backup and restore',
+    paragraphs: [
+      'Manage → Back up writes one file to this device containing your '
+          'whole ledger, encrypted with a passphrase you choose. The '
+          'encryption is real, which means the passphrase is the only '
+          'key: write it down somewhere safe, because nobody — not the '
+          'developer, not your bank, not support — can recover a file '
+          'without it.',
+      'Restore picks a file and puts this device back to how it was when '
+          'that file was made, after asking you to confirm. It replaces '
+          'what is here, so a backup made before something important also '
+          'removes it — check the file’s age before you reach for it.',
+      'The file is yours to keep wherever you like: the Files app, a '
+          'drive that is yours, an external disk. The app never uploads '
+          'it anywhere. Changing phones is the simple case: back up on '
+          'the old phone, restore on the new one, and the passphrase is '
+          'the only thing that travels with you.',
+      'If you use Pro’s cloud destinations, automatic copies use exactly '
+          'this same encrypted file — read “Pro extras” for the schedule. '
+          'A manual backup before a big cleanup is always a good habit: it is '
+          'fast, and it can undo almost anything.',
+    ],
+  ),
+  HelpArticle(
+    icon: Icons.currency_exchange_outlined,
+    title: 'Currencies and exchange rates',
+    paragraphs: [
+      'The app keeps one home currency — the one every reading is shown '
+          'in — and you choose it in Manage. Your sums, budgets and '
+          'reports all speak that currency.',
+      'Individual entries can be in a different currency: the entry form '
+          'and the scan review both offer an “Entry currency” choice. The '
+          'entry remembers the amount as you typed it and shows its value '
+          'in your home currency alongside, so nothing is silently '
+          'rewritten.',
+      'The “Live exchange rates” switch in Manage decides where rates '
+          'come from. With it on, the app fetches current rates when the '
+          'network is available; with it off, nothing is ever fetched and '
+          'entries use the rates the app already has. Either way the '
+          'choice is remembered on this device.',
+      'A rate is a conversion aid, not a bank statement: if one looks '
+          'off, edit the entry and type the value you actually paid — '
+          'your number is the one the ledger keeps.',
+    ],
+  ),
+  HelpArticle(
+    icon: Icons.sell_outlined,
+    title: 'Categories that fit your life',
+    paragraphs: [
+      'Every entry carries one category, and categories are what the '
+          'donut in Reports, the Budgets screen and the home-screen '
+          'envelope widget all read. The app ships a sensible default set '
+          '— groceries, dining, transport, utilities and the rest — each '
+          'with its own icon.',
+      'The quick-add sheet shows your most-used categories as chips; the '
+          'Manage chip on the same row opens the category editor, where '
+          'you name a new category and pick its icon. Making one is a '
+          'few seconds, and it is instantly available everywhere.',
+      'Rename a category whenever you like — existing entries follow the '
+          'new name, because the ledger remembers the category, not a '
+          'spelling. A category earns a budget on the Budgets screen, '
+          'where it gets a limit and, if you switch it on, rollover.',
+      'The best taxonomy is a small one: if you can never tell two '
+          'categories apart at a glance, merge them — a report you do '
+          'not read is a report that does not help.',
+    ],
+  ),
+  HelpArticle(
+    icon: Icons.privacy_tip_outlined,
+    title: 'Your data stays yours',
+    paragraphs: [
+      'There is no account, no sign-in and no profile. Your ledger lives '
+          'in this device’s own storage, and the app collects nothing: '
+          'no analytics, no ads, no statistics about you leaving the '
+          'phone. The store’s own privacy form should read the same way — '
+          'data is not collected — and if it ever reads differently, '
+          'that is a bug worth reporting.',
+      'Receipt scanning runs entirely on the device. The photos and PDFs '
+          'you pick are copied into the app’s own folder for your review '
+          'and go no further; deleting an entry deletes its attachment.',
+      'The app reaches outside the phone in exactly three situations, '
+          'and you can see every one of them: exchange rates when the '
+          'Live rates switch is on, your own WebDAV destination when a '
+          'Pro automatic backup runs, and the store when you buy a tip or '
+          'Pro. Everything else — every reading, edit, search and report '
+          '— works in airplane mode because it never needed the network.',
+      'Backups and exports are your copies, made on the device and '
+          'encrypted with your passphrase. Uninstalling the app removes '
+          'everything it holds. If you ever leave, the door is wide open '
+          '— that is the whole design.',
+    ],
+  ),
+  HelpArticle(
+    icon: Icons.workspace_premium_outlined,
+    title: 'Pro extras: cloud, widgets & insights',
+    paragraphs: [
+      'Pro adds three things to the same ledger and takes nothing away. '
+          '“Upgrading to Pro” explains the switch itself; this article is '
+          'about using the extras.',
+      'Cloud backups (Pro): Manage → Cloud destinations takes a WebDAV '
+          'address, user name and password — your own server or hosting. '
+          'Every upload is the same encrypted backup file the manual '
+          'export makes, and the auto-backup switch keeps at most one '
+          'unattended copy per day, only when the phone has network and '
+          'is not saving battery. The destination row shows when a copy '
+          'last succeeded, so “automatic” is never “mysterious”.',
+      'Widgets (Pro): long-press an empty spot on your home screen, open '
+          'the widget picker and find LocalBudget Pro. Spend this month '
+          'opens Reports when tapped; Envelope left shows whichever '
+          'envelope has the least room left — long-press the widget while '
+          'placing it to pin a specific one — and Quick scan lands '
+          'straight on the capture sheet. A widget showing a dash means '
+          'its reading is from another month: open the app and every '
+          'tile refreshes.',
+      'Insights (Pro): the fourth tab inside Reports answers the "over '
+          'what range?" questions — pick a range with the chip at the '
+          'top and share a tidy PDF of exactly what you see, built on '
+          'the device like everything else.',
+    ],
+  ),
 ];
 
-/// Case-insensitive substring search over title and body — enough for a
-/// few dozen offline articles, and it keeps "search" honest: whatever a
-/// user can read, a user can find.
+// ── Local search index (E8 §1) ──────────────────────────────────────────────
+//
+// A tiny inverted index over the same strings the reader sees — built once
+// at first use, no network, no plugin. "Local" is literal: the corpus ships
+// in the binary and the index is a few kilobytes of Dart maps.
+//
+// Ranking is deliberately boring and deterministic: an exact whole-query
+// phrase match gets a small head start (the old substring behaviour
+// survives), per-token hits stack on top weighted title > body, and a
+// prefix allowance lets a half-typed word still land ("passphras" →
+// "passphrase"). A query whose words no article contains literally falls
+// back to the old substring test, so odd single letters keep matching the
+// way people expect while typing.
+
+final RegExp _wordPattern = RegExp(r'[a-z0-9]+');
+
+/// token → article indices, per field; built lazily from [kHelpArticles].
+final (Map<String, Set<int>>, Map<String, Set<int>>) _index = () {
+  final t = <String, Set<int>>{};
+  final b = <String, Set<int>>{};
+  for (var i = 0; i < kHelpArticles.length; i++) {
+    for (final m in _wordPattern.allMatches(
+      kHelpArticles[i].title.toLowerCase(),
+    )) {
+      t.putIfAbsent(m[0]!, () => {}).add(i);
+    }
+    for (final paragraph in kHelpArticles[i].paragraphs) {
+      for (final m in _wordPattern.allMatches(paragraph.toLowerCase())) {
+        b.putIfAbsent(m[0]!, () => {}).add(i);
+      }
+    }
+  }
+  return (t, b);
+}();
+
 List<HelpArticle> searchHelpArticles(String query) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return kHelpArticles;
-  return kHelpArticles.where((a) => a.haystack.contains(q)).toList();
+
+  // Phrase first: whatever contains the whole query as written edges
+  // ahead of scattered word hits, but tokens still stack on top, so an
+  // article whose title matches both words stays ahead of one that only
+  // happens to carry the phrase in its body.
+  final scores = List<double>.filled(kHelpArticles.length, 0);
+  var anyPhrase = false;
+  for (var i = 0; i < kHelpArticles.length; i++) {
+    if (kHelpArticles[i].haystack.contains(q)) {
+      scores[i] += 4;
+      anyPhrase = true;
+    }
+  }
+
+  final words = _wordPattern.allMatches(q).map((m) => m[0]!).toSet();
+  final anyExactWord = words.any(
+    (w) => _index.$1.containsKey(w) || _index.$2.containsKey(w),
+  );
+  if (!anyPhrase && !anyExactWord) {
+    // Nothing to rank — old substring semantics for stray fragments.
+    return kHelpArticles.where((a) => a.haystack.contains(q)).toList();
+  }
+
+  for (final word in words) {
+    for (var i = 0; i < kHelpArticles.length; i++) {
+      final titleExact = _index.$1[word]?.contains(i) ?? false;
+      final bodyExact = _index.$2[word]?.contains(i) ?? false;
+      if (titleExact) scores[i] += 3;
+      if (bodyExact) scores[i] += 2;
+      if (word.length >= 3) {
+        // Half-typed words earn a little via prefixes: an article whose
+        // title hosts the plural (“pdfs” for “pdf”) is a strong hint and
+        // counts whether or not the body mentions the word too; a bare
+        // body prefix counts less.
+        if (!titleExact &&
+            _index.$1.keys.any(
+              (t) =>
+                  t != word && t.startsWith(word) && _index.$1[t]!.contains(i),
+            )) {
+          scores[i] += 1;
+        }
+        if (!bodyExact &&
+            _index.$2.keys.any(
+              (t) =>
+                  t != word && t.startsWith(word) && _index.$2[t]!.contains(i),
+            )) {
+          scores[i] += 0.5;
+        }
+      }
+    }
+  }
+
+  final hits = [
+    for (var i = 0; i < kHelpArticles.length; i++)
+      if (scores[i] > 0) i,
+  ];
+  // Sort by score, ties broken by listing order — deterministic for the
+  // acceptance tests and predictable for the reader (List.sort itself is
+  // not stable, so the index tiebreaker is spelled out).
+  hits.sort((a, b) {
+    final byScore = scores[b].compareTo(scores[a]);
+    return byScore != 0 ? byScore : a.compareTo(b);
+  });
+  return [for (final i in hits) kHelpArticles[i]];
 }

@@ -15,6 +15,7 @@ import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
 import '../capture/review_sheet.dart';
 import 'package:local_budget/features/cloud/cloud_hub.dart';
+import '../help/help_screen.dart';
 import '../manage/icon_registry.dart';
 import '../manage/io.dart';
 import '../manage/manage_screen.dart';
@@ -522,6 +523,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// E8 §3: Help sits a tap away from the app’s home screen, not buried
+  /// in Manage (feasibility: reachable from every screen).
+  void _openHelp() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const HelpScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -533,6 +542,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               onPrevious: () => _animate(_index - 1),
               onNext: () => _animate(_index + 1),
               onOpenReports: _openReports,
+              onOpenHelp: _openHelp,
             ),
             Expanded(
               child: PageView.builder(
@@ -587,12 +597,14 @@ class _MonthHeader extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     required this.onOpenReports,
+    required this.onOpenHelp,
   });
 
   final String title;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onOpenReports;
+  final VoidCallback onOpenHelp;
 
   @override
   Widget build(BuildContext context) {
@@ -643,6 +655,14 @@ class _MonthHeader extends StatelessWidget {
               tooltip: 'Reports',
               onPressed: onOpenReports,
               icon: const Icon(Icons.insights_outlined, size: 24),
+            ),
+            // E8 §3: "?" joins the same cluster — Help is a first-class
+            // destination, reachable from the home screen directly.
+            IconButton(
+              key: const Key('help-open'),
+              tooltip: 'Help',
+              onPressed: onOpenHelp,
+              icon: const Icon(Icons.help_outline, size: 24),
             ),
           ],
         ),

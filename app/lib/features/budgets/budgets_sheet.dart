@@ -11,6 +11,7 @@ import '../bills/bills_service.dart';
 import '../bills/bills_tab.dart';
 import '../goals/goals_service.dart';
 import '../goals/goals_tab.dart';
+import '../help/help_screen.dart';
 import '../ledger/ledger_screen.dart' show monthTitle;
 import '../reports/reports_screen.dart';
 import 'budgets_service.dart';
@@ -223,6 +224,15 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
                         initialSegment: ReportSegment.actual,
                       ),
                     ),
+                  ),
+                ),
+                // E8 §3: Help stays one tap away on this screen too.
+                _Chevron(
+                  keyName: 'budget-help',
+                  icon: Icons.help_outline,
+                  semantic: 'Help',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
                   ),
                 ),
               ],

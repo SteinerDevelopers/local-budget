@@ -9,6 +9,7 @@ import '../../flavor.dart';
 import '../analytics/insights_view.dart';
 import '../budgets/budgets_service.dart';
 import '../budgets/budgets_sheet.dart';
+import '../help/help_screen.dart';
 import '../ledger/ledger_screen.dart' show monthIndexOf, monthTitle, tileFor;
 import '../ledger/transaction_row.dart';
 import '../manage/icon_registry.dart';
@@ -128,7 +129,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final nowIndex = monthIndexOf(DateTime.now());
     final nowYear = DateTime.now().year;
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      appBar: AppBar(
+        title: const Text('Reports'),
+        // E8 §3: reachable from every screen — one tap out of any chart.
+        actions: [
+          IconButton(
+            key: const Key('reports-help'),
+            tooltip: 'Help',
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const HelpScreen())),
+            icon: const Icon(Icons.help_outline),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
