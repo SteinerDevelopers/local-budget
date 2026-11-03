@@ -125,7 +125,7 @@ Uint8List encodeWidgetSnapshot(WidgetSnapshot s) {
       'widget snapshot schema drift: extra=$extra missing=$missing',
     );
   }
-  return utf8.encode(jsonEncode(j)) as Uint8List;
+  return Uint8List.fromList(utf8.encode(jsonEncode(j)));
 }
 
 /// Parses a snapshot, rejecting any document with keys outside the

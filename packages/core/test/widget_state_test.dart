@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:core/core.dart';
 import 'package:test/test.dart';
@@ -51,7 +52,7 @@ void main() {
       ..['merchantName'] = 'Corner Café';
     expect(
       () => decodeWidgetSnapshot(
-        utf8.encode(jsonEncode(tainted)) as dynamic,
+        Uint8List.fromList(utf8.encode(jsonEncode(tainted))),
       ),
       throwsA(isA<FormatException>()),
     );
@@ -60,7 +61,9 @@ void main() {
   test('a future schema version fails loudly', () {
     final future = jsonDecode(fixtureFile.readAsStringSync())..['v'] = 2;
     expect(
-      () => decodeWidgetSnapshot(utf8.encode(jsonEncode(future)) as dynamic),
+      () => decodeWidgetSnapshot(
+        Uint8List.fromList(utf8.encode(jsonEncode(future))),
+      ),
       throwsA(isA<FormatException>()),
     );
   });
