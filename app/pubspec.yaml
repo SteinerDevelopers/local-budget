@@ -50,6 +50,8 @@ dependencies:
   file_picker: ^13.3.2
   flutter_secure_storage: ^11.2.0
   workmanager: ^0.10.10
+  # §2.3 (E7): pure-Dart PDF renderer; no `printing` — bytes go to the share sheet.
+  pdf: ^3.12.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -62,6 +64,12 @@ dev_dependencies:
   # app's own code never imports http (the FxService lives in data).
   http: ^1.5.0
   flutter_lints: ^6.0.0
+
+# pdf 3.12.0 caps archive at <4.1.0, yet the image release it pulls calls
+# ZLibDecoder.decodeLazy, which only archive >=4.5 ships — this override is
+# the only offline-resolvable set that compiles (and matches data's own 4.6).
+dependency_overrides:
+  archive: 4.6.0
 
 flutter:
   uses-material-design: true

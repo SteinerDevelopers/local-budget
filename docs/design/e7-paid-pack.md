@@ -48,6 +48,17 @@ invisibility, §6).
    Categories / Transactions). Free tier keeps CSV forever (feasibility §4.5:
    the pack makes exports *nicer*, not possible). Both write through the
    existing share sheet, never to cloud.
+   *Implementation addendum (`implemented`): the entry point is a pro-gated
+   "Export report" tile on the analytics screen itself (§2.4 guard). Neither
+   package named above ships: `printing` adds a native plugin the byte-share
+   flow never needs (`pdf` alone renders to memory), and the pub `excel`
+   package is dead — its xml ^5 line cannot coexist with this repo's xml ^6 /
+   archive ^4. XLSX instead comes from a minimal hand-rolled OOXML writer in
+   `package:data` (inline-string + numeric cells, stored zip), built on the
+   `archive` dependency data already has and unit-tested by unzipping its own
+   output. `app` pins `archive: 4.6.0` via `dependency_overrides` — `pdf`'s
+   declared cap predates the `image` release it resolves; its archive import
+   is a web-only shim that never compiles on VM.*
 4. **Gate.** Entry points live under the analytics screen's pro-only section;
    routes are wrapped by a guard that renders `SizedBox.shrink()` on free and
    is asserted by widget tests (§6) — not a hidden button, a compiled-off path.

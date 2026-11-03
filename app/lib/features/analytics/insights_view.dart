@@ -5,18 +5,23 @@
 // teaser) in a free build, and reports_screen.dart additionally omits the
 // segment tab itself. Free-suite tests pin both; the CI import guard pins
 // that nothing outside this folder reaches in ungated.
+import 'dart:typed_data';
+
 import 'package:budget/budget.dart'
     show DayRange, RangeDelta, RecurringSuggestion;
 import 'package:core/core.dart' show Money;
-import 'package:data/data.dart' show LedgerRepository;
+import 'package:data/data.dart' show LedgerRepository, ReportWorkbook;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
 import '../../flavor.dart';
 import '../bills/bill_editor_sheet.dart';
+import '../manage/io.dart';
 import 'analytics_service.dart';
 import 'range_sheet.dart';
+import 'report_export_service.dart';
+import 'report_pdf.dart';
 
 /// Renders [child] only in the pro flavor (§5: the free build shows no
 /// trio affordance at all). Cheap, build-time-ish check re-evaluated per
@@ -43,10 +48,20 @@ String _deltaLabel(RangeDelta d) {
   return '${bp > 0 ? Tokens.plus : Tokens.minus}$pct%';
 }
 
+enum _ReportFormat { pdf, xlsx }
+
 class InsightsView extends StatefulWidget {
-  const InsightsView({super.key, required this.repository});
+  const InsightsView({
+    super.key,
+    required this.repository,
+    this.io = const RealIo(),
+  });
 
   final LedgerRepository repository;
+
+  /// §2.3 exports leave the app through the same file seam Manage's CSV
+  /// uses, so widget tests can capture the bytes with an in-memory fake.
+  final Io io;
 
   @override
   State<InsightsView> createState() => _InsightsViewState();
@@ -61,6 +76,11 @@ class _InsightsViewState extends State<InsightsView> {
   /// Merchants the owner already turned into bills this visit — their
   /// suggestion cards retire immediately after the editor closes.
   final Set<String> _converted = <String>{};
+
+  late final ReportExportService _exports = ReportExportService(
+    widget.repository,
+  );
+  bool _exporting = false;
 
   late Future<InsightsReport> _future = _load();
 
@@ -96,6 +116,68 @@ class _InsightsViewState extends State<InsightsView> {
       prefill: BillPrefill(name: s.merchantName, amountMinor: s.amountAvgMinor),
     );
     if (created == true) _converted.add(s.merchantName);
+  }
+
+  /// §2.3 — build the on-screen range as a PDF or an Excel workbook and
+  /// hand the bytes to the OS share sheet; nothing ever leaves through a
+  /// network call, and the free flavor never reaches this code (gated).
+  Future<void> _exportReport(InsightsReport r) async {
+    final choice = await showModalBottomSheet<_ReportFormat>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const Key('export-pdf'),
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: const Text('PDF report'),
+              onTap: () => Navigator.pop(context, _ReportFormat.pdf),
+            ),
+            ListTile(
+              key: const Key('export-xlsx'),
+              leading: const Icon(Icons.grid_on_outlined),
+              title: const Text('Excel workbook'),
+              onTap: () => Navigator.pop(context, _ReportFormat.xlsx),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    setState(() => _exporting = true);
+    try {
+      final data = await _exports.build(r);
+      final now = DateTime.now();
+      final Uint8List bytes;
+      final String name;
+      if (choice == _ReportFormat.pdf) {
+        bytes = await ReportPdf.build(data);
+        name = ReportPdf.fileName(now);
+      } else {
+        bytes = ReportWorkbook.encode(data);
+        name = ReportWorkbook.fileName(now);
+      }
+      await widget.io.shareFile(bytes: bytes, fileName: name);
+      if (mounted) {
+        _snack(
+          choice == _ReportFormat.pdf
+              ? 'PDF report ready to share as $name'
+              : 'Excel workbook ready to share as $name',
+        );
+      }
+    } catch (e) {
+      if (mounted) _snack('That did not work: $e');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -203,6 +285,20 @@ class _InsightsViewState extends State<InsightsView> {
               'Suggestions only — nothing is ever created without a tap '
               '(§2.2).',
               style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: Tokens.space3),
+            // §2.3: the free build never shows this row — a gate, not a
+            // teaser, exactly like the rest of the trio.
+            ProTrioGate(
+              child: ListTile(
+                key: const Key('export-report'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.ios_share),
+                title: const Text('Export report'),
+                subtitle: const Text('PDF or Excel workbook — stays on device'),
+                enabled: !_exporting,
+                onTap: _exporting ? null : () => _exportReport(r),
+              ),
             ),
             const SizedBox(height: Tokens.space5),
           ],

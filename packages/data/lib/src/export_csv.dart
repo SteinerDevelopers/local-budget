@@ -74,7 +74,7 @@ class CsvExport {
         (merchant != null && merchant.isNotEmpty) ? merchant : note,
         row.readTableOrNull(db.categories)?.name ?? '',
         note,
-        _signedDecimal(t.amountMinor, t.isIncome, t.currencyCode),
+        signedDecimal(t.amountMinor, t.isIncome, t.currencyCode),
         t.currencyCode,
         row.readTableOrNull(db.accounts)?.name ?? '',
       ]);
@@ -83,19 +83,23 @@ class CsvExport {
   }
 
   /// Unsigned storage + isIncome flag → signed dot-decimal, no grouping,
-  /// no locale: exactly what [parseAmount]-style importers expect.
-  static String _signedDecimal(int minor, bool isIncome, String code) {
-    final cur = Currency.resolve(code);
-    final abs = minor.abs();
-    final String mag;
-    if (cur.minorUnits == 0) {
-      mag = '$abs';
-    } else {
-      final frac = (abs % cur.pow10).toString().padLeft(cur.minorUnits, '0');
-      mag = '${abs ~/ cur.pow10}.$frac';
-    }
+  /// no locale: exactly what [parseAmount]-style importers expect. Shared
+  /// with the §2.3 report workbook's Transactions sheet, so the two exports
+  /// can never disagree on the bank sign.
+  static String signedDecimal(int minor, bool isIncome, String code) {
+    final mag = decimal(minor, code);
     if (isIncome) return mag;
     return minor == 0 ? '0' : '-$mag';
+  }
+
+  /// Magnitude decimal at the currency's exponent: plain int for 0-minor
+  /// currencies (JPY), fixed fraction otherwise (USD 2, BHD 3).
+  static String decimal(int minor, String code) {
+    final cur = Currency.resolve(code);
+    final abs = minor.abs();
+    if (cur.minorUnits == 0) return '$abs';
+    final frac = (abs % cur.pow10).toString().padLeft(cur.minorUnits, '0');
+    return '${abs ~/ cur.pow10}.$frac';
   }
 }
 
