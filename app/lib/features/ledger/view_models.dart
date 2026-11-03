@@ -21,6 +21,7 @@ final class EntryTile {
     required this.kind,
     required this.day,
     this.memo,
+    this.missingRate = false,
   });
 
   final int id;
@@ -33,6 +34,10 @@ final class EntryTile {
 
   /// Optional second line; empty/null renders the single-line variant.
   final String? memo;
+
+  /// E5 §6: a foreign-currency row saved without a rate — the row shows a
+  /// quiet amber "No rate" so the missing snapshot is visible, not silent.
+  final bool missingRate;
 
   /// Non-negative magnitude; sign comes from [kind].
   final Money amount;

@@ -19,6 +19,7 @@ import '../reports/reports_screen.dart';
 import 'balance_strip.dart';
 import 'day_label.dart';
 import 'empty_month.dart';
+import 'transaction_detail_sheet.dart';
 import 'transaction_row.dart';
 import 'view_models.dart';
 
@@ -100,7 +101,7 @@ String monthTitle(int index) {
 IconData categoryIcon(String? name) => ManageIcons.of(null, name);
 
 /// Drift row → [EntryTile]; amount stays unsigned, sign is display-only (§3).
-EntryTile tileFor(LedgerEntryData row) => EntryTile(
+EntryTile tileFor(LedgerEntryData row, {required String baseCode}) => EntryTile(
   id: row.id,
   // Stored icon key wins (§2.4); name mapping is the pre-#18 fallback.
   icon: ManageIcons.of(row.categoryIcon, row.categoryName),
@@ -109,6 +110,7 @@ EntryTile tileFor(LedgerEntryData row) => EntryTile(
   amount: Money(row.amountMinor, Currency.resolve(row.currencyCode)),
   kind: row.isIncome ? EntryKind.income : EntryKind.expense,
   day: row.day, // spoken in the row's TalkBack label (§5)
+  missingRate: row.currencyCode != baseCode && row.baseAmountMinor == null,
 );
 
 /// Sums one month **in the device base currency** (hardening #22): base-
@@ -458,6 +460,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// E5 §6: row tap opens the read-only detail sheet. Delete comes back as
+  /// a sheet *result* so the Undo SnackBar stays the single safety net —
+  /// the sheet itself never deletes.
+  Future<void> _openDetail(LedgerEntryData row) async {
+    final action = await showTransactionDetail(
+      context,
+      repository: widget.repository,
+      entry: row,
+      baseCode: _currency.code,
+    );
+    if (action == 'delete' && mounted) await _delete(row.id);
+  }
+
   /// E4 §1: Reports sits behind one icon in the month header — the month
   /// ledger stays the app's home; no nav entry, no chrome.
   void _openReports() {
@@ -490,6 +505,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   index: i,
                   currency: _currency,
                   onDelete: _delete,
+                  onOpen: _openDetail,
                 ),
               ),
             ),
@@ -602,12 +618,16 @@ class _MonthPage extends StatefulWidget {
     required this.index,
     required this.currency,
     required this.onDelete,
+    required this.onOpen,
   });
 
   final LedgerRepository repository;
   final int index;
   final Currency currency;
   final Future<void> Function(int id) onDelete;
+
+  /// E5 §6: row tap → read-only detail sheet (manual rate lives there).
+  final void Function(LedgerEntryData row) onOpen;
 
   @override
   State<_MonthPage> createState() => _MonthPageState();
@@ -642,7 +662,12 @@ class _MonthPageState extends State<_MonthPage> {
               // Empty month keeps header + strip (zeros) on screen (§2.1).
               child: rows.isEmpty
                   ? const EmptyMonth()
-                  : _DayList(rows: rows, onDelete: widget.onDelete),
+                  : _DayList(
+                      rows: rows,
+                      baseCode: widget.currency.code,
+                      onDelete: widget.onDelete,
+                      onOpen: widget.onOpen,
+                    ),
             ),
           ],
         );
@@ -652,10 +677,17 @@ class _MonthPageState extends State<_MonthPage> {
 }
 
 class _DayList extends StatelessWidget {
-  const _DayList({required this.rows, required this.onDelete});
+  const _DayList({
+    required this.rows,
+    required this.baseCode,
+    required this.onDelete,
+    required this.onOpen,
+  });
 
   final List<LedgerEntryData> rows;
+  final String baseCode;
   final Future<void> Function(int id) onDelete;
+  final void Function(LedgerEntryData row) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -678,7 +710,10 @@ class _DayList extends StatelessWidget {
             await onDelete(row.id);
             return true;
           },
-          child: TransactionRow(tile: tileFor(row)),
+          child: TransactionRow(
+            tile: tileFor(row, baseCode: baseCode),
+            onTap: () => onOpen(row),
+          ),
         );
       },
     );

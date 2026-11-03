@@ -503,6 +503,7 @@ class _MonthView extends StatelessWidget {
                 repository: repository,
                 yearMonth: report.yearMonth,
                 categoryId: cat.categoryId,
+                baseCode: report.currency.code,
               ),
             ),
           ],
@@ -519,11 +520,15 @@ class _DrillList extends StatefulWidget {
     required this.repository,
     required this.yearMonth,
     required this.categoryId,
+    required this.baseCode,
   });
 
   final LedgerRepository repository;
   final String yearMonth;
   final int categoryId;
+
+  /// Device base — lets a "No rate" row whisper here too (E5 §6).
+  final String baseCode;
 
   @override
   State<_DrillList> createState() => _DrillListState();
@@ -547,7 +552,10 @@ class _DrillListState extends State<_DrillList> {
             .toList();
         return ListView(
           key: Key('drill-list-${widget.categoryId}'),
-          children: [for (final r in rows) TransactionRow(tile: tileFor(r))],
+          children: [
+            for (final r in rows)
+              TransactionRow(tile: tileFor(r, baseCode: widget.baseCode)),
+          ],
         );
       },
     );
