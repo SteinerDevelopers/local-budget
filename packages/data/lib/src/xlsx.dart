@@ -46,10 +46,11 @@ Uint8List encodeXlsx(List<XlsxSheet> sheets) {
   }
 
   final overrides = sheets.asMap().entries.map(
-        (e) => '<Override PartName="/xl/worksheets/sheet${e.key + 1}.xml" '
-            'ContentType="application/vnd.openxmlformats-'
-            'officedocument.spreadsheetml.worksheet+xml"/>',
-      );
+    (e) =>
+        '<Override PartName="/xl/worksheets/sheet${e.key + 1}.xml" '
+        'ContentType="application/vnd.openxmlformats-'
+        'officedocument.spreadsheetml.worksheet+xml"/>',
+  );
   add('[Content_Types].xml', '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -69,9 +70,10 @@ $overrides
 ''');
 
   final sheetTags = sheets.asMap().entries.map(
-        (e) => '<sheet name="${_xmlEscape(e.value.name)}" sheetId="${e.key + 1}" '
-            'r:id="rId${e.key + 1}"/>',
-      );
+    (e) =>
+        '<sheet name="${_xmlEscape(e.value.name)}" sheetId="${e.key + 1}" '
+        'r:id="rId${e.key + 1}"/>',
+  );
   add('xl/workbook.xml', '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -81,10 +83,11 @@ $overrides
 
   // Worksheets are rId1..N (order = tab order); styles hang off the end.
   final relTags = sheets.asMap().entries.map(
-        (e) => '<Relationship Id="rId${e.key + 1}" '
-            'Type="http://schemas.openxmlformats.org/officeDocument/2006/'
-            'relationships/worksheet" Target="worksheets/sheet${e.key + 1}.xml"/>',
-      );
+    (e) =>
+        '<Relationship Id="rId${e.key + 1}" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+        'relationships/worksheet" Target="worksheets/sheet${e.key + 1}.xml"/>',
+  );
   add('xl/_rels/workbook.xml.rels', '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -114,8 +117,10 @@ $relTags
 String _sheetXml(XlsxSheet sheet) {
   final sb = StringBuffer()
     ..write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n')
-    ..write('<worksheet xmlns="http://schemas.openxmlformats.org/'
-        'spreadsheetml/2006/main"><sheetData>');
+    ..write(
+      '<worksheet xmlns="http://schemas.openxmlformats.org/'
+      'spreadsheetml/2006/main"><sheetData>',
+    );
   for (var r = 0; r < sheet.rows.length; r++) {
     final row = sheet.rows[r];
     sb.write('<row r="${r + 1}">');
@@ -124,8 +129,10 @@ String _sheetXml(XlsxSheet sheet) {
       if (cell == null) continue;
       final ref = '${_columnName(c)}${r + 1}';
       if (cell is String) {
-        sb.write('<c r="$ref" t="inlineStr"><is><t xml:space="preserve">'
-            '${_xmlEscape(cell)}</t></is></c>');
+        sb.write(
+          '<c r="$ref" t="inlineStr"><is><t xml:space="preserve">'
+          '${_xmlEscape(cell)}</t></is></c>',
+        );
       } else if (cell is int) {
         sb.write('<c r="$ref"><v>$cell</v></c>');
       } else if (cell is double) {

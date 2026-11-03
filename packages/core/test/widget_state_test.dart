@@ -42,8 +42,8 @@ void main() {
       (jsonDecode(utf8.decode(bytes)) as Map).keys.toList(),
       widgetSnapshotKeys,
     );
-    final env = ((jsonDecode(utf8.decode(bytes)) as Map)['envelopes']
-        as List).first as Map;
+    final env = ((jsonDecode(utf8.decode(bytes)) as Map)['envelopes'] as List)
+        .first as Map;
     expect(env.keys.toList(), widgetEnvelopeKeys);
   });
 

@@ -85,10 +85,12 @@ void main() {
     test('sheets are Summary, Months, Categories, Transactions in order', () {
       expect(
         parts['xl/workbook.xml'],
-        contains('<sheet name="Summary" sheetId="1" r:id="rId1"/>'
-            '<sheet name="Months" sheetId="2" r:id="rId2"/>'
-            '<sheet name="Categories" sheetId="3" r:id="rId3"/>'
-            '<sheet name="Transactions" sheetId="4" r:id="rId4"/>'),
+        contains(
+          '<sheet name="Summary" sheetId="1" r:id="rId1"/>'
+          '<sheet name="Months" sheetId="2" r:id="rId2"/>'
+          '<sheet name="Categories" sheetId="3" r:id="rId3"/>'
+          '<sheet name="Transactions" sheetId="4" r:id="rId4"/>',
+        ),
       );
     });
 
@@ -131,8 +133,10 @@ void main() {
       }
       expect(
         s,
-        contains('<t xml:space="preserve">Café &amp; &quot;Sons&quot; &lt;x&gt;'
-            '</t>'),
+        contains(
+          '<t xml:space="preserve">Café &amp; &quot;Sons&quot; &lt;x&gt;'
+          '</t>',
+        ),
       );
       expect(s, contains('<t xml:space="preserve">2026-03-04</t>'));
       expect(s, contains('<t xml:space="preserve">-12.34</t>')); // expense

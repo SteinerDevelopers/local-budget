@@ -20,9 +20,12 @@ void main() {
     test('writes every required OOXML part', () {
       final parts = unzip(
         encodeXlsx([
-          XlsxSheet('Summary', rows: [
-            ['a', 1],
-          ]),
+          XlsxSheet(
+            'Summary',
+            rows: [
+              ['a', 1],
+            ],
+          ),
         ]),
       );
       expect(
@@ -37,10 +40,7 @@ void main() {
         ]),
       );
       expect(parts['[Content_Types].xml'], contains('sheet1.xml'));
-      expect(
-        parts['_rels/.rels'],
-        contains('Target="xl/workbook.xml"'),
-      );
+      expect(parts['_rels/.rels'], contains('Target="xl/workbook.xml"'));
     });
 
     test('sheet order and names survive the round trip', () {
@@ -54,10 +54,12 @@ void main() {
       );
       expect(
         parts['xl/workbook.xml'],
-        contains('<sheet name="Summary" sheetId="1" r:id="rId1"/>'
-            '<sheet name="Months" sheetId="2" r:id="rId2"/>'
-            '<sheet name="Categories" sheetId="3" r:id="rId3"/>'
-            '<sheet name="Transactions" sheetId="4" r:id="rId4"/>'),
+        contains(
+          '<sheet name="Summary" sheetId="1" r:id="rId1"/>'
+          '<sheet name="Months" sheetId="2" r:id="rId2"/>'
+          '<sheet name="Categories" sheetId="3" r:id="rId3"/>'
+          '<sheet name="Transactions" sheetId="4" r:id="rId4"/>',
+        ),
       );
       expect(parts['xl/_rels/workbook.xml.rels'], contains('sheet4.xml'));
       expect(parts.containsKey('xl/worksheets/sheet4.xml'), isTrue);
@@ -66,16 +68,21 @@ void main() {
     test('inline strings, numbers and skipped nulls keep A1 references', () {
       final sheet = unzip(
         encodeXlsx([
-          XlsxSheet('S', rows: [
-            ['Café & "Sons" <x>', 12, null],
-            [null, -3, 0.07],
-          ]),
+          XlsxSheet(
+            'S',
+            rows: [
+              ['Café & "Sons" <x>', 12, null],
+              [null, -3, 0.07],
+            ],
+          ),
         ]),
       )['xl/worksheets/sheet1.xml']!;
       expect(
         sheet,
-        contains('<c r="A1" t="inlineStr"><is><t xml:space="preserve">'
-            'Café &amp; &quot;Sons&quot; &lt;x&gt;</t></is></c>'),
+        contains(
+          '<c r="A1" t="inlineStr"><is><t xml:space="preserve">'
+          'Café &amp; &quot;Sons&quot; &lt;x&gt;</t></is></c>',
+        ),
       );
       expect(sheet, contains('<c r="B1"><v>12</v></c>'));
       expect(sheet, isNot(contains('r="C1"'))); // null cells are skipped
@@ -88,9 +95,12 @@ void main() {
     test('column names roll past Z', () {
       final sheet = unzip(
         encodeXlsx([
-          XlsxSheet('S', rows: [
-            [for (var i = 0; i < 28; i++) 'x$i'],
-          ]),
+          XlsxSheet(
+            'S',
+            rows: [
+              [for (var i = 0; i < 28; i++) 'x$i'],
+            ],
+          ),
         ]),
       )['xl/worksheets/sheet1.xml']!;
       expect(sheet, contains('r="Z1"'));
@@ -106,15 +116,9 @@ void main() {
 
     test('illegal workbooks are rejected', () {
       expect(() => encodeXlsx(const []), throwsArgumentError);
-      expect(
-        () => encodeXlsx([XlsxSheet('Bad [name]')]),
-        throwsArgumentError,
-      );
+      expect(() => encodeXlsx([XlsxSheet('Bad [name]')]), throwsArgumentError);
       expect(() => encodeXlsx([XlsxSheet('')]), throwsArgumentError);
-      expect(
-        () => encodeXlsx([XlsxSheet('a' * 32)]),
-        throwsArgumentError,
-      );
+      expect(() => encodeXlsx([XlsxSheet('a' * 32)]), throwsArgumentError);
       expect(
         () => encodeXlsx([XlsxSheet('Dup'), XlsxSheet('Dup')]),
         throwsArgumentError,
@@ -124,9 +128,12 @@ void main() {
     test('unsupported cell types are rejected', () {
       expect(
         () => encodeXlsx([
-          XlsxSheet('S', rows: [
-            [Object()],
-          ]),
+          XlsxSheet(
+            'S',
+            rows: [
+              [Object()],
+            ],
+          ),
         ]),
         throwsArgumentError,
       );

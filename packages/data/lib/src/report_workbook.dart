@@ -134,10 +134,7 @@ abstract final class ReportWorkbook {
       if (d.compareNormalizedMinor != null)
         ['Compare spent (normalized)', decimal(d.compareNormalizedMinor!, cur)],
       if (d.deltaBp != null)
-        [
-          'Change',
-          '${d.deltaBp! >= 0 ? '+' : ''}${percent(d.deltaBp! / 100)}',
-        ],
+        ['Change', '${d.deltaBp! >= 0 ? '+' : ''}${percent(d.deltaBp! / 100)}'],
     ];
 
     final showCompare = d.months.any((m) => m.compareSpentMinor != null);
@@ -148,7 +145,9 @@ abstract final class ReportWorkbook {
           m.yearMonth,
           decimal(m.spentMinor, cur),
           if (showCompare)
-            m.compareSpentMinor == null ? '' : decimal(m.compareSpentMinor!, cur),
+            m.compareSpentMinor == null
+                ? ''
+                : decimal(m.compareSpentMinor!, cur),
         ],
     ];
 
@@ -182,8 +181,9 @@ abstract final class ReportWorkbook {
 
   /// Signed, exponent-exact decimal for base-currency totals (net can go
   /// negative; the magnitude path is the CSV's).
-  static String decimal(int minor, Currency cur) =>
-      minor < 0 ? '-${CsvExport.decimal(minor, cur.code)}' : CsvExport.decimal(minor, cur.code);
+  static String decimal(int minor, Currency cur) => minor < 0
+      ? '-${CsvExport.decimal(minor, cur.code)}'
+      : CsvExport.decimal(minor, cur.code);
 
   static String percent(double pct) => '${pct.toStringAsFixed(1)}%';
 }
