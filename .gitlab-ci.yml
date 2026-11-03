@@ -333,13 +333,21 @@ e2e-android:
 # runner silent for an hour; the 2026-era android-build-2 comment above was
 # right about the cause, wrong that the split runners removed the risk:
 # goldens and app-test share VM2 with this job).
-package-apk:
+#
+# TWO JOBS (free/pro) because the artifact body limit applies to the upload
+# as a WHOLE: p105's 326 MB and p108's 235 MB (free-arm64 + pro-arm64
+# together) both died 413 at upload while every APK built fine. One APK
+# (~117 MB) per job keeps each upload minimal. If even that 413s, the cap
+# is a host nginx['client_max_body_size'] question (owner-hands) — the
+# builds themselves still gate, and the sideload kit ships from a local
+# build of the same SHA.
+.package-apk-template: &package-apk-base
   stage: e2e
   when: manual
   needs: []
   image: localbudget-e2e:latest
   tags: [SteinerRunner]
-  # Own lock now (was shared with e2e-android): this job lives on VM2 and
+  # Own lock (was shared with e2e-android): this job lives on VM2 and
   # e2e on runner 2, different host-mounted SDKs, so there is nothing left
   # to serialize between them. Fresh name also dodges the wedged android-build
   # lock (stale mid-cancel holder on VM2, see e2e-android).
@@ -358,6 +366,9 @@ package-apk:
           - app/android/gradle/wrapper/gradle-wrapper.properties
       paths:
         - .gradle-home/
+
+package-apk-free:
+  <<: *package-apk-base
   script:
     - |
       set -e
@@ -365,32 +376,40 @@ package-apk:
       flutter pub get
       # Split per ABI: the all-ABI debug APK (~205 MB) exceeds the GitLab
       # coordinator's request body limit (job 595 died with 413 uploading
-      # artifacts). p88 proved the limit applies to the ZIP AS WHOLE — all
-      # three per-ABI APKs together (287 MB) died 413 too — so only the
-      # arm64 sideload ride is published. The others still build (they
-      # keep every variant compiling) and stay in the job dir.
+      # artifacts). The limit applies to the upload as a whole, so each
+      # flavor uploads exactly its arm64 sideload ride; the other ABIs
+      # still build (they keep every variant compiling) and stay in the
+      # job dir.
       flutter build apk --debug --flavor free --split-per-abi
-      # Pro flavor compile gate (manual job, so the extra build is
-      # affordable): the trio ships inside this APK, and p88 showed a
-      # broken pro manifest only surfaces when something assembles it.
-      # p105 raised the universal pro-debug APK to 209 MB; free-arm64 (117
-      # MB) + universal pro (209 MB) = 326 MB died 413 on upload again.
-      # --target-platform android-arm64 measured 141 MB locally (plugin
-      # .so files are NOT ABI-scoped by it) — 258 MB as a bundle, still
-      # over. --split-per-abi strips foreign ABIs: pro-arm64 ~118 MB,
-      # bundle ~235 MB < the 250 MB coordinator limit; emits the -v8a-
-      # name. Owner's sideload device is arm64; the gate is ABI-free.
-      flutter build apk --debug --flavor pro --split-per-abi
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-arm64-v8a-free-debug.apk "$CI_PROJECT_DIR/out/"
-      # The paid-trio UI (Insights/Backup-plus/Cloud) only composites in the
-      # pro flavor — publish the arm64 pro-debug APK too, or the owner
-      # cannot sideload-test what every app slice just shipped (E7b #8).
-      cp -v build/app/outputs/flutter-apk/app-arm64-v8a-pro-debug.apk "$CI_PROJECT_DIR/out/"
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
       - out/app-arm64-v8a-free-debug.apk
+    expire_in: 4 weeks
+
+package-apk-pro:
+  <<: *package-apk-base
+  script:
+    - |
+      set -e
+      cd app
+      flutter pub get
+      # Pro flavor compile gate (manual job, so the extra build is
+      # affordable): the trio ships inside this APK, and p88 showed a
+      # broken pro manifest only surfaces when something assembles it.
+      # --split-per-abi strips foreign ABIs (~118 MB arm64 ride;
+      # --target-platform does NOT — it stayed a fat 141 MB). The paid-trio
+      # UI (Insights/Backup-plus/Cloud) only composites in the pro flavor,
+      # so publish the arm64 pro-debug APK or the owner cannot
+      # sideload-test what every app slice just shipped (E7b #8).
+      flutter build apk --debug --flavor pro --split-per-abi
+      mkdir -p "$CI_PROJECT_DIR/out"
+      cp -v build/app/outputs/flutter-apk/app-arm64-v8a-pro-debug.apk "$CI_PROJECT_DIR/out/"
+      ls -l "$CI_PROJECT_DIR/out/"
+  artifacts:
+    paths:
       - out/app-arm64-v8a-pro-debug.apk
     expire_in: 4 weeks
 
