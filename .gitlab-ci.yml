@@ -302,11 +302,18 @@ e2e-android:
       - e2e.log
     expire_in: 1 week
 
-# Manual: sideloadable debug APK (free flavor) for on-device dogfooding.
-# Play it from any pipeline, download out/*.apk, install over adb/Files.
+# Manual: sideloadable debug APK (free flavor + pro flavor) for on-device
+# dogfooding. Play it from any pipeline, download out/*.apk, install over
+# adb/Files.
 # Reuses the e2e image (baked Flutter + Android SDK); no emulator, so no
 # KVM needed — runs on VM2, off the emulator host, with that box's warm
 # Gradle caches. Debug keystore — fine for sideload, never a release artifact.
+# FLEET RULE: play only when the test stages of this pipeline are DONE —
+# VM2 freezes solid if a Gradle build overlaps flutter-test suites on the
+# same box (pipeline 93 lost app-test + goldens + this job simultaneously,
+# runner silent for an hour; the 2026-era android-build-2 comment above was
+# right about the cause, wrong that the split runners removed the risk:
+# goldens and app-test share VM2 with this job).
 package-apk:
   stage: e2e
   when: manual
