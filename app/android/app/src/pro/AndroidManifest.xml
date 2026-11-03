@@ -7,6 +7,9 @@
     <!-- The free listing, so freeAvailable()/transfer can resolve it. -->
     <queries>
         <package android:name="dev.steiner.local_budget" />
+        <!-- The transfer authority itself: package-visibility rules apply to
+             provider resolution too, so name it, don't infer it. -->
+        <provider android:authorities="dev.steiner.local_budget.transfer" />
     </queries>
 
     <!-- Distinct label: two listings, two names on the home screen. -->

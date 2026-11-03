@@ -59,9 +59,9 @@ class TransferBridge(private val context: Context) {
 
     /** Does a LocalBudget transfer provider resolve on this device? (Pro
      *  asks; same-key installs are the only way it can answer true.) */
-    @Suppress("DEPRECATION") // still the direct probe for an authority
+    @Suppress("DEPRECATION") // PackageManager is still the direct metadata probe
     private fun freeAvailable(): Boolean =
-        context.contentResolver.resolveContentProvider(AUTHORITY, 0) != null
+        context.packageManager.resolveContentProvider(AUTHORITY, 0) != null
 
     /** Free side only: is the paid listing installed next door? */
     private fun proInstalled(): Boolean = try {

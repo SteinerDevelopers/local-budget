@@ -7,6 +7,7 @@ import android.database.MatrixCursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import java.io.File
+import java.io.FileNotFoundException
 
 /**
  * The free flavor's read-only window onto its staged transfer snapshot
@@ -45,12 +46,12 @@ class TransferProvider : ContentProvider() {
         }
     }
 
-    override fun openAssetFileDescriptor(uri: Uri, mode: String) =
-        staged()?.let { file ->
-            ParcelFileDescriptor
-                .open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-                ?.let { fd -> android.content.res.AssetFileDescriptor(fd, 0, file.length()) }
-        }
+    /** The one content hook: the framework's default openAssetFileDescriptor
+     *  and openInputStream delegate here, so overriding openFile serves the
+     *  whole read surface (that's also how androidx FileProvider does it). */
+    override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor =
+        staged()?.let { ParcelFileDescriptor.open(it, ParcelFileDescriptor.MODE_READ_ONLY) }
+            ?: throw FileNotFoundException("no staged snapshot")
 
     // Read-only surface: the write verbs exist only because the framework
     // demands them, and refuse.
