@@ -1104,33 +1104,41 @@ class _ActualRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Tokens.body(context),
-                  ),
-                ),
-                // Flexible so a 1.3× text scale (or a $100k limit) wraps
-                // the amount instead of overflowing; right alignment keeps
-                // its right edge on the row edge, so while the text fits
-                // it renders exactly where a plain Text would (golden
-                // refs pinned in pipeline 64 must stay pixel-identical).
-                Flexible(
-                  child: Text(
-                    'Spent $spent of $limit',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: overspent ? scheme.error : scheme.onSurfaceVariant,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+            LayoutBuilder(
+              builder: (context, track) => Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Tokens.body(context),
                     ),
                   ),
-                ),
-              ],
+                  // Non-flex so a fitting amount sizes and places itself
+                  // exactly like a plain Text (golden refs pin this
+                  // geometry); the cap only lets 1.3× text scale wrap it
+                  // instead of overflowing, once the label keeps 88 dp.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: (track.maxWidth - 88).clamp(
+                        0.0,
+                        double.infinity,
+                      ),
+                    ),
+                    child: Text(
+                      'Spent $spent of $limit',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: overspent
+                            ? scheme.error
+                            : scheme.onSurfaceVariant,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: Tokens.space2),
             SizedBox(
