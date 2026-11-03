@@ -65,7 +65,7 @@ to storage *the user owns*. Zero company servers (decision 8); the literal
 | Target | Mechanics | Notes |
 |---|---|---|
 | **WebDAV** | URL + user + password/app-password; MKCOL the upload folder, PUT objects; PROPFIND Depth:1 to list | HTTPS required; plain-HTTP only allowed when the host is RFC1918/loopback with a visible red-banner warning (the user's own NAS/LAN box is a first-class citizen) |
-| **Google Drive** | Drive REST v3 with scope `drive.appdata` only — files live in the app's hidden folder, invisible to the user's Drive UI and to every other app | OAuth 2.0 authorization-code + PKCE in a Custom Tab; **no Google SDK dependency**; tokens are stored locally in secure storage and are never sent anywhere but `oauth2.googleapis.com`/`www.googleapis.com` |
+| **Google Drive** *(sequenced after WebDAV — owner decision 2026-11-03)* | Drive REST v3 with scope `drive.appdata` only — files live in the app's hidden folder, invisible to the user's Drive UI and to every other app | OAuth 2.0 authorization-code + PKCE in a Custom Tab; **no Google SDK dependency**; tokens are stored locally in secure storage and are never sent anywhere but `oauth2.googleapis.com`/`www.googleapis.com`. Needs one external artifact: an "installed app" OAuth **client ID** from the owner's Google Cloud project (not a secret; PKCE so no embedded secret). Until that ID exists the Drive provider stays dark-shipped code, not a UI target; E7 ships on WebDAV alone and the Drive provider lands as a follow-up commit the day the ID arrives |
 | **iCloud Drive** | deferred to M4 / E10, per issue | iOS-side mechanics join decision 11's activation |
 
 Multiple destinations per profile are allowed (e.g. NAS + Drive). A
@@ -162,7 +162,9 @@ feature teasers. Decision 7's "free tier complete" survives literally.
   the LAN NAS endpoint (spec §3.5's own box), guarded by a CI variable; where
   the NAS is absent the test skips with a loud log, never silently passes.
 - **Manual:** Flip6 widget matrix (pin/configure/rotate/kill-app refresh) and
-  Drive PKCE round-trip — recorded in the E7 acceptance checklist, done once.
+  Drive PKCE round-trip — the latter belongs to the Drive follow-up (once the
+  client ID ships), not to the E7 gate; recorded in the E7 acceptance
+  checklist, done once.
 
 ## 7. Explicitly out of scope
 
