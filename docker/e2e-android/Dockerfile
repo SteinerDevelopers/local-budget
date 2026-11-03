@@ -16,7 +16,7 @@ FROM ghcr.io/cirruslabs/flutter:stable
 RUN set -eux; \
     yes | sdkmanager --licenses > /dev/null; \
     sdkmanager --install "emulator" "platforms;android-34" "platforms;android-35" \
-      "platforms;android-36" "ndk;28.2.13676358" \
+      "platforms;android-36" "ndk;28.2.13676358" "cmake;3.22.1" \
       "system-images;android-36;google_apis;x86_64" > /dev/null; \
     echo no | avdmanager create avd -n ci \
       -k "system-images;android-36;google_apis;x86_64" -d pixel_7
