@@ -1,195 +1,192 @@
-# E6 Design Spec — Monetization (Pro unlock · supporter tiers · Buy Me a Coffee)
+# E6 Design Spec — Monetization v2 (paid app SKU · coffee tip · data-preserving transfer)
 
-**Plan refs:** issue #7 · decisions 4 (no ads, ever), 7 (feature-complete free tier),
-8 (zero data collection — absolute), 9 (launch paid pack = own-cloud backup +
-widgets + analytics pack). **Guardrail (binding, §3.4):** *paid only ever adds —
-it never walls off budgeting essentials or the user's own data.* Free users keep
-every existing feature; this epic adds a store product surface, nothing is
-removed from free.
+**Supersedes this file's v1 (same day).** Owner amendment, 2026-11-02, verbatim:
+*"I do not want an in app purchase capable of unlock, I want no in app purchases
+other than the buy me a coffee tip option. Paid option will have to be through
+the app store and a smooth upgrade from free to paid without losing data is
+needed."* Recorded as decision 12 in `docs/feasibility.md` §7.
 
-Deviation rule applies: this doc is the contract; changes here first, code second.
+**The invariant this epic now enforces: billing state never unlocks anything,
+anywhere, ever.** Features are switched by *which app you installed*, never by
+a purchase flag. The only IAP in the product is the coffee tip, which grants
+nothing but a thank-you. Test-enforced (§8).
 
-## 1. Where it lives
+Standing decisions survive untouched: no ads (4), free tier feature-complete
+(7), zero collection (8), the value-add trio (9), "paid only ever adds" —
+the trio now ships *as* the paid app instead of being unlocked inside the free one.
 
-```
-packages/billing/            NEW pure-Dart package (no Flutter, no plugin deps)
-  lib/src/models.dart        BillingProduct, PurchaseInfo, ProStatus, PurchaseEvent
-  lib/src/gateway.dart       abstract BillingGateway  (the seam)
-  lib/src/fake_gateway.dart  scripted fake for tests/dev
-  lib/src/pro_service.dart   ProService — entitlement state machine
-  lib/src/support.dart       SupportPolicy (region gate) + SupportLinks
-app/lib/features/pro/
-  in_app_purchase_gateway.dart  adapter: in_app_purchase (Android) → BillingGateway
-  paywall_screen.dart        full-page pitch (Navigator.push, like import sheets)
-  manage rows                Pro section added inside ManageScreen
-app/lib/features/manage/io.dart  Io gains `openUrl` (browser link-out)
-```
+## 1. Two SKUs, one codebase
 
-`LocalBudgetApp` gains an optional `pro` (ProService?) hand-down exactly like
-`fx`/`io`/`restore` (main.dart → LedgerScreen → ManageScreen):
-**null ⇒ the Pro section renders one explanatory row** ("Monetization is not
-wired in this build"). Legacy widget tests and all 44 existing goldens are
-therefore untouched; `main()` wires the real adapter on Android, null elsewhere
-(iOS keeps building per decision 11; StoreKit lands with E10).
+Android product flavors of `app/`, dimension `tier`:
 
-**No schema migration.** Entitlement persistence is the existing `Settings` kv
-table (`LedgerRepository.setSetting/setting`, same pattern as `live_fx_rates`).
-New keys — defined as constants in `ProService`, injected via a tiny `SettingsKv`
-interface (`get(key)/set(key,value)`) so the billing package stays dependency-free:
-
-| key | value | meaning |
+| | free | pro (paid) |
 |---|---|---|
-| `pro_unlocked` | `'on'` | cached entitlement for offline boots |
-| `pro_unlocked_ms` | epoch ms | when it was first seen (debug/help only) |
-| `supporters_acked` | csv of product ids | supporter thank-you badge state |
+| applicationId | `dev.steiner.local_budget` | `dev.steiner.local_budget.pro` (suffix `.pro`) |
+| store price | $0 | price anchor **$7.99** (v1 §2 survives as the *listing* price; console experiments, no code) |
+| contents | the complete app today + every "free" feature forever | free + the decision-9 pack (own-cloud backup, widgets, analytics) delivered by E7 |
+| manifest | hosts the transfer ContentProvider (§3) | queries + consumes it; no provider |
 
-## 2. Products & pricing
+Dart learns its flavor once: `--dart-define=APP_FLAVOR=pro` (CI sets it per
+flavor; unset ⇒ `free`). `AppFlavor` + `FeatureFlags.pro` live in
+`app/lib/flavor.dart` — **the only feature-gating mechanism that exists**.
+E7's trio reads `FeatureFlags.pro`; it must not read billing (E7 spec amended
+accordingly when written). iOS: same flavor pair via schemes xcconfig, StoreKit
+work deferred exactly as decision 11 — iOS *paid app* mechanics are an E10 item.
 
-Play Console product ids are permanent; choose once:
+Signing: both flavors are signed with the same key — the transfer (§3) depends
+on same-signature identity, and it is the only cross-app relationship allowed.
 
-| id | type | launch price | grants |
-|---|---|---|---|
-| `lb_unlock_pro` | non-consumable | **$7.99** (decision 7 anchor; console price experiments are the tuning knob — no code changes) | the E7 launch trio: own-cloud backup, widgets, analytics pack |
-| `lb_supporter_1` | non-consumable | $2.99 | nothing — thank-you badge only |
-| `lb_supporter_2` | non-consumable | $6.99 | nothing |
-| `lb_supporter_3` | non-consumable | $14.99 | nothing |
+## 2. Products — tips only
 
-Discrepancy note: issue #7 body lists supporter tiers as $2.99/$4.99/$9.99; the
-binding plan (§3.4 "Still optional") says $2.99/$6.99/$14.99. **The plan wins**;
-closing comment on #7 records the resolution. Console ops (create products,
-price anchor, A/B experiment scaffold) are an **E9 pre-submission checklist item**,
-tracked in the spec's §9 — nothing here needs the Console to exist to build.
+Play Billing remains in the tree for one purpose. Consumables, no entitlement:
 
-Restore semantics follow store rules: non-consumables must restore from purchase
-history (`queryPurchasesAsync`), works **offline** once cached, no backend, no
-account (decision 8). Validation is billing-client-only; a rooted device can
-forge the local flag — accepted by design (zero-server promise; we sell value,
-not DRM). This trade is stated here so no one "fixes" it later with a server.
+| id | price | grants |
+|---|---|---|
+| `lb_coffee_small` | $2.99 | nothing — thank-you badge + local receipt line |
+| `lb_coffee_medium` | $6.99 | nothing |
+| `lb_coffee_large` | $14.99 | nothing |
 
-## 3. The gateway seam
+A consumable tip is ack'd immediately on purchase (it is consumed by the act of
+thanking); pending tips surface §6 copy and, if they complete later, the
+lifetime event listener records the badge. No restore surface is required for
+consumables — none is offered. The browser-out **Buy Me a Coffee** link (§5,
+`SupportLinks.bmc`) stays as the non-IAP alternative, grants nothing, region-
+gated (§7). v1's `lb_unlock_pro` / supporter-nonconsumables are *deleted from
+the spec and the code*; nothing named `unlock` may exist (§8).
+
+## 3. Smooth upgrade: free → paid without losing data
+
+The store gives paid→free no upgrade path (different packages), so the app owns
+the migration. Both directions of the UX are one tap after install:
+
+**Free app, Settings → "Get Pro"**: explains the trio (demo cards survive from
+v1 §5 — honest previews, no greyed locks), deep-links the Play listing
+(`market://details?id=dev.steiner.local_budget.pro`, https fallback), and —
+when the Pro package is visible — shows "Pro installed? Open it and tap
+*Transfer from free app*." It never moves or deletes anything itself.
+
+**Pro app, first run (and a standing Settings row)**: "Transfer from free app"
+appears only when the free app's provider resolves. One tap copies everything
+and lands the user in their own ledger.
+
+### Transfer mechanics
+
+- The free app exports a `ContentProvider` (authority
+  `dev.steiner.local_budget.transfer`, `permission` = a
+  `signature`-protection-level custom permission; declared in the *free*
+  flavor's manifest only; Pro declares `<queries>` + uses the permission).
+  Same signing key ⇒ instant grant; **no runtime permission dialogs, data
+  never leaves the device, no network, no backend** (decision 8 intact).
+- Opening the provider generates a **fresh backup on demand** through the
+  *existing* E5 pipeline (`createBackup` snapshots the live DB safely) and
+  streams the container; the Pro-side channel call spools it to a cache file
+  and hands it to the *existing* E5 restore path (single confirm, cold restart
+  — restore remains the only destructive flow, and on the Pro app the "existing
+  data" it replaces is an empty database on first run).
+- **Transfer passphrase**: `createBackup` demands a passphrase; the transfer
+  uses a constant compiled into the app family (`transferPassphrase`,
+  `packages/data`). Threat model stated plainly: it is obfuscation, not a
+  secret — it defends nothing against a rooted device, and that is *no worse*
+  than the free app's own unencrypted-at-rest SQLite. Its job is format
+  honesty: one pipeline, one envelope, zero plaintext special-casing.
+- Idempotent: transfer can be repeated (Pro re-pulls a newer snapshot any
+  time); the free app is never modified — uninstalling Pro loses nothing,
+  and the free app keeps working as the complete app it is.
+- **Fallback** (provider edge cases, future iOS): the classic route — export
+  encrypted backup file in free app (E5), import it in Pro (E5). The spec
+  promises *a* path always; the provider is only the smooth one.
+
+## 4. Billing seam (v2) — consumable-only
 
 ```dart
 abstract class BillingGateway {
   Future<void> connect();
   Future<List<BillingProduct>> products(List<String> ids);
   Future<void> buy(String productId);
-  Future<List<PurchaseInfo>> pastPurchases();      // non-consumable only
   Future<void> ack(PurchaseInfo purchase);
-  Stream<PurchaseEvent> get events;                // pending|purchased|error|canceled
-  Future<String?> accountCountry();                // Play billing config, null=unknown
+  Stream<PurchaseEvent> get events;      // pending|purchased|canceled|error
+  Future<String?> accountCountry();
   Future<void> close();
 }
 ```
 
-Domain models carry `productId`, `purchaseToken`, `pending`, `status`. The
-`in_app_purchase` plugin is referenced **only** by the app-layer adapter
-(`in_app_purchase_gateway.dart`), which maps plugin enums → `PurchaseEvent` and
-acks after the ProService has persisted state. An unacknowledged purchase that
-dies mid-flow reappears in `pastPurchases()` next launch — the flow is
-crash-safe by construction; no explicit resume logic.
+`pastPurchases` is gone with the non-consumables. `TipService`
+(`packages/billing/lib/src/tip_service.dart`, pure Dart): `catalog()` (the
+three ids), `tip(productId)` → `BuyResult` for UI copy, lifetime listener
+records completed tips into the `supporters_acked` kv (cosmetic receipt),
+single-flight guard. `in_app_purchase` types still stop at the app adapter;
+`FakeBillingGateway` keeps scriptable events + `productsThrow` for tests/dev.
+No ProService, no `ProStatus`, no restore ladder — deleted with v1.
 
-`FakeBillingGateway` (ships in the package, used by all tests; selectable in dev
-builds with `--dart-define=FAKE_BILLING=true`) is scriptable: canned catalog,
-deterministic success/failure/pending→purchased sequences, fake country. The
-sideloaded debug build without a Play listing hits the *products-unavailable*
-state (§6) — the paywall must still render fully; nothing is broken, just
-unbuyable. This is explicitly verified.
+## 5. UI
 
-## 4. ProService — state machine
+**Settings rows (Manage screen)** — `pro`-flavor-only rows hidden on free,
+support rows on both:
+1. "Buy me a coffee ☕" → sheet below. Present in both SKUs (Pro buyers tip too).
+2. "Get Pro →" — **free flavor only**; opens the Get Pro page (§3). Null-safe
+   hand-down like every other service: services absent ⇒ row explains, goldens
+   stable.
+3. "Transfer from free app" — **pro flavor only**, visible only when the
+   provider resolves; runs §3 with the §6 error map.
 
-`ProStatus ∈ {unknown, locked, unlocked}`; `Stream<ProStatus> status` (broadcast).
+**Coffee sheet**: headline "Enjoying LocalBudget? Buy me a coffee ☕" + the
+honest line "Everything you use today stays free. Tips keep the lights on —
+they don't unlock anything." Three price chips from the catalog (fallback
+"store unavailable" per §6), tip button (pending spinner), thank-you state
+after success ("Thank you! ☕" + badge row of past tips). No purchase ever
+changes app behavior — visibly stated.
 
-Boot (`ProService.bootstrap()` — call at startup, off the critical path like the
-E5 integrity probe): connect (best-effort, 5 s deadline) → `pastPurchases()`.
-- query **succeeds** and contains `lb_unlock_pro` ⇒ `unlocked` (write cache keys).
-- query **succeeds**, product absent ⇒ `locked`, cache *cleared* — this is how a
-  refund is honored without a backend.
-- connect/query **fails** (offline, no Play) ⇒ `unlocked` iff cache says so, else
-  `locked`. The app never blocks on billing; worst case the row reads "locked"
-  and Restore fixes it in one tap once online.
+**Get Pro page** (free flavor): headline "LocalBudget Pro — the same app, plus"
++ trio demo cards (surviving v1 §5) + price chip + store button + "your data
+comes along, one tap, stays on your device" + fallback route note. No buy
+button exists here — buying happens on the store. (E7 replaces trio cards
+"coming" copy with live features inside the Pro SKU.)
 
-`buy(productId)`: gate single-flight; drive from `events`; on purchased → persist
-(`pro_unlocked` or append `supporters_acked`) → `ack` → emit. Errors surface as
-the mapped message from §6.
-`restore()` = re-run the boot query with a user-visible result
-("Pro restored" / "No purchase found for this Google account").
+## 6. Error copy (tips + transfer)
 
-**E7 consumption contract:** `bool enabled(ProGate gate)` over the same stream,
-`enum ProGate { ownCloudBackup, widgets, analyticsPack }`. Free features never
-call it. E6 ships service + tests; E7 attaches gates.
-
-## 5. Paywall page
-
-One Navigator-pushed page (no route table exists; same pattern as the import
-sheet stack). §4.5 rules apply: it *demos* value — no greyed-out lock teasers.
-Structure, top→bottom, one scroll:
-
-1. **Headline** — "Pro. One purchase, yours forever." + price chip from the
-   store catalog (`$7.99` localized by Play; fallback text when catalog empty).
-2. **Three demo cards** — the launch trio rendered as honest mini-previews:
-   own-cloud backup (animated file-to-cloud motif over the user's *own* words
-   "your Drive, your WebDAV"), widgets (rendered mock tiles using the app's
-   real tile design language), analytics pack (a mini YoY sparkline). Copy
-   states plainly: "coming with the Pro pack" until E7 ships each — the app
-   never shows a fake-enabled feature as live.
-3. **Buy** button (primary; disabled with reason when catalog unavailable) +
-   **Restore purchases** text button.
-4. **Promise** line, verbatim from §3.4: "The free app stays complete. Pro only
-   adds."
-5. **Support section** (region-gated, §7): "Say thanks ☕" → BMC browser
-   link-out (`Io.openUrl`; grants nothing — store-rule compliant) and the
-   supporter tier chips (own-row thank-you badge when owned).
-
-States: loading (skeleton), ready, products-unavailable, purchasing (button
-spinner; re-tap ignored), failed (mapped snackbar §6), unlocked (card 1 swaps to
-"Pro unlocked ✓ · Manage" showing purchase era from `pro_unlocked_ms`, buy
-button gone, restore stays). Refund → next boot flips back to locked silently.
-
-**BMC URL** is a constant in `SupportLinks` (`https://buymeacoffee.com/…`); the
-handle is decided with app naming in E8 (open question #3) — a placeholder
-`TODO(store)` comment blocks merge of *E8's* checklist, not this epic; E6 ships
-with the link pointing at a placeholder page and E8 finalizes it.
-
-## 6. Error copy map (snackbars; §4.5: explain, never stack-trace)
-
-| store condition | message |
+| condition | message |
 |---|---|
-| user canceled | *none* (silent) |
-| network / service down | "Can't reach the store right now. Try again later." |
-| item not available (sideload/no listing) | "This item isn't available in your store yet." |
-| purchase pending (family review, deferred) | "Purchase pending — Pro unlocks as soon as it completes." |
-| billing unsupported on device | Pro row reads "Not available on this device." |
-| restore finds nothing | "No purchase found for this Google account." |
+| user canceled tip | silent |
+| store unreachable | "Can't reach the store right now — try again later." |
+| tip item unavailable | "Tipping isn't available in your store yet." |
+| pending | "Tip is processing — thank you either way." |
+| transfer: free app not found | row hidden (never shown) |
+| transfer: provider/refused/IO error | "Couldn't read from the free app. You can still use an exported backup file." |
+| transfer: schema too new | existing E5 `BackupSchemaTooNew` copy (free app is older than Pro — free updates fix it) |
 
-## 7. Region gate for support link-outs
+## 7. Region gate — unchanged from v1
 
-Feasibility §3: U.S. link-outs are permitted status-quo; other regions differ.
-`SupportPolicy.visible(countryCode)` → true iff `'US'`; unknown/null → hidden in
-release, shown in debug (development affordance only). Country comes from the
-Play billing config (`accountCountry()`); billing absent → null → hidden
-(release). One allowlist constant; broadening it later (EU/DMA) is a one-line
-spec edit + code follow, deliberately not preemptive.
+`SupportPolicy.visible(countryCode, debug)`: link-out row shown for `US`,
+hidden for other countries, debug-visible when unknown. Tip **IAP** chips are
+not region-gated (IAP is always the compliant path).
 
 ## 8. Test & CI surface
 
-- **packages/billing** (pure Dart, `flutter test`): boot matrix (success×{owns,
-  absent} / offline×{cache on,off}), refund-clears-cache, buy happy path incl.
-  ack ordering (persist→ack), pending→purchased, single-flight, supporter acks,
-  ProGate, SupportPolicy matrix. `billing-test` CI job (dart:stable) added.
-- **app widget tests**: paywall every §5 state × light; Pro section rows with
-  `pro` null (unchanged legacy behavior), locked, unlocked; BMC row region
-  gate on/off; restore snackbar paths via `FakeBillingGateway`.
-- **goldens** (CI regen flow, names per convention): `paywall_locked_{light,dark}`,
-  `paywall_unlocked_{light,dark}`, `paywall_unavailable_light`,
-  `manage_pro_locked_{light,dark}`, `manage_pro_unlocked_light` → +7 refs (44→51).
-- **e2e**: unchanged; `--dart-define=FAKE_BILLING=true` reserved for a future
-  on-device billing-lint pass (E9 perf/audit day).
+- **packages/billing** (pure Dart): tip happy path (buy→purchased→ack→badge),
+  pending→late purchased, canceled silent, error pass-through, single-flight,
+  catalog filtering, `productsThrow` degradation, SupportPolicy matrix.
+  **Invariant test:** the exported catalog contains no product whose id
+  contains `unlock`; `TipService` exposes no entitlement getter (compile-time
+  by absence — the test pins the catalog).
+- **app widget tests**: coffee sheet every §5 state; Get Pro row flavor
+  matrix (free shows / pro hides / null explains); transfer row visibility
+  matrix; thank-you badge rendering from `FakeBillingGateway`.
+- **transfer contract test**: round-trip through a temp dir using the real
+  `transferPassphrase` + `createBackup`/restore path (provider plumbing is
+  e2e-covered later; the *format* is CI-covered now).
+- **goldens**: `coffee_sheet_light/dark`, `coffee_thanks_light`,
+  `getpro_page_light/dark`, `manage_support_rows_light/dark` → +7 refs
+  (44→51). Existing goldens untouched (null-handdown keeps legacy trees exact).
+- **CI**: `billing-test` job (dart:stable container, `flutter test`); e2e
+  untouched (debug APK = free flavor, sideloadable, tips show §6 unavailable
+  states — verified, nothing broken).
 
 ## 9. Out of scope / ops
 
-E7 (gates + the trio), E8 (help articles incl. billing & "paid only adds"
-promise, final BMC handle, store copy), E9 (Play Console: create 4 products,
-anchor $7.99, launch price experiment $6.99↔$9.99 after beta per issue #7,
-internal track), E10 (StoreKit parity, Family Sharing toggle, revenue-pool
-split). Data Safety form: purchases are processed by Google; we continue to
-collect nothing — unchanged declaration.
+E7 ships the trio *inside* the Pro flavor (gates read `FeatureFlags.pro`, not
+billing) + widgets/backup/analytics. E8 help/store copy (Pro listing, "paid
+only ever adds" promise, final BMC handle — open question 3). E9: Play Console
+setup — second listing + price $7.99, three tip consumables, internal track
+for *both* SKUs, Data-Safety forms (purchases processed by Google; we collect
+nothing — unchanged). E10: iOS pair (StoreKit tips + paid-app mechanics) on the
+decision-11 trigger. The v1 §9 unlock machinery is withdrawn from every epic.

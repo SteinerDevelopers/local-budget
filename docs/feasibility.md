@@ -84,6 +84,17 @@ A budgeting app that:
 
 ## 3. Monetization feasibility
 
+> **Owner amendment (2026-11-02, verbatim):** *"I do not want an in app purchase
+> capable of unlock, I want no in app purchases other than the buy me a coffee
+> tip option. Paid option will have to be through the app store and a smooth
+> upgrade from free to paid without losing data is needed."*
+> **Supersedes everywhere in this doc:** the paid tier is a **separate paid
+> listing on the app store** (paid app SKU), *not* a Play Billing non-consumable
+> unlock inside the free app. The only IAP of any kind is the coffee tip
+> (consumable donation, §3.2). The "paid only ever adds" philosophy (§3.4),
+> price anchors, and the launch value-add pack (decision 9) all stand — they now
+> ship *as* the paid app. Mechanics: `docs/design/e6-monetization.md`.
+
 ### 3.1 Ads — dropped entirely (decided 2026-11-01)
 
 - **No ad SDK will ship in any tier.** The contextual-only/unobtrusive ad policy drafted earlier today is superseded and removed from scope: no AdMob, no UMP consent SDK, no ATT, no banner layout, no ad declarations in Data Safety/privacy labels.
@@ -293,6 +304,7 @@ Net: this environment carries the unit/widget tiers and Android builds; CI suppl
 | 9 | Launch paid pack | **Own-cloud backup + widgets + advanced analytics pack** | §3.4 bundle locked; scan queue, tags/bulk tools, multi-profile, extra themes become demand-driven fast-follows |
 | 10 | UI quality | **Design-first, binding quality bar — "how good the guts are" is worthless if the user is frustrated** | New §4.5 acceptance targets + usability gates at MVP & RC; §6 adds ~2–3 wks front-loaded design + explicit polish budget (total now ~20–26 wks) |
 | 11 | Launch phasing | **Build for both platforms from day 1; defer *heavy iOS testing & launch* until Android proves the app has legs** | iOS kept continuously buildable + weekly simulator smoke (§6.1); activation phase §6 +3–5 wks at trigger; TestFlight/device-farm spend starts only then |
+| 12 | Paid delivery mechanism | **Separate paid app on the store — no unlock IAP; coffee tip is the only IAP; free→paid upgrade must migrate data smoothly** (owner amendment 2026-11-02, §3 header) | Two flavors one codebase (`free` complete / `pro` = free + decision-9 pack); same signing key; data hand-off via signature-level ContentProvider transfer or the existing encrypted-backup path; `docs/design/e6-monetization.md` is the mechanic contract |
 
 Remaining open questions (non-blocking, resolve during design phase):
 
