@@ -21,6 +21,8 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import dev.steiner.local_budget.widget.WidgetBridge
+import dev.steiner.local_budget.widget.WidgetRoutes
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -55,12 +57,19 @@ class MainActivity : FlutterActivity() {
     private var nanoModel: GenerativeModelFutures? = null
     private val nanoExecutor = Executors.newSingleThreadExecutor()
 
+    /** E7c §4.2 — widget snapshot pipeline + cold-tap route mailbox. */
+    private var widgetBridge: WidgetBridge? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         // E6 §3 transfer bridge — flavor-agnostic plumbing; which half of
         // its API the Dart side calls is decided by the flavor at runtime.
         TransferBridge(applicationContext)
             .register(flutterEngine.dartExecutor.binaryMessenger)
+        // E7c: the widget bridge is registered in every flavor (pure
+        // plumbing); only the pro manifest gives it widgets to talk to.
+        widgetBridge = WidgetBridge(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+        consumeWidgetRoute()
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -321,6 +330,24 @@ class MainActivity : FlutterActivity() {
         } catch (e: Throwable) {
             null
         }
+
+    /** Widget taps ride the launch intent (§4.1 route hand-off). Warm
+     *  replays arrive here through the manifest's singleTop launch mode. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        consumeWidgetRoute()
+    }
+
+    /** Cold start has no Dart listener yet: [WidgetBridge.pushRoute] parks
+     *  the route in WidgetRoutes.pending for takeRoute; warm starts land in
+     *  the live handler. The extra is dropped either way — no re-navigation
+     *  on rotation or process restart. */
+    private fun consumeWidgetRoute() {
+        val route = intent?.getStringExtra(WidgetRoutes.EXTRA) ?: return
+        intent?.removeExtra(WidgetRoutes.EXTRA)
+        widgetBridge?.pushRoute(route) ?: run { WidgetRoutes.pending = route }
+    }
 
     companion object {
         private const val CHANNEL = "localbudget/capture"

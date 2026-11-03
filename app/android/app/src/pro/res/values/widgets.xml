@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- E7c §4: widget picker strings. Pro res only — the free picker never
+     sees these names. -->
+<resources>
+    <string name="widget_spend_label">Spend this month</string>
+    <string name="widget_spend_desc">Total spent this month; tap opens reports</string>
+    <string name="widget_envelope_label">Envelope left</string>
+    <string name="widget_envelope_desc">One envelope\'s remaining balance; pick the envelope when asked</string>
+    <string name="widget_scan_label">Quick scan</string>
+    <string name="widget_scan_desc">Jump straight into scanning a receipt</string>
+</resources>

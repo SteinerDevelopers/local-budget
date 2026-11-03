@@ -17,7 +17,62 @@
          tools:replace is required, not cosmetic — the merger fails the
          pro variant outright on a plain attribute clash with the main
          manifest's label (first surfaced by p88's all-variant e2e build). -->
+    <!-- E7c §4: the Paid-pack widget trio is declared pro-only, so the
+         free APK carries no receiver at all — nothing to discover, no
+         surface to audit. LocalBudgetApp adds only the §4.3 day tick. -->
     <application
+        android:name=".LocalBudgetApp"
         android:label="LocalBudget Pro"
-        tools:replace="android:label" />
+        tools:replace="android:name,android:label">
+
+        <receiver
+            android:name=".widget.SpendWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_spend_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_spend_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.EnvelopeWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_envelope_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_envelope_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.QuickScanWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_scan_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_scan_info" />
+        </receiver>
+
+        <!-- Envelope tile pin picker (android:configure below). -->
+        <activity
+            android:name=".widget.WidgetConfigureActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Material.Light.Dialog">
+            <!-- The launcher starts this via android:configure with exactly
+                 this action; without the filter (and exported) the drop
+                 path SecurityExceptions on Android 12+. -->
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>

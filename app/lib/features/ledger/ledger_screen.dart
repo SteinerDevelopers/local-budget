@@ -32,6 +32,11 @@ import 'view_models.dart';
 /// Everything is derived from the drift stream; this screen only keeps paging
 /// position and the QuickAdd warm state (§2.2 rule 5 lives with the caller).
 class LedgerScreen extends StatefulWidget {
+  /// E7c §4.1 — front door for the "Quick scan" widget: the capture flow
+  /// (source sheet → picker → review) belongs to this state, which owns
+  /// the CaptureServices wiring; a widget tap just rings this bell.
+  static VoidCallback? onOpenCapture;
+
   const LedgerScreen({
     super.key,
     required this.repository,
@@ -211,6 +216,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   void initState() {
     super.initState();
+    LedgerScreen.onOpenCapture = _openCapture;
     _loadCurrency();
     _listenShares();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -253,6 +259,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   @override
   void dispose() {
+    if (LedgerScreen.onOpenCapture == _openCapture) {
+      LedgerScreen.onOpenCapture = null;
+    }
     _shareSub?.cancel();
     _pages.dispose();
     super.dispose();

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- E7c §4.1 "Spent this month" → reports. updatePeriodMillis 0: the
+     bridge pushes on every snapshot write and the pro WorkManager tick
+     covers day rollover (§4.3) — a second clock the OS could fire mid
+     render buys nothing. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_spend_desc"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minHeight="80dp"
+    android:minWidth="160dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="3"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

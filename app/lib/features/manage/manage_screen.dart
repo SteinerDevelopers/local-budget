@@ -236,6 +236,39 @@ class _ManageScreenState extends State<ManageScreen> {
                 ),
               ),
             ),
+          // E7c §5: the widget trio is discoverable in Settings too — the
+          // launcher's own picker is the real entry point, this row points
+          // at it. Pro-gated like every other paid-pack surface.
+          if (FeatureFlags.proTrio)
+            ListTile(
+              key: const Key('paid-pack-widgets'),
+              leading: const Icon(Icons.widgets_outlined),
+              title: const Text('Home-screen widgets'),
+              subtitle: const Text('Paid pack — add them from the launcher'),
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  key: const Key('paid-pack-widgets-dialog'),
+                  title: const Text('Home-screen widgets'),
+                  content: const Text(
+                    'Long-press an empty spot on the home screen, open the '
+                    'widget picker, and add any of LocalBudget’s three:\n\n'
+                    '• Spend this month — taps open Reports\n'
+                    '• Envelope left — taps open the budgets sheet; long-press '
+                    'the tile to pin one envelope\n'
+                    '• Quick scan — straight to receipt capture\n\n'
+                    'Tiles refresh a couple of seconds after each change and '
+                    'show “—” once the month rolls over.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('Got it'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ListTile(
             key: const Key('import-statement'),
             leading: const Icon(Icons.table_view_outlined),

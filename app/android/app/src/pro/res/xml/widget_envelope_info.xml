@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- E7c §4.1 "Envelope left" → that envelope. The configure activity runs
+     once at drop time to pin which envelope this instance shows. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="dev.steiner.local_budget.widget.WidgetConfigureActivity"
+    android:description="@string/widget_envelope_desc"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minHeight="80dp"
+    android:minWidth="160dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="3"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

@@ -79,4 +79,16 @@ dependencies {
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
     // java.time backport for flutter_local_notifications (needs ≥ 2.1.4).
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // E7c §4: the Glance widget trio. Receivers are declared only in the
+    // pro flavor's manifest, so the free app ships the classes as inert
+    // dead weight (R8 strips them in release). API 26+ matches minSdk.
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    // E7c §4.3 day-rollover tick — scheduled from the pro Application only.
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    // Parity guard against the Dart codec fixture (packages/core).
+    testImplementation("junit:junit:4.13.2")
+    // Unit tests run against the mockable android.jar, whose org.json is a
+    // throw-everything stub; the real artifact must shadow it on the test
+    // classpath for WidgetState.parse to do anything there.
+    testImplementation("org.json:json:20240303")
 }

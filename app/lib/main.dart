@@ -21,8 +21,11 @@ import 'features/cloud/auto_backup.dart';
 import 'features/cloud/cloud_hub.dart';
 import 'features/ledger/ledger_screen.dart';
 import 'features/manage/io.dart';
+import 'features/reports/reports_screen.dart';
 import 'features/support/support_services.dart';
 import 'features/support/transfer.dart';
+import 'features/widgets/widget_bridge.dart';
+import 'features/widgets/widget_snapshot_service.dart';
 import 'flavor.dart';
 
 /// The navigator notification taps resolve against (§5: tap opens the bill).
@@ -37,6 +40,11 @@ _BillMaterializeObserver? _observer;
 /// E6: one tips service per boot (its purchase-stream subscription belongs
 /// to this boot's repository); rebuilt by [restartLocalBudget]'s boot.
 TipService? _tips;
+
+/// E7c §4.2: the widget snapshot pipeline, pro boots only — replaced (and
+/// its subscription cancelled) on every boot, same lifecycle as [_tips].
+WidgetSnapshotService? _widgetService;
+_WidgetResumeObserver? _widgetObserver;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -113,6 +121,30 @@ Future<void> bootLocalBudget() async {
       (_) => _openBillRule(repository, pending),
     );
   }
+  // E7c §4.2 — the widget pipeline is Paid-pack: only pro feeds the
+  // home-screen trio or resolves its taps; the free flavor has no
+  // receivers, so there is nothing to publish to or navigate from.
+  _widgetService?.stop();
+  _widgetService = null;
+  final staleWidgetObserver = _widgetObserver;
+  if (staleWidgetObserver != null) {
+    WidgetsBinding.instance.removeObserver(staleWidgetObserver);
+    _widgetObserver = null;
+  }
+  if (FeatureFlags.proTrio) {
+    final widgets = _widgetService = WidgetSnapshotService(
+      repository: repository,
+      sink: WidgetBridge.publish,
+    );
+    widgets.start();
+    WidgetBridge.onRoute((route) => _openWidgetRoute(repository, route));
+    // A cold tap lands in the Kotlin mailbox before this frame exists.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _takeWidgetRoute(repository),
+    );
+    _widgetObserver = _WidgetResumeObserver(widgets);
+    WidgetsBinding.instance.addObserver(_widgetObserver!);
+  }
 }
 
 /// §7 passive check: `DbIntegrity.check` already never throws; the catch is
@@ -139,6 +171,8 @@ Future<void> _checkIntegrity(
 Future<void> restartLocalBudget() async {
   runApp(const SizedBox.shrink());
   await Future<void>(() {}); // let the old tree unmount (streams cancel)
+  _widgetService?.stop();
+  _widgetService = null;
   final db = _liveDb;
   _liveDb = null;
   await db?.close();
@@ -156,6 +190,8 @@ Future<void> restoreFromBackup(
 }) async {
   runApp(const SizedBox.shrink());
   await Future<void>(() {}); // let the old tree unmount (streams cancel)
+  _widgetService?.stop();
+  _widgetService = null;
   final db = _liveDb;
   _liveDb = null;
   await db?.close();
@@ -182,6 +218,54 @@ class _BillMaterializeObserver with WidgetsBindingObserver {
         repository,
       ).then((outcome) => _surfaceStaleBills(outcome.pausedRuleIds)),
     );
+  }
+}
+
+/// Warm resume re-arms the widget month watch and refreshes the tiles: a
+/// day spent in a pocket crossed midnight, and §4.3 keeps the widgets
+/// honest about it without any Dart-side clock of its own.
+class _WidgetResumeObserver with WidgetsBindingObserver {
+  _WidgetResumeObserver(this._widgets);
+
+  final WidgetSnapshotService _widgets;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _widgets.onResume();
+  }
+}
+
+/// Cold start has no Dart listener while Kotlin parks the route, and warm
+/// pushes race the frame they'd navigate on: both paths drain the single
+/// mailbox, so every tap resolves exactly once, whenever a context exists.
+Future<void> _takeWidgetRoute(LedgerRepository repository) async {
+  final route = await WidgetBridge.takeRoute();
+  if (route != null) _openWidgetRoute(repository, route);
+}
+
+/// §4.1 route hand-off: each widget lands on its promised screen, using
+/// the same entry points the in-app buttons use — no second navigation
+/// stack. No context (teardown edge) simply drops the tap, like bills.
+void _openWidgetRoute(LedgerRepository repository, String route) {
+  final context = appNavigatorKey.currentContext;
+  if (context == null) return;
+  switch (route) {
+    case 'reports':
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ReportsScreen(repository: repository),
+        ),
+      );
+    case 'budgets':
+      showBudgetsSheet(
+        context,
+        repository: repository,
+        monthIndex: monthIndexOf(DateTime.now()),
+      );
+    case 'capture':
+      // The capture flow lives in LedgerScreen's state (it owns the
+      // CaptureServices wiring); the static hook is its front door.
+      LedgerScreen.onOpenCapture?.call();
   }
 }
 
