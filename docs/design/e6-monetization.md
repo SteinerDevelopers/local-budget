@@ -61,9 +61,10 @@ the migration. Both directions of the UX are one tap after install:
 
 **Free app, Settings → "Get Pro"**: explains the trio (demo cards survive from
 v1 §5 — honest previews, no greyed locks), deep-links the Play listing
-(`market://details?id=dev.steiner.local_budget.pro`, https fallback), and —
-when the Pro package is visible — shows "Pro installed? Open it and tap
-*Transfer from free app*." It never moves or deletes anything itself.
+(`market://details?id=dev.steiner.local_budget.pro`, https fallback), shows a
+*Copy my data* button that stages the transfer snapshot (see Transfer
+mechanics), and — when the Pro package is visible — shows "Pro installed? Open
+it and tap *Transfer from free app*." It never moves or deletes anything itself.
 
 **Pro app, first run (and a standing Settings row)**: "Transfer from free app"
 appears only when the free app's provider resolves. One tap copies everything
@@ -77,12 +78,21 @@ and lands the user in their own ledger.
   flavor's manifest only; Pro declares `<queries>` + uses the permission).
   Same signing key ⇒ instant grant; **no runtime permission dialogs, data
   never leaves the device, no network, no backend** (decision 8 intact).
-- Opening the provider generates a **fresh backup on demand** through the
-  *existing* E5 pipeline (`createBackup` snapshots the live DB safely) and
-  streams the container; the Pro-side channel call spools it to a cache file
-  and hands it to the *existing* E5 restore path (single confirm, cold restart
-  — restore remains the only destructive flow, and on the Pro app the "existing
-  data" it replaces is an empty database on first run).
+- Kotlin cannot run the Dart backup pipeline, so the provider never
+  *generates* anything: the free app's Dart side **stages a prepared
+  snapshot**. `createBackup` (with `transferPassphrase`) is written through a
+  MethodChannel to a dedicated file (`<filesDir>/transfer/staged.lzb`) when
+  the user taps *Copy my data* on the Get Pro screen, and again opportunistically
+  on app pause when anything changed since the last stage. The provider only
+  *serves* that file and reports its (size, mtime); the Pro-side channel call
+  spools the container to a cache file and hands it to the *existing* E5
+  restore path (single confirm, cold restart — restore remains the only
+  destructive flow, and on the Pro app the "existing data" it replaces is an
+  empty database on first run).
+- **Freshness, stated honestly**: transfer copies the *last staged snapshot*,
+  which is current the moment the user follows the on-screen steps (stage on
+  Get Pro, refresh on pause). Pro shows the snapshot's timestamp before the
+  confirm, and the copy instructions say so — no pretend live replication.
 - **Transfer passphrase**: `createBackup` demands a passphrase; the transfer
   uses a constant compiled into the app family (`transferPassphrase`,
   `packages/data`). Threat model stated plainly: it is obfuscation, not a
@@ -113,7 +123,7 @@ abstract class BillingGateway {
 `pastPurchases` is gone with the non-consumables. `TipService`
 (`packages/billing/lib/src/tip_service.dart`, pure Dart): `catalog()` (the
 three ids), `tip(productId)` → `BuyResult` for UI copy, lifetime listener
-records completed tips into the `supporters_acked` kv (cosmetic receipt),
+records completed tips into the `tips_acked` kv (cosmetic receipt),
 single-flight guard. `in_app_purchase` types still stop at the app adapter;
 `FakeBillingGateway` keeps scriptable events + `productsThrow` for tests/dev.
 No ProService, no `ProStatus`, no restore ladder — deleted with v1.
@@ -123,11 +133,13 @@ No ProService, no `ProStatus`, no restore ladder — deleted with v1.
 **Settings rows (Manage screen)** — `pro`-flavor-only rows hidden on free,
 support rows on both:
 1. "Buy me a coffee ☕" → sheet below. Present in both SKUs (Pro buyers tip too).
-2. "Get Pro →" — **free flavor only**; opens the Get Pro page (§3). Null-safe
+2. "Get Pro →" — **free flavor only**; opens the Get Pro page (§3, incl.
+   *Copy my data* staging + store deep link). Null-safe
    hand-down like every other service: services absent ⇒ row explains, goldens
    stable.
 3. "Transfer from free app" — **pro flavor only**, visible only when the
-   provider resolves; runs §3 with the §6 error map.
+    provider resolves; shows the staged snapshot's age, then runs §3 with the
+    §6 error map.
 
 **Coffee sheet**: headline "Enjoying LocalBudget? Buy me a coffee ☕" + the
 honest line "Everything you use today stays free. Tips keep the lights on —
