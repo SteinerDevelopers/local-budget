@@ -83,6 +83,28 @@ void main() {
     );
   });
 
+  test('violation report is capped, never unbounded', () async {
+    await db.customStatement(
+      'CREATE TABLE probe_parent (id INTEGER PRIMARY KEY)',
+    );
+    await db.customStatement(
+      'CREATE TABLE probe_child (id INTEGER PRIMARY KEY, '
+      'parent_id INTEGER REFERENCES probe_parent(id))',
+    );
+    for (var i = 0; i < 25; i++) {
+      await db.customStatement(
+        'INSERT INTO probe_child (parent_id) VALUES ($i)',
+      );
+    }
+
+    final report = await DbIntegrity.check(db);
+    expect(
+      report.problems.where((p) => p.startsWith('dangling reference:')),
+      hasLength(20),
+    );
+    expect(report.problems.any((p) => p.contains('showing first 20')), isTrue);
+  });
+
   test('wal checkpoint is safe to call on a rollback-journal store', () async {
     await expectLater(DbIntegrity.walCheckpoint(db), completes);
   });

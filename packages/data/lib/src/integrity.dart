@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart' show QueryRow;
+
 import 'database.dart';
 
 /// E5 §7 — the boot health probe, plus the WAL checkpoint that keeps
@@ -61,9 +63,20 @@ class DbIntegrity {
         problems.add('foreign key enforcement is disabled');
       }
 
-      final violations = await db
-          .customSelect('PRAGMA foreign_key_check')
-          .get();
+      // Bound the scan at the SQL layer: a catastrophically corrupt store
+      // can hold millions of violations and `PRAGMA …` materialises all of
+      // them, so prefer the table-valued form (SQLite ≥3.16) with LIMIT —
+      // the row past the report cap triggers the overflow line. Older
+      // SQLite without the TVF falls back to the plain pragma (bounded in
+      // the report below instead).
+      List<QueryRow> violations;
+      try {
+        violations = await db
+            .customSelect('SELECT * FROM pragma_foreign_key_check LIMIT 21')
+            .get();
+      } on Object {
+        violations = await db.customSelect('PRAGMA foreign_key_check').get();
+      }
       for (final v in violations.take(20)) {
         final d = v.data;
         problems.add(
@@ -72,7 +85,7 @@ class DbIntegrity {
         );
       }
       if (violations.length > 20) {
-        problems.add('…and ${violations.length - 20} more violations');
+        problems.add('…and more violations (showing first 20)');
       }
     } on Object catch (e) {
       problems.add('foreign key check failed ($e)');
