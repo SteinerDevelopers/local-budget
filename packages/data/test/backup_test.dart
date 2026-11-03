@@ -74,6 +74,38 @@ void main() {
       expect(backupDefaultKdfIterations, 600000);
     });
 
+    test(
+      'E6 §3 transfer snapshot: constant passphrase, same envelope',
+      () async {
+        await seed(2);
+        final bytes = await makeBackup(passphrase: transferPassphrase);
+        // Pro opens it with the compiled-in constant — no user prompt anywhere.
+        final backup = openBackup(
+          bytes,
+          passphrase: transferPassphrase,
+          currentSchemaVersion: db.schemaVersion,
+        );
+        expect(backup.manifest.appVersion, '1.2.3');
+        final snapFile = File('${root.path}/transfer.db');
+        snapFile.writeAsBytesSync(backup.databaseBytes);
+        final reopened = AppDatabase.openFile(snapFile.path);
+        try {
+          expect(await txCount(reopened), 2);
+        } finally {
+          await reopened.close();
+        }
+        // The envelope is still a real envelope: the constant is not a bypass.
+        expect(
+          () => openBackup(
+            bytes,
+            passphrase: 'not-the-constant',
+            currentSchemaVersion: db.schemaVersion,
+          ),
+          throwsA(isA<Exception>()),
+        );
+      },
+    );
+
     test('header fields, full round-trip, snapshot is a real DB', () async {
       await seed(2);
       final saved = store.saveOriginal(

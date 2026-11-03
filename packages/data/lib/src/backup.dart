@@ -13,6 +13,13 @@ import 'backup_crypto.dart';
 import 'database.dart';
 import 'integrity.dart';
 
+/// Passphrase for the E6 §3 free→paid *transfer snapshot*: one pipeline, one
+/// envelope, zero plaintext special-casing. It is obfuscation, not a secret
+/// (compiled into both apps of the same family; the spec's threat model says
+/// so out loud) — its job is format honesty, not confidentiality against a
+/// rooted device.
+const String transferPassphrase = 'localbudget-app-transfer-v1';
+
 /// The four fields the spec promises in `manifest.json` — deliberately
 /// minimal, all we need to explain and vet a restore before touching disk.
 class BackupManifest {
