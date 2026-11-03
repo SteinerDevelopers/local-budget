@@ -1,16 +1,21 @@
 import 'dart:convert' show utf8;
 import 'dart:io' show Directory;
 
+import 'package:billing/billing.dart' show TipService;
 import 'package:data/data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../../flavor.dart';
 import '../../version.dart';
 import '../budgets/budgets_sheet.dart';
 import '../help/help_screen.dart';
 import '../import/import_wizard_screen.dart';
 import '../ledger/ledger_screen.dart' show monthIndexOf;
+import '../support/coffee_sheet.dart';
+import '../support/get_pro_page.dart';
+import '../support/transfer.dart';
 import 'base_currency_sheet.dart';
 import 'category_list_screen.dart';
 import 'integrity_banner.dart';
@@ -30,6 +35,8 @@ class ManageScreen extends StatefulWidget {
     this.docsDir,
     this.io = const RealIo(),
     this.restore,
+    this.tips,
+    this.transfer,
     this.kdfIterations = backupDefaultKdfIterations,
   });
 
@@ -54,6 +61,13 @@ class ManageScreen extends StatefulWidget {
   /// may not touch context once this future starts).
   final Future<void> Function(Backup backup)? restore;
 
+  /// E6 §5 tips layer; null (host tests, no store) ⇒ the coffee sheet
+  /// explains itself, like [restore] does when its services are missing.
+  final TipService? tips;
+
+  /// E6 §3 free→paid transfer channel; null off Android.
+  final FreeTransfer? transfer;
+
   /// PBKDF2 work for [createBackup] — production default; widget tests
   /// shrink it (§8) so the flow is testable without a 10-second wait.
   final int kdfIterations;
@@ -66,11 +80,43 @@ class _ManageScreenState extends State<ManageScreen> {
   String? _base;
   bool _liveFx = true;
 
+  /// E6 §3 (Pro only): the free app's staged snapshot, read once at open.
+  /// Hidden — never disabled — when no provider resolves (§6).
+  bool _freeVisible = false;
+  ({int size, int mtimeMs})? _freeSnap;
+
   @override
   void initState() {
     super.initState();
     _loadBase();
     _loadLiveFx();
+    if (FeatureFlags.proTrio) _checkFree();
+  }
+
+  Future<void> _checkFree() async {
+    final t = widget.transfer;
+    if (t == null) return;
+    if (!await t.freeAvailable()) return;
+    final meta = await t.snapshotMeta();
+    if (!mounted) return;
+    setState(() {
+      _freeVisible = true;
+      _freeSnap = meta;
+    });
+  }
+
+  /// §3 "freshness, stated honestly": the snapshot may be older than the
+  /// ledger, and Pro must say so rather than imply a live tap-through.
+  String get _freeSubtitle {
+    final snap = _freeSnap;
+    if (snap == null) return 'Nothing staged yet in the free app';
+    final age = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(snap.mtimeMs),
+    );
+    if (age.inMinutes < 2) return 'Data staged moments ago';
+    if (age.inHours < 12) return 'Data staged about ${age.inHours} h ago';
+    final day = DateTime.fromMillisecondsSinceEpoch(snap.mtimeMs);
+    return 'Data staged on ${day.month}/${day.day}';
   }
 
   Future<void> _loadBase() async {
@@ -178,6 +224,49 @@ class _ManageScreenState extends State<ManageScreen> {
               subtitle: const Text('Fetch a rate once, when it is needed'),
               value: _liveFx,
               onChanged: _setLiveFx,
+            ),
+          // E6 §5: Support — the only monetization surface in the app.
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Text(
+              'Support',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          ListTile(
+            key: const Key('coffee'),
+            leading: const Icon(Icons.local_cafe_outlined),
+            title: const Text('Buy me a coffee ☕'),
+            subtitle: const Text(
+              'Tips unlock nothing — they just keep the lights on',
+            ),
+            onTap: () => showCoffeeSheet(context, tips: widget.tips),
+          ),
+          if (!FeatureFlags.proTrio)
+            ListTile(
+              key: const Key('get-pro'),
+              leading: const Icon(Icons.workspace_premium_outlined),
+              title: const Text('Get Pro →'),
+              subtitle: const Text('The same app, plus the power trio'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => GetProPage(
+                    transfer: widget.transfer,
+                    onCopyData: _copyDataToPro,
+                  ),
+                ),
+              ),
+            ),
+          if (FeatureFlags.proTrio && _freeVisible)
+            ListTile(
+              key: const Key('transfer-free'),
+              leading: const Icon(Icons.import_export_outlined),
+              title: const Text('Transfer from free app'),
+              subtitle: Text(_freeSubtitle),
+              onTap: _transferFromFree,
             ),
           ListTile(
             leading: const Icon(Icons.help_outline),
@@ -380,6 +469,104 @@ class _ManageScreenState extends State<ManageScreen> {
         ),
       ),
     );
+  }
+
+  // ---- Support flows (E6 §3/§5) ------------------------------------------
+
+  /// Free side of the transfer: stage an encrypted snapshot the Pro app's
+  /// provider may read (E6 §3). Same envelope as a normal backup — the
+  /// passphrase is the compiled-in constant, so neither app prompts.
+  Future<void> _copyDataToPro() => _withStorage('Copying your data', (
+    db,
+    docs,
+  ) async {
+    final t = widget.transfer;
+    if (t == null) {
+      _snack('Copying needs the real app.');
+      return;
+    }
+    _snack('Encrypting… this takes a moment on purpose.');
+    final bytes = await createBackup(
+      db: db,
+      attachments: AttachmentStore(docs),
+      passphrase: transferPassphrase,
+      appVersion: appVersion,
+      kdfIterations: widget.kdfIterations,
+    );
+    await t.stage(bytes);
+    if (!mounted) return;
+    _snack('Copied. Open LocalBudget Pro and tap "Transfer from free app".');
+  });
+
+  /// Pro side: pull the staged snapshot and hand it to the *same* restore
+  /// path a file restore uses — transfer is not a second, sneakier destructive
+  /// flow (E6 §3: the confirm stays, restore stays the only one).
+  Future<void> _transferFromFree() async {
+    final db = widget.db, restore = widget.restore, t = widget.transfer;
+    if (db == null || restore == null || t == null) {
+      _snack('Transferring needs the real app.');
+      return;
+    }
+    final Backup backup;
+    try {
+      final bytes = await t.pull();
+      if (bytes == null) {
+        if (!mounted) return;
+        _snack(
+          "Couldn't read from the free app. You can still use an exported "
+          'backup file.',
+        );
+        return;
+      }
+      backup = openBackup(
+        bytes,
+        passphrase: transferPassphrase,
+        currentSchemaVersion: db.schemaVersion,
+      );
+    } on BackupSchemaTooNewException {
+      if (!mounted) return;
+      _snack(
+        'The free app is newer than this one — update it first, then '
+        'stage the copy again.',
+      );
+      return;
+    } on Object {
+      // Provider refused, file vanished, container damaged — one honest
+      // message, one fallback (§6); never a stack trace, never a retry loop.
+      if (!mounted) return;
+      _snack(
+        "Couldn't read from the free app. You can still use an exported "
+        'backup file.',
+      );
+      return;
+    }
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('transfer-confirm'),
+        title: const Text('Replace everything?'),
+        content: const Text(
+          'Transferring replaces your ledger and all attachment images with '
+          'the copy from the free app, then restarts the app. This cannot be '
+          'undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('transfer-go'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Transfer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    // From here the widget tree may vanish at any moment — no context.
+    await restore(backup);
   }
 }
 

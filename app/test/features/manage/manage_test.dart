@@ -44,6 +44,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// E6 §5 grew the list (Support section); the bottom rows exist only once
+  /// scrolled — the ListView builds lazily, so finders must wait for them.
+  /// The last ListView is Manage's: the ledger route sits below it in the
+  /// overlay.
+  Future<void> scrollToBottom(WidgetTester tester) async {
+    await tester.dragUntilVisible(
+      find.text('About & help'),
+      find.byType(ListView).last,
+      const Offset(0, -240),
+    );
+    await tester.pumpAndSettle();
+  }
+
   Future<void> openCategories(WidgetTester tester) async {
     await openManage(tester);
     await tester.tap(find.text('Categories'));
@@ -68,6 +81,7 @@ void main() {
       expect(find.widgetWithText(AppBar, 'Manage'), findsOneWidget);
       expect(find.text('Categories'), findsOneWidget);
       expect(find.text('Base currency'), findsOneWidget);
+      await scrollToBottom(tester);
       expect(find.text('About & help'), findsOneWidget);
       // The QuickAdd sheet closed instead of stacking under Manage.
       expect(find.byKey(const Key('keypad-5')), findsNothing);
@@ -296,6 +310,7 @@ void main() {
       await pumpApp(tester, r.repo);
       await openManage(tester);
 
+      await scrollToBottom(tester);
       await tester.tap(find.text('About & help'));
       await tester.pumpAndSettle();
 

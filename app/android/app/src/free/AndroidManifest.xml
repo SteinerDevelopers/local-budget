@@ -1,0 +1,28 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- E6 §3 (free flavor): the transfer surface. The permission is
+         *signature*-level, so only an app signed with this same key —
+         LocalBudget Pro — can ever hold it; users see no dialog.
+         Design: docs/design/e6-monetization.md §3. -->
+    <permission
+        android:name="dev.steiner.local_budget.permission.TRANSFER"
+        android:protectionLevel="signature"
+        android:label="transfer LocalBudget data"
+        android:description="@string/transfer_permission_description" />
+
+    <!-- The paid listing, so proInstalled() can answer honestly. -->
+    <queries>
+        <package android:name="dev.steiner.local_budget.pro" />
+    </queries>
+
+    <application>
+        <!-- Serves filesDir/transfer/staged.lzb read-only to the same-signed
+             Pro app; nothing staged, nothing served. Class ships in the
+             free flavor only (src/free/kotlin). -->
+        <provider
+            android:name=".TransferProvider"
+            android:authorities="dev.steiner.local_budget.transfer"
+            android:exported="true"
+            android:grantUriPermissions="false"
+            android:permission="dev.steiner.local_budget.permission.TRANSFER" />
+    </application>
+</manifest>

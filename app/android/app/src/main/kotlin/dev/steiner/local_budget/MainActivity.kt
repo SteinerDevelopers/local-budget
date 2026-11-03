@@ -57,6 +57,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // E6 §3 transfer bridge — flavor-agnostic plumbing; which half of
+        // its API the Dart side calls is decided by the flavor at runtime.
+        TransferBridge(applicationContext)
+            .register(flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {

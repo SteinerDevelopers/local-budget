@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- E6 §3 (pro flavor): hold the free app's signature permission so
+         "Transfer from free app" can read its staged snapshot. Granted at
+         install, silently — same signing key is the only requirement. -->
+    <uses-permission android:name="dev.steiner.local_budget.permission.TRANSFER" />
+
+    <!-- The free listing, so freeAvailable()/transfer can resolve it. -->
+    <queries>
+        <package android:name="dev.steiner.local_budget" />
+    </queries>
+
+    <!-- Distinct label: two listings, two names on the home screen. -->
+    <application android:label="LocalBudget Pro" />
+</manifest>

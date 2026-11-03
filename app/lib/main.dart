@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Directory, Platform;
 
+import 'package:billing/billing.dart' show TipService;
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,6 +19,8 @@ import 'features/capture/adapters/ml_kit_text_extractor.dart';
 import 'features/capture/capture_services.dart';
 import 'features/ledger/ledger_screen.dart';
 import 'features/manage/io.dart';
+import 'features/support/support_services.dart';
+import 'features/support/transfer.dart';
 
 /// The navigator notification taps resolve against (§5: tap opens the bill).
 final appNavigatorKey = GlobalKey<NavigatorState>();
@@ -27,6 +30,10 @@ final appNavigatorKey = GlobalKey<NavigatorState>();
 /// buried inside the repository.
 AppDatabase? _liveDb;
 _BillMaterializeObserver? _observer;
+
+/// E6: one tips service per boot (its purchase-stream subscription belongs
+/// to this boot's repository); rebuilt by [restartLocalBudget]'s boot.
+TipService? _tips;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +70,8 @@ Future<void> bootLocalBudget() async {
   } catch (e) {
     debugPrint('bill materialization skipped: $e');
   }
+  await _tips?.dispose();
+  _tips = buildTipService(repository);
   runApp(
     LocalBudgetApp(
       repository: repository,
@@ -73,6 +82,8 @@ Future<void> bootLocalBudget() async {
       capture: _androidCapture(dir),
       navigatorKey: appNavigatorKey,
       restore: (backup) => restoreFromBackup(backup, docsDir: dir),
+      tips: _tips,
+      transfer: buildTransfer(),
     ),
   );
   // §7: the integrity pass runs *after* the app is up — never on the boot
@@ -239,6 +250,8 @@ class LocalBudgetApp extends StatelessWidget {
     this.navigatorKey,
     this.io,
     this.restore,
+    this.tips,
+    this.transfer,
   });
 
   final LedgerRepository repository;
@@ -269,6 +282,11 @@ class LocalBudgetApp extends StatelessWidget {
   /// Cold-restart restore (E5 §3); null ⇒ the Restore tile explains itself.
   final Future<void> Function(Backup backup)? restore;
 
+  /// E6 §5 coffee tips + §3 transfer channel, handed down to Manage via
+  /// LedgerScreen; null (tests, goldens, non-Android) ⇒ both explain.
+  final TipService? tips;
+  final FreeTransfer? transfer;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -286,6 +304,8 @@ class LocalBudgetApp extends StatelessWidget {
         capture: capture,
         io: io,
         restore: restore,
+        tips: tips,
+        transfer: transfer,
       ),
     );
   }

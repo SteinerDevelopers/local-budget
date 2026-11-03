@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Directory;
 
+import 'package:billing/billing.dart' show TipService;
 import 'package:capture/capture.dart' show CapturePipeline;
 import 'package:core/core.dart';
 import 'package:data/data.dart';
@@ -17,6 +18,7 @@ import '../manage/io.dart';
 import '../manage/manage_screen.dart';
 import '../quickadd/quick_add_sheet.dart';
 import '../reports/reports_screen.dart';
+import '../support/transfer.dart';
 import 'balance_strip.dart';
 import 'day_label.dart';
 import 'empty_month.dart';
@@ -38,6 +40,8 @@ class LedgerScreen extends StatefulWidget {
     this.capture,
     this.io,
     this.restore,
+    this.tips,
+    this.transfer,
   });
 
   final LedgerRepository repository;
@@ -65,6 +69,11 @@ class LedgerScreen extends StatefulWidget {
   /// (E5 §3); null ⇒ Manage uses RealIo / explains the Restore tile.
   final Io? io;
   final Future<void> Function(Backup backup)? restore;
+
+  /// E6 §5 tips layer + §3 transfer channel, handed to Manage (null ⇒ the
+  /// coffee sheet / copy row explain themselves, off-device).
+  final TipService? tips;
+  final FreeTransfer? transfer;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -431,6 +440,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
           docsDir: widget.docsDir,
           io: widget.io ?? const RealIo(),
           restore: widget.restore,
+          tips: widget.tips,
+          transfer: widget.transfer,
         ),
       ),
     );

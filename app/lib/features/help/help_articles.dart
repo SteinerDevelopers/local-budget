@@ -173,6 +173,55 @@ const List<HelpArticle> kHelpArticles = [
           'every report updates the moment you go back.',
     ],
   ),
+  HelpArticle(
+    icon: Icons.coffee_outlined,
+    title: 'Buy me a coffee',
+    paragraphs: [
+      'Manage has a Support row with two options. A tip — a small, medium '
+          'or large coffee — is charged by your app store exactly like any '
+          'other in-app purchase, and it unlocks nothing. Every feature '
+          'this app has today is free forever; a tip is simply you telling '
+          'the developer the app is worth a coffee.',
+      'Tips are one-time each: buying one never starts a subscription, and '
+          'there is nothing to cancel. If a purchase takes a while, the app '
+          'says so — a tip that is still processing completes on its own, '
+          'and a cancelled one costs you nothing.',
+      'Tipping depends on your store account and country, so the buttons '
+          'can be grey for reasons the app cannot see. When store billing '
+          'is unavailable, the same row offers a web page instead — '
+          'nothing here is required either way.',
+      'The second option, Get Pro, is described in the next article. '
+          'Neither one sends your ledger anywhere: support and upgrades '
+          'never read your data.',
+    ],
+  ),
+  HelpArticle(
+    icon: Icons.swap_horiz,
+    title: 'Upgrading to Pro, and copying your data',
+    paragraphs: [
+      'Pro is a separate app in the store, bought once — not a feature '
+          'switch inside this one. It is the same ledger with three extra '
+          'things: an encrypted personal cloud backup, home-screen '
+          'widgets and detailed analytics. The free app keeps everything '
+          'it does today; nothing is taken away when you upgrade.',
+      'To move your data, first copy it out of the free app: open '
+          'Manage → Get Pro → Copy my data to Pro. The app encrypts a '
+          'snapshot of your ledger and attachments on this device — the '
+          'same envelope as an exported backup file — and holds it for '
+          'the other app. No network is involved at any step.',
+      'Then open Pro. Its Manage screen shows a Transfer from free app '
+          'row with how fresh the copied snapshot is — only tap it once '
+          'the age looks right. Transfer replaces everything in Pro with '
+          'the copy, after asking you to confirm, because the free app '
+          'wins: two apps, one ledger.',
+      'The free app is never changed by copying or transferring, and '
+          'keeping it installed is optional afterwards — Pro keeps every '
+          'entry it received. If the two apps cannot see each other (for '
+          'example, one came from a different store), export a backup '
+          'file from the free app and restore it in Pro instead; that '
+          'path always works.',
+    ],
+  ),
 ];
 
 /// Case-insensitive substring search over title and body — enough for a

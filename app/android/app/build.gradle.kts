@@ -43,6 +43,23 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // E6 v2 (spec §2): two store listings, one codebase. `free` keeps the
+    // original applicationId; `pro` is a distinct package (.pro suffix) so
+    // both install side by side and the signature-permission transfer can
+    // cross between them (same signing key). Each build MUST also pass
+    // --dart-define=APP_FLAVOR=pro for the pro flavor — flavor pairing is
+    // documented in the spec and enforced by CI job names, not by Gradle.
+    flavorDimensions += "tier"
+    productFlavors {
+        create("free") {
+            dimension = "tier"
+        }
+        create("pro") {
+            dimension = "tier"
+            applicationIdSuffix = ".pro"
+        }
+    }
 }
 
 kotlin {

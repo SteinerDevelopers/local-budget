@@ -21,6 +21,15 @@ dependencies:
     path: ../packages/capture
   data:
     path: ../packages/data
+  billing:
+    path: ../packages/billing
+  # E6 §4: the only place in_app_purchase types may appear is
+  # features/support/iap_gateway.dart; everything above it speaks `billing`.
+  in_app_purchase: ^3.3.1
+  # `countryCode()` for the §7 region gate lives on the platform interface.
+  in_app_purchase_platform_interface: ^1.4.0
+  # §3 store deep link + §5 BuyMeACoffee link-out (browser intent only).
+  url_launcher: ^6.3.3
   path_provider: ^2.1.4
   # Ships SQLite inside the APK/IPA so drift's NativeDatabase has a library
   # to load on device (host test runs use the system libsqlite3).
