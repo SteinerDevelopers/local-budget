@@ -350,10 +350,15 @@ package-apk:
       flutter build apk --debug --flavor pro
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-arm64-v8a-free-debug.apk "$CI_PROJECT_DIR/out/"
+      # The paid-trio UI (Insights/Backup-plus/Cloud) only composites in the
+      # pro flavor — publish the universal pro-debug APK too, or the owner
+      # cannot sideload-test what every app slice just shipped (E7b #8).
+      cp -v build/app/outputs/flutter-apk/app-pro-debug.apk "$CI_PROJECT_DIR/out/"
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
       - out/app-arm64-v8a-free-debug.apk
+      - out/app-pro-debug.apk
     expire_in: 4 weeks
 
 # Kept for re-running when the runner box changes (manual, never automatic).
