@@ -7,6 +7,9 @@ library;
 // imageRef on undo); callers shouldn't need a direct drift dependency.
 export 'package:drift/drift.dart' show Value;
 
+// E7b own-cloud transport (naming grammar, retention, WebDAV client).
+export 'cloud/cloud.dart';
+
 export 'src/attachment_store.dart';
 export 'src/backup.dart';
 export 'src/backup_crypto.dart'

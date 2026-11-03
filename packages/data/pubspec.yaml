@@ -24,3 +24,5 @@ dev_dependencies:
   sqlite3: ^2.9.0
   test: ^1.25.0
   lints: ^6.0.0
+  # E7b §6 — in-test WebDAV server for the transport tests.
+  shelf: ^1.4.0
