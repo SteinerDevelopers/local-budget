@@ -66,6 +66,67 @@ final class Pace {
   final int projectedMinor;
 }
 
+/// An arbitrary calendar range `[startDay, endDay)` in epoch days
+/// (E7 §2.1). Same closed-open convention as [BudgetPeriod], so the range
+/// sheet and the month switcher can hand each other boundaries unchanged.
+final class DayRange {
+  const DayRange({required this.startDay, required this.endDay})
+      : assert(endDay > startDay, 'range must span at least one day');
+
+  final int startDay;
+
+  /// Exclusive.
+  final int endDay;
+
+  bool contains(int dateDays) => dateDays >= startDay && dateDays < endDay;
+
+  int get lengthDays => endDay - startDay;
+
+  /// The same calendar span one year earlier — the YoY compare range
+  /// (E7 §2.1). Dart normalizes a Feb-29 anchor to Mar-1 when the target
+  /// year has no leap day; the day-count difference is exactly what
+  /// [ReportEngine.compareRanges] normalizes for, so no special case here.
+  DayRange shiftedBackYear() {
+    DateTime civil(int days) => DateTime.utc(1970).add(Duration(days: days));
+    final s = civil(startDay);
+    final e = civil(endDay);
+    return DayRange(
+      startDay: dayOf(DateTime.utc(s.year - 1, s.month, s.day)),
+      endDay: dayOf(DateTime.utc(e.year - 1, e.month, e.day)),
+    );
+  }
+}
+
+/// Result of comparing two ranges (E7 §2.1 delta card). The compare side is
+/// scaled to the base range's day count before subtraction — honest math
+/// the card can explain, hence both raw and normalized numbers ship.
+final class RangeDelta {
+  const RangeDelta({
+    required this.spentMinor,
+    required this.compareSpentMinor,
+    required this.compareNormalizedMinor,
+    required this.baseDays,
+    required this.compareDays,
+    required this.deltaBp,
+  });
+
+  final int spentMinor;
+
+  /// Compare-range spend as stored.
+  final int compareSpentMinor;
+
+  /// Compare spend scaled by baseDays ÷ compareDays (integer floor).
+  final int compareNormalizedMinor;
+
+  final int baseDays;
+  final int compareDays;
+
+  /// `(spent - normalized) x 10 000 / normalized`; null when the
+  /// normalized baseline is zero — the UI renders "no comparison data"
+  /// instead of a divide-by-zero anecdote.
+  final int? deltaBp;
+}
+
 /// Stateless evaluator next to [BudgetEngine]; the repository loads rows, the
 /// widgets render these finished lists (the 60 fps contract: nothing here
 /// runs inside a build).
@@ -187,6 +248,79 @@ final class ReportEngine {
     final daysElapsed = todayDays - month.startDay + 1;
     final projected = spent * daysInMonth ~/ daysElapsed;
     return Pace(projectedMinor: projected < 0 ? 0 : projected);
+  }
+
+  /// Spend/income over an arbitrary range (E7 §2.1) — identical scope rules
+  /// to [monthTotals]: income rows sum to income, goal transfers count
+  /// nowhere, everything else is spend.
+  MonthTotals rangeTotals(DayRange range, List<EngineTx> transactions) {
+    var spent = 0;
+    var income = 0;
+    for (final t in transactions) {
+      if (!range.contains(t.dateDays)) continue;
+      if (t.isIncome) {
+        income += t.baseAmountMinor;
+      } else if (t.countsTowardBudgets) {
+        spent += t.baseAmountMinor;
+      }
+    }
+    return MonthTotals(spentMinor: spent, incomeMinor: income);
+  }
+
+  /// One bucket per calendar month the range touches, chronologically,
+  /// zeros included (E7 §2.1: the compare series paints without gap
+  /// logic — same philosophy as [yearTotals]).
+  List<MonthBucket> rangeBuckets(DayRange range, List<EngineTx> transactions) {
+    final first = DateTime.utc(1970).add(Duration(days: range.startDay));
+    final last = DateTime.utc(1970).add(Duration(days: range.endDay - 1));
+    final keys = <String>[];
+    var y = first.year;
+    var m = first.month;
+    while (y < last.year || (y == last.year && m <= last.month)) {
+      keys.add('${y.toString().padLeft(4, '0')}-'
+          '${m.toString().padLeft(2, '0')}');
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+    }
+    final spent = {for (final k in keys) k: 0};
+    for (final t in transactions) {
+      if (!range.contains(t.dateDays) || !t.countsTowardBudgets) continue;
+      final d = DateTime.utc(1970).add(Duration(days: t.dateDays));
+      final k = '${d.year.toString().padLeft(4, '0')}-'
+          '${d.month.toString().padLeft(2, '0')}';
+      spent[k] = (spent[k] ?? 0) + t.baseAmountMinor;
+    }
+    return [
+      for (final k in keys) MonthBucket(yearMonth: k, spentMinor: spent[k]!),
+    ];
+  }
+
+  /// Delta card math (E7 §2.1): compare spend is floored-scaled to the base
+  /// range's day count, then differenced in basis points. Partial-month
+  /// compares are therefore honest about unequal lengths, and the card can
+  /// print `baseDays`/`compareDays` beside the number.
+  RangeDelta compareRanges(
+    DayRange base,
+    DayRange compare,
+    List<EngineTx> transactions,
+  ) {
+    final spent = rangeTotals(base, transactions).spentMinor;
+    final raw = rangeTotals(compare, transactions).spentMinor;
+    final normalized = raw * base.lengthDays ~/ compare.lengthDays;
+    final deltaBp = normalized > 0
+        ? (spent - normalized) * 10000 ~/ normalized
+        : (spent == 0 ? 0 : null);
+    return RangeDelta(
+      spentMinor: spent,
+      compareSpentMinor: raw,
+      compareNormalizedMinor: normalized,
+      baseDays: base.lengthDays,
+      compareDays: compare.lengthDays,
+      deltaBp: deltaBp,
+    );
   }
 
   /// Calendar month (1–12) of an epoch day — civil-date inverse of [dayOf].
