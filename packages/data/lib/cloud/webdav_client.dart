@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
+import 'cloud_target.dart';
 import 'retention.dart';
 
 /// §3.1: HTTPS always; plain HTTP only for RFC1918/loopback hosts — and
@@ -100,7 +101,7 @@ class WebdavTransportException implements Exception {
   String toString() => 'WebdavTransportException($method $url: $cause)';
 }
 
-class WebdavClient {
+class WebdavClient implements CloudTarget {
   WebdavClient({
     required String baseUrl,
     String? user,

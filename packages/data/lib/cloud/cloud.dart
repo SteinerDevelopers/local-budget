@@ -3,5 +3,6 @@
 library;
 
 export 'backup_naming.dart';
+export 'cloud_target.dart';
 export 'retention.dart';
 export 'webdav_client.dart';
