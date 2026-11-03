@@ -22,6 +22,7 @@ export 'src/csv_codec.dart';
 export 'src/csv_import.dart';
 export 'src/database.dart';
 export 'src/export_csv.dart';
+export 'src/fx_service.dart';
 export 'src/ledger_repository.dart';
 export 'src/ofx_import.dart';
 export 'src/tables.dart';
