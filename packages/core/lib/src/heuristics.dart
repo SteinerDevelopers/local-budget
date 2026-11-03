@@ -145,8 +145,8 @@ class ReceiptHeuristics {
     ),
   ];
 
-  static final List<({RegExp re, FieldConfidence confidence})>
-      _utilityAnchors = [
+  static final List<({RegExp re, FieldConfidence confidence})> _utilityAnchors =
+      [
     (
       re: RegExp(r'\bTOTAL\s+AMOUNT\s+DUE\b', caseSensitive: false),
       confidence: FieldConfidence.high
@@ -244,8 +244,7 @@ class ReceiptHeuristics {
   /// non-blacklisted lines (OCR column split); decimals beat bare integers
   /// (`TOTAL 4 ITEMS 42.50` is 42.50, not 4); amounts re-joined across lines
   /// must carry a symbol or decimal and inherit confidence minus one level.
-  ({Money amount, FieldConfidence confidence})? guessTotal(
-      List<String> lines) {
+  ({Money amount, FieldConfidence confidence})? guessTotal(List<String> lines) {
     final type = classify(lines);
     final anchors = _anchorsFor(type);
     final blacklist = _blacklistFor(type);
@@ -259,13 +258,13 @@ class ReceiptHeuristics {
         var source = line;
         var merged = false;
         // 1. Amount to the right of the anchor (the classic shape).
-        var parsed = _bestAmount(line.substring(match.end),
-            requireExact: false);
+        var parsed =
+            _bestAmount(line.substring(match.end), requireExact: false);
         // 2. …or to its left on the same line (`42.50 TOTAL` POS layouts).
         //    Must look like money (symbol or decimal) — digits glued to the
         //    label (`TOTAL2`) are OCR noise, not a left-aligned amount.
-        parsed ??= _bestAmount(line.substring(0, match.start),
-            requireExact: true);
+        parsed ??=
+            _bestAmount(line.substring(0, match.start), requireExact: true);
         // 3. …or on one of the next two lines (anchor and right-aligned
         //    amount OCR'd as separate blocks; e2-capture.md §3 v1.1).
         if (parsed == null) {
@@ -285,15 +284,14 @@ class ReceiptHeuristics {
           }
         }
         if (parsed == null) continue; // no amount anywhere near this anchor
-        final cur = _lineCurrency(
-            merged ? '$line $source' : line, parsed.token);
+        final cur =
+            _lineCurrency(merged ? '$line $source' : line, parsed.token);
         final amount = cur == null || cur.code == parsed.amount.currency.code
             ? parsed.amount
             : (Money.tryParse(parsed.token, cur) ?? parsed.amount);
         return (
           amount: amount,
-          confidence:
-              merged ? _demote(anchor.confidence) : anchor.confidence,
+          confidence: merged ? _demote(anchor.confidence) : anchor.confidence,
         );
       }
     }

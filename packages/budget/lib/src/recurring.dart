@@ -74,10 +74,9 @@ abstract final class RecurringDetector {
       if (raw == null || !t.countsTowardBudgets) continue;
       final key = canonicalMerchant(raw);
       if (key.isEmpty) continue;
-      byDay
-          .putIfAbsent(key, () => <int, int>{})
-          .update(t.dateDays, (v) => v + t.baseAmountMinor,
-              ifAbsent: () => t.baseAmountMinor);
+      byDay.putIfAbsent(key, () => <int, int>{}).update(
+          t.dateDays, (v) => v + t.baseAmountMinor,
+          ifAbsent: () => t.baseAmountMinor);
       if (t.dateDays >= (displayDay[key] ?? -1)) {
         display[key] = raw;
         displayDay[key] = t.dateDays;
@@ -88,7 +87,9 @@ abstract final class RecurringDetector {
     for (final entry in byDay.entries) {
       final days = entry.value.keys.toList()..sort();
       if (days.length < minHits) continue;
-      final gaps = [for (var i = 1; i < days.length; i++) days[i] - days[i - 1]];
+      final gaps = [
+        for (var i = 1; i < days.length; i++) days[i] - days[i - 1]
+      ];
       // Strict cadence band (spec §2.2): every spacing must be monthly.
       if (gaps.any((g) => g < minGapDays || g > maxGapDays)) continue;
       final amounts = [for (final d in days) entry.value[d]!];

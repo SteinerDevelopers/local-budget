@@ -5,7 +5,8 @@ library;
 import 'package:budget/budget.dart';
 import 'package:test/test.dart';
 
-EngineTx tx(int y, int m, int d, int minor, {String? merchant, bool income = false}) =>
+EngineTx tx(int y, int m, int d, int minor,
+        {String? merchant, bool income = false}) =>
     EngineTx(
       dateDays: dayOf(DateTime.utc(y, m, d)),
       baseAmountMinor: minor,
@@ -146,8 +147,9 @@ void main() {
   });
 
   group('RecurringDetector', () {
-    List<EngineTx> monthly(String merchant, int startYear, int startMonth,
-        List<int> amounts, {int day = 14, int stepDays = 30}) {
+    List<EngineTx> monthly(
+        String merchant, int startYear, int startMonth, List<int> amounts,
+        {int day = 14, int stepDays = 30}) {
       var d = DateTime.utc(startYear, startMonth, day);
       return [
         for (final a in amounts)
@@ -186,8 +188,8 @@ void main() {
 
     test('weekly cadence, sparse hits, and amount swing all reject', () {
       expect(
-        RecurringDetector.suggest(monthly('Gym', 2026, 1, [2000, 2000, 2000],
-            stepDays: 7)),
+        RecurringDetector.suggest(
+            monthly('Gym', 2026, 1, [2000, 2000, 2000], stepDays: 7)),
         isEmpty,
       );
       expect(
@@ -196,8 +198,8 @@ void main() {
       );
       // ~26 % CoV: real utility-style variance is not a subscription.
       expect(
-        RecurringDetector.suggest(monthly('Power Co', 2026, 1,
-            [8000, 9500, 6200, 9100])),
+        RecurringDetector.suggest(
+            monthly('Power Co', 2026, 1, [8000, 9500, 6200, 9100])),
         isEmpty,
       );
     });

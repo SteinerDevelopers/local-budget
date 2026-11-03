@@ -35,8 +35,8 @@ abstract final class OcrLineAssembly {
     if (usable.isEmpty) return const [];
 
     final heights = words.map((w) => w.height).toList()..sort();
-    final tolerance =
-        (heights[heights.length ~/ 2] / 2).clamp(_minTolerance, double.infinity);
+    final tolerance = (heights[heights.length ~/ 2] / 2)
+        .clamp(_minTolerance, double.infinity);
 
     final lines = <_LineCluster>[];
     for (final w in usable) {

@@ -33,8 +33,8 @@ void main() {
       expect(lines, ['TOTAL \$5.00']);
       // Same 25px gap with small glyphs: two lines.
       expect(
-        OcrLineAssembly
-            .assemble([w('TOTAL', 30, 100, h: 14), w('\$5.00', 200, 125, h: 14)]),
+        OcrLineAssembly.assemble(
+            [w('TOTAL', 30, 100, h: 14), w('\$5.00', 200, 125, h: 14)]),
         ['TOTAL', '\$5.00'],
       );
     });
