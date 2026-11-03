@@ -11,6 +11,8 @@ class CloudDestination {
     required this.url,
     required this.user,
     required this.folder,
+    this.autoBackup = false,
+    this.autoFails = 0,
   });
 
   final String id;
@@ -21,17 +23,28 @@ class CloudDestination {
   /// Remote folder holding this destination's .lzbak objects (§3.2).
   final String folder;
 
+  /// §3.3 — "Back up automatically" toggle (the enrolled backup key is a
+  /// precondition; scheduling happens in auto_backup.dart).
+  final bool autoBackup;
+
+  /// Consecutive auto-backup failures; the quiet badge lights at 3 (§3.3).
+  final int autoFails;
+
   CloudDestination copyWith({
     String? label,
     String? url,
     String? user,
     String? folder,
+    bool? autoBackup,
+    int? autoFails,
   }) => CloudDestination(
     id: id,
     label: label ?? this.label,
     url: url ?? this.url,
     user: user ?? this.user,
     folder: folder ?? this.folder,
+    autoBackup: autoBackup ?? this.autoBackup,
+    autoFails: autoFails ?? this.autoFails,
   );
 
   Map<String, Object?> toJson() => {
@@ -40,6 +53,8 @@ class CloudDestination {
     'url': url,
     'user': user,
     'folder': folder,
+    'autoBackup': autoBackup,
+    'autoFails': autoFails,
   };
 
   static CloudDestination fromJson(Map<String, Object?> j) {
@@ -55,6 +70,8 @@ class CloudDestination {
       url: s('url'),
       user: s('user'),
       folder: j['folder'] is String ? j['folder']! as String : 'localbudget',
+      autoBackup: j['autoBackup'] == true,
+      autoFails: j['autoFails'] is int ? j['autoFails']! as int : 0,
     );
   }
 }

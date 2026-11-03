@@ -11,26 +11,9 @@ import 'package:flutter/material.dart';
 
 import '../../version.dart';
 import '../manage/passphrase_sheet.dart';
+import 'auto_backup.dart' show kAutoFailBadgeAfter;
 import 'cloud_config.dart';
 import 'cloud_hub.dart';
-
-/// Uploads [bytes] then prunes per §3.2 — the CloudTarget-shaped twin of
-/// WebdavClient.putAndPrune, so the Drive follow-up reuses this flow.
-Future<List<CloudObject>> putAndPruneVia(
-  CloudTarget target, {
-  required String folder,
-  required String name,
-  required Uint8List bytes,
-}) async {
-  await target.ensureCollection(folder);
-  await target.put('$folder/$name', bytes);
-  final listing = await target.list(folder);
-  final plan = prunePlan(listing);
-  for (final doomed in plan.delete) {
-    await target.delete(doomed.path);
-  }
-  return plan.keep;
-}
 
 class CloudBackupScreen extends StatefulWidget {
   const CloudBackupScreen({
@@ -100,10 +83,26 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
                       ListTile(
                         leading: const Icon(Icons.cloud_outlined),
                         title: Text(d.label),
+                        // §3.3: the auto line doubles as the quiet badge —
+                        // no notifications, ever; this is the only signal.
                         subtitle: Text(
-                          '${d.url}\nuser ${d.user} · folder ${d.folder}',
+                          '${d.url}\nuser ${d.user} · folder ${d.folder}'
+                          '${d.autoBackup ? '\nauto: daily' : ''}'
+                          '${d.autoBackup && d.autoFails >= kAutoFailBadgeAfter ? ' — failing (${d.autoFails}×)' : ''}',
                         ),
-                        isThreeLine: true,
+                        trailing:
+                            d.autoBackup && d.autoFails >= kAutoFailBadgeAfter
+                            ? Icon(
+                                Icons.error_outline,
+                                key: Key('auto-fail-${d.id}'),
+                                color: Theme.of(context).colorScheme.error,
+                              )
+                            : (d.autoBackup
+                                  ? Icon(
+                                      Icons.schedule,
+                                      key: Key('auto-on-${d.id}'),
+                                    )
+                                  : null),
                         onTap: () => _actions(d),
                       ),
                       if (checkWebdavUrl(d.url).needsBanner)
@@ -170,6 +169,22 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
               leading: const Icon(Icons.cloud_upload_outlined),
               title: const Text('Back up now'),
               onTap: () => Navigator.of(sheetContext).pop(_backupNow),
+            ),
+            ListTile(
+              // §3.3 — per-destination auto-backup toggle.
+              key: const Key('cloud-auto'),
+              leading: Icon(
+                d.autoBackup ? Icons.event_repeat : Icons.event_repeat_outlined,
+              ),
+              title: Text(
+                d.autoBackup
+                    ? 'Automatic backups: on'
+                    : 'Back up automatically',
+              ),
+              subtitle: const Text(
+                'Once a day when connected, encrypted with its own key',
+              ),
+              onTap: () => Navigator.of(sheetContext).pop(_auto),
             ),
             ListTile(
               key: const Key('cloud-versions'),
@@ -308,6 +323,40 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
     appVersion: appVersion,
     kdfIterations: widget.kdfIterations,
   );
+
+  // ---- §3.3 automatic backups ----------------------------------------
+
+  Future<void> _auto(CloudDestination d) async {
+    final hub = widget.hub;
+    if (d.autoBackup) {
+      // Off means *off*: the backup key is scrubbed with the intent.
+      await hub.upsert(d.copyWith(autoBackup: false, autoFails: 0));
+      await hub.clearBackupKey(d);
+      await hub.auto?.sync(
+        destinations: hub.destinations(),
+        docsDir: widget.docsDir?.path,
+      );
+      _reload();
+      _snack('Automatic backups off — the backup key is deleted here.');
+      return;
+    }
+    // Enrolment is once per destination (§3.3): the same "lose it =
+    // unreadable" honesty as a manual backup, with the confirm repeat.
+    final key = await showPassphraseSheet(
+      context,
+      title: 'Passphrase for automatic backups',
+      withConfirm: true,
+    );
+    if (key == null) return;
+    await hub.setBackupKey(d, key);
+    await hub.upsert(d.copyWith(autoBackup: true, autoFails: 0));
+    await hub.auto?.sync(
+      destinations: hub.destinations(),
+      docsDir: widget.docsDir?.path,
+    );
+    _reload();
+    _snack('Automatic backups on — daily, encrypted on this device.');
+  }
 
   // ---- versions (§3.2 list, §3.4 restore) --------------------------------
 

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Directory, File, Platform;
+import 'dart:io' show Directory, Platform;
 
 import 'package:billing/billing.dart' show TipService;
 import 'package:data/data.dart';
@@ -17,9 +17,8 @@ import 'features/capture/adapters/gemini_nano_structurer.dart';
 import 'features/capture/adapters/ml_kit_text_extractor.dart';
 
 import 'features/capture/capture_services.dart';
-import 'features/cloud/cloud_config.dart';
+import 'features/cloud/auto_backup.dart';
 import 'features/cloud/cloud_hub.dart';
-import 'features/cloud/secret_store.dart';
 import 'features/ledger/ledger_screen.dart';
 import 'features/manage/io.dart';
 import 'features/support/support_services.dart';
@@ -61,6 +60,9 @@ Future<void> bootLocalBudget() async {
   await repository.ensureDefaults();
   // Bill reminders: time zone + channel init (inert where unavailable, §5).
   await BillNotifier.bootstrap();
+  // E7b §3.3: the daily auto-backup schedule is a paid-pack feature; the
+  // free flavor never initialises WorkManager at all.
+  if (FeatureFlags.proTrio) await initCloudAutoBackups(dir);
   // §3.4 lazy materialization before the first frame, so the ledger the
   // user lands on already contains this pass's occurrences. The pass is
   // day-gated + race-gated: warm resumes below are cheap replays. Bounded
@@ -240,10 +242,7 @@ CaptureServices? _androidCapture(Directory docsDir) {
 
 /// E7b §3.1 — destinations JSON in the app-private dir (label/URL/user
 /// only; the password lives in flutter_secure_storage behind the hub).
-CloudHub _cloudHub(Directory dir) => CloudHub(
-  config: CloudConfigStore(File('${dir.path}/cloud-destinations.json')),
-  secrets: const SecureCloudSecretStore(),
-);
+CloudHub _cloudHub(Directory dir) => cloudHubFor(dir);
 
 class LocalBudgetApp extends StatelessWidget {
   /// [theme]/[darkTheme]/[themeMode] exist for the §6 golden harness (CI

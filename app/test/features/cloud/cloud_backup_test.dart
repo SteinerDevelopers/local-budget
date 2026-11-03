@@ -101,6 +101,9 @@ void main() {
 
   Future<void> tapReal(WidgetTester tester, Finder f) =>
       tester.runAsync(() async {
+        // the §3.3 auto row pushed the lower actions off short viewports
+        await tester.ensureVisible(f);
+        await tester.pump(const Duration(milliseconds: 60));
         await tester.tap(f);
         await tester.pumpAndSettle(); // modal pop animation is fake-time
         // hub continuation (secret + config file IO) runs after the pop…
