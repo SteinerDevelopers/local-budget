@@ -249,13 +249,37 @@ e2e-android:
       echo "emulator booted: $(adb shell getprop ro.build.version.sdk)"
       cd app
       flutter pub get
-      flutter test integration_test --reporter compact -d emulator-5554
+      # p84 #644 hung after "loading" with 24+ minutes of silence: a stall
+      # in the test/device handshake leaves the flutter tool mute until the
+      # job timeout. Bound the run well under the job timeout (SIGQUIT makes
+      # the tool dump its Dart stack) and make any failure self-reporting —
+      # crash logcat, emulator tail, memory — instead of another mute wait.
+      set +e
+      timeout -s QUIT 1500 flutter test integration_test --reporter compact -d emulator-5554 > /tmp/e2e.log 2>&1
+      rc=$?
+      set -e
+      tail -n 40 /tmp/e2e.log
+      if [ "$rc" -ne 0 ]; then
+        echo "== diagnostics (rc=$rc; 124 = timeout) =="
+        adb devices -l
+        timeout 30 adb logcat -d -b crash -t 200 2>/dev/null || true
+        timeout 30 adb logcat -d -t 250 2>/dev/null | tail -n 150 || true
+        echo "-- emu.log tail --"
+        tail -n 40 /tmp/emu.log
+        echo "-- mem --"
+        free -m
+        echo "-- top --"
+        ps aux --sort=-%mem 2>/dev/null | head -12
+        exit "$rc"
+      fi
   after_script:
     - cp /tmp/emu.log emu.log 2> /dev/null || true
+    - cp /tmp/e2e.log e2e.log 2> /dev/null || true
   artifacts:
     when: on_failure
     paths:
       - emu.log
+      - e2e.log
     expire_in: 1 week
 
 # Manual: sideloadable debug APK (free flavor) for on-device dogfooding.
