@@ -1115,10 +1115,14 @@ class _ActualRow extends StatelessWidget {
                   ),
                 ),
                 // Flexible so a 1.3× text scale (or a $100k limit) wraps
-                // the amount onto a second line instead of overflowing.
+                // the amount instead of overflowing; right alignment keeps
+                // its right edge on the row edge, so while the text fits
+                // it renders exactly where a plain Text would (golden
+                // refs pinned in pipeline 64 must stay pixel-identical).
                 Flexible(
                   child: Text(
                     'Spent $spent of $limit',
+                    textAlign: TextAlign.right,
                     style: TextStyle(
                       fontSize: 12,
                       color: overspent ? scheme.error : scheme.onSurfaceVariant,
