@@ -309,7 +309,7 @@ runner-probe:
   when: manual
   allow_failure: true
   tags: [SteinerRunner]
-  script:
+  script: &probe-script
     - |
       echo "== identity =="; hostname; uname -a; head -2 /etc/os-release 2>/dev/null
       echo "== cpu-ram =="; nproc; free -h | head -2
@@ -325,3 +325,13 @@ runner-probe:
       command -v node >/dev/null && node --version || echo "node MISSING"
       command -v sdkmanager >/dev/null && echo "android-sdk present" || echo "android-sdk MISSING"
       echo "== executor =="; echo "HOME=$HOME PWD=$PWD CI_RUNNER_DESCRIPTION=$CI_RUNNER_DESCRIPTION"
+
+# Same probe pinned to the second fleet member (SteinerRunner2), so a
+# re-registered box can be identity-checked before any job trusts it.
+runner-probe-r2:
+  stage: probe
+  needs: []
+  when: manual
+  allow_failure: true
+  tags: [SteinerRunner2]
+  script: *probe-script
