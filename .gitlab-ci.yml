@@ -258,8 +258,12 @@ e2e-android:
       # job timeout. Bound the run well under the job timeout (SIGQUIT makes
       # the tool dump its Dart stack) and make any failure self-reporting —
       # crash logcat, emulator tail, memory — instead of another mute wait.
+      # --flavor free: the app has free/pro product flavors (E6 §3), so an
+      # unflavored assembleDebug builds EVERY variant — p88 died in the pro
+      # manifest merger before the smoke test ever ran. The smoke test
+      # exercises the shipping build, which is free.
       set +e
-      timeout -s QUIT 1500 flutter test integration_test --reporter compact -d emulator-5554 > /tmp/e2e.log 2>&1
+      timeout -s QUIT 1500 flutter test integration_test --flavor free --reporter compact -d emulator-5554 > /tmp/e2e.log 2>&1
       rc=$?
       set -e
       tail -n 40 /tmp/e2e.log
@@ -323,15 +327,21 @@ package-apk:
       flutter pub get
       # Split per ABI: the all-ABI debug APK (~205 MB) exceeds the GitLab
       # coordinator's request body limit (job 595 died with 413 uploading
-      # artifacts). Per-ABI debug APKs ride under it; Galaxy Flip6 wants
-      # arm64, armeabi-v7a covers older test phones.
+      # artifacts). p88 proved the limit applies to the ZIP AS WHOLE — all
+      # three per-ABI APKs together (287 MB) died 413 too — so only the
+      # arm64 sideload ride is published. The others still build (they
+      # keep every variant compiling) and stay in the job dir.
       flutter build apk --debug --flavor free --split-per-abi
+      # Pro flavor compile gate (manual job, so the extra build is
+      # affordable): the trio ships inside this APK, and p88 showed a
+      # broken pro manifest only surfaces when something assembles it.
+      flutter build apk --debug --flavor pro
       mkdir -p "$CI_PROJECT_DIR/out"
-      cp -v build/app/outputs/flutter-apk/*.apk "$CI_PROJECT_DIR/out/"
+      cp -v build/app/outputs/flutter-apk/app-arm64-v8a-free-debug.apk "$CI_PROJECT_DIR/out/"
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
-      - out/*.apk
+      - out/app-arm64-v8a-free-debug.apk
     expire_in: 4 weeks
 
 # Kept for re-running when the runner box changes (manual, never automatic).

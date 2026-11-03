@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- E6 §3 (pro flavor): hold the free app's signature permission so
          "Transfer from free app" can read its staged snapshot. Granted at
          install, silently — same signing key is the only requirement. -->
@@ -12,6 +13,11 @@
         <provider android:authorities="dev.steiner.local_budget.transfer" />
     </queries>
 
-    <!-- Distinct label: two listings, two names on the home screen. -->
-    <application android:label="LocalBudget Pro" />
+    <!-- Distinct label: two listings, two names on the home screen.
+         tools:replace is required, not cosmetic — the merger fails the
+         pro variant outright on a plain attribute clash with the main
+         manifest's label (first surfaced by p88's all-variant e2e build). -->
+    <application
+        android:label="LocalBudget Pro"
+        tools:replace="android:label" />
 </manifest>
