@@ -375,21 +375,23 @@ package-apk:
       # broken pro manifest only surfaces when something assembles it.
       # p105 raised the universal pro-debug APK to 209 MB; free-arm64 (117
       # MB) + universal pro (209 MB) = 326 MB died 413 on upload again.
-      # Publish pro arm64-only (~95 MB, total ~212 MB — under the ~250 MB
-      # envelope). Owner's sideload device is arm64; the compile gate is
-      # ABI-independent.
-      flutter build apk --debug --flavor pro --target-platform android-arm64
+      # --target-platform android-arm64 measured 141 MB locally (plugin
+      # .so files are NOT ABI-scoped by it) — 258 MB as a bundle, still
+      # over. --split-per-abi strips foreign ABIs: pro-arm64 ~118 MB,
+      # bundle ~235 MB < the 250 MB coordinator limit; emits the -v8a-
+      # name. Owner's sideload device is arm64; the gate is ABI-free.
+      flutter build apk --debug --flavor pro --split-per-abi
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-arm64-v8a-free-debug.apk "$CI_PROJECT_DIR/out/"
       # The paid-trio UI (Insights/Backup-plus/Cloud) only composites in the
-      # pro flavor — publish an arm64 pro-debug APK too, or the owner
+      # pro flavor — publish the arm64 pro-debug APK too, or the owner
       # cannot sideload-test what every app slice just shipped (E7b #8).
-      cp -v build/app/outputs/flutter-apk/app-pro-debug.apk "$CI_PROJECT_DIR/out/"
+      cp -v build/app/outputs/flutter-apk/app-arm64-v8a-pro-debug.apk "$CI_PROJECT_DIR/out/"
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
       - out/app-arm64-v8a-free-debug.apk
-      - out/app-pro-debug.apk
+      - out/app-arm64-v8a-pro-debug.apk
     expire_in: 4 weeks
 
 # Kept for re-running when the runner box changes (manual, never automatic).
