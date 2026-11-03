@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 
 import 'csv_codec.dart';
 import 'database.dart';
+import 'integrity.dart';
 import 'ledger_repository.dart' show dateFromEpochDay;
 
 /// E5 spec §2 — CSV export builder (free, lossless-enough, re-importable).
@@ -35,6 +36,8 @@ class CsvExport {
       '${now.day.toString().padLeft(2, '0')}.csv';
 
   Future<String> build({int? accountId}) async {
+    // §7: snapshot consistency — flush WAL first (no-op on rollback).
+    await DbIntegrity.walCheckpoint(db);
     Expression<bool> cond = db.transactions.goalId.isNull();
     if (accountId != null) {
       cond = cond & db.transactions.accountId.equals(accountId);

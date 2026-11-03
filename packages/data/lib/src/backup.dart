@@ -11,6 +11,7 @@ import 'package:archive/archive_io.dart';
 import 'attachment_store.dart';
 import 'backup_crypto.dart';
 import 'database.dart';
+import 'integrity.dart';
 
 /// The four fields the spec promises in `manifest.json` — deliberately
 /// minimal, all we need to explain and vet a restore before touching disk.
@@ -104,6 +105,9 @@ Future<Uint8List> createBackup({
   final snapDir = Directory.systemTemp.createTempSync('lzbak');
   final Uint8List dbBytes;
   try {
+    // §7: a restore must never be missing recent commits — checkpoint WAL
+    // before the snapshot (no-op on rollback-journal databases).
+    await DbIntegrity.walCheckpoint(db);
     final target = '${snapDir.path}/ledger.db';
     await db.customStatement('VACUUM INTO ?', [target]);
     dbBytes = File(target).readAsBytesSync();
