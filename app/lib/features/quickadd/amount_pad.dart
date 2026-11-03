@@ -9,7 +9,9 @@ import 'package:core/core.dart';
 final class AmountPad {
   AmountPad({required this.currency});
 
-  final Currency currency;
+  /// Live currency — E5 §6 lets QuickAdd switch the entry currency; the
+  /// digits stay only while the fraction shape agrees.
+  Currency currency;
 
   /// Integer digits before separators — enough for any sane budget, and it
   /// keeps the 40 pt display from overflowing.
@@ -64,6 +66,15 @@ final class AmountPad {
   }
 
   void clear() => _buffer = '';
+
+  /// E5 §6: switch entry currency. Typed digits carry over between same-
+  /// decimal currencies; a fraction the new currency cannot hold (`12.34`
+  /// into JPY) would silently change meaning, so the pad clears instead.
+  void setCurrency(Currency next) {
+    if (next.code == currency.code) return;
+    if (currency.minorUnits != next.minorUnits) _buffer = '';
+    currency = next;
+  }
 
   /// Prefill from an extracted total (E2 Review sheet): the same buffer the
   /// keypad would have typed, trailing fraction zeros trimmed exactly like a

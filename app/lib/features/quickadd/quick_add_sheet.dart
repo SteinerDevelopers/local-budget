@@ -9,6 +9,7 @@ import '../ledger/view_models.dart';
 import 'amount_display.dart';
 import 'amount_pad.dart';
 import 'category_chips.dart';
+import 'currency_choice_sheet.dart';
 import 'keypad.dart';
 
 /// A category as QuickAdd renders it (icon + label). #18 sources these from
@@ -127,11 +128,23 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       NewEntry(
         kind: _kind,
         categoryId: _categoryId!,
+        // Money carries its currency: the caller sees a foreign-currency
+        // save exactly as typed (E5 §6).
         amount: _pad.money,
         day: _day,
         note: note.isEmpty ? null : note,
       ),
     );
+  }
+
+  /// E5 §6: switch the currency this amount is typed in. Base stays the
+  /// cold-open default every time (per-entry choice, not a per-device one).
+  Future<void> _pickCurrency() async {
+    final picked = await showCurrencyChoice(
+      context,
+      currentCode: _pad.currency.code,
+    );
+    if (picked != null && mounted) setState(() => _pad.setCurrency(picked));
   }
 
   @override
@@ -175,14 +188,14 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                 ),
               ),
               const SizedBox(height: Tokens.space2),
-              AmountDisplay(pad: _pad, currency: widget.currency),
+              AmountDisplay(pad: _pad, currency: _pad.currency),
               const SizedBox(height: Tokens.space2),
               Expanded(
                 child: Keypad(
                   onDigit: (d) => setState(() => _pad.digit(d)),
                   onDot: () => setState(_pad.dot),
                   onBackspace: () => setState(_pad.back),
-                  dotEnabled: widget.currency.minorUnits > 0,
+                  dotEnabled: _pad.currency.minorUnits > 0,
                 ),
               ),
               CategoryChips(
@@ -194,10 +207,12 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
               const SizedBox(height: Tokens.space2),
               _OptionalRow(
                 day: _day,
+                currencyCode: _pad.currency.code,
                 stripOpen: _dateStripOpen,
                 noteActive: _noteActive,
                 noteController: _note,
                 noteFocus: _noteFocus,
+                onPickCurrency: _pickCurrency,
                 onToggleDateStrip: () =>
                     setState(() => _dateStripOpen = !_dateStripOpen),
                 onPickDay: (day) => setState(() {
@@ -243,10 +258,12 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 class _OptionalRow extends StatelessWidget {
   const _OptionalRow({
     required this.day,
+    required this.currencyCode,
     required this.stripOpen,
     required this.noteActive,
     required this.noteController,
     required this.noteFocus,
+    required this.onPickCurrency,
     required this.onToggleDateStrip,
     required this.onPickDay,
     required this.onOpenCalendar,
@@ -254,10 +271,12 @@ class _OptionalRow extends StatelessWidget {
   });
 
   final DateTime day;
+  final String currencyCode;
   final bool stripOpen;
   final bool noteActive;
   final TextEditingController noteController;
   final FocusNode noteFocus;
+  final VoidCallback onPickCurrency;
   final VoidCallback onToggleDateStrip;
   final ValueChanged<DateTime> onPickDay;
   final VoidCallback onOpenCalendar;
@@ -334,6 +353,14 @@ class _OptionalRow extends StatelessWidget {
                 onPressed: onToggleDateStrip,
                 icon: const Icon(Icons.expand_more, size: 18),
                 label: Text(DayLabel.of(day)),
+              ),
+              // E5 §6: per-entry currency. Middle slot by design — the two
+              // pinned ends keep their pixels, only this center appears.
+              TextButton.icon(
+                key: const Key('currency-button'),
+                onPressed: onPickCurrency,
+                icon: const Icon(Icons.currency_exchange, size: 18),
+                label: Text(currencyCode),
               ),
               TextButton.icon(
                 onPressed: onActivateNote,

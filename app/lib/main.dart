@@ -21,14 +21,30 @@ import 'features/ledger/ledger_screen.dart';
 /// The navigator notification taps resolve against (§5: tap opens the bill).
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
+/// The live database handle. Restore (§3) must close it before swapping the
+/// file, and the cold restart reopens a fresh one — hence held here, not
+/// buried inside the repository.
+AppDatabase? _liveDb;
+_BillMaterializeObserver? _observer;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await bootLocalBudget();
+}
+
+/// Full cold boot: open the database, seed defaults, run the pre-frame bill
+/// pass, mount the app. Called once by [main] and again by
+/// [restartLocalBudget] after a restore (the only destructive path, §3).
+Future<void> bootLocalBudget() async {
   // One SQLite file in the app's private directory — nothing leaves the
   // device (decision 8: zero collection).
   final dir = await getApplicationDocumentsDirectory();
-  final repository = LedgerRepository(
-    AppDatabase.openFile('${dir.path}/localbudget.sqlite'),
-  );
+  final db = _liveDb = AppDatabase.openFile('${dir.path}/localbudget.sqlite');
+  final repository = LedgerRepository(db);
+  // E5 §6: the one network touch, injected from here; tests hand their own.
+  final fx = FxService(db);
+  // §7: the boot-time integrity report, surfaced *passively* in Manage.
+  final integrity = ValueNotifier<IntegrityReport?>(null);
   // First launch seeds the Cash account + default categories; idempotent.
   await repository.ensureDefaults();
   // Bill reminders: time zone + channel init (inert where unavailable, §5).
@@ -49,12 +65,24 @@ Future<void> main() async {
   runApp(
     LocalBudgetApp(
       repository: repository,
+      db: db,
+      fx: fx,
+      integrity: integrity,
+      docsDir: dir,
       capture: _androidCapture(dir),
       navigatorKey: appNavigatorKey,
     ),
   );
+  // §7: the integrity pass runs *after* the app is up — never on the boot
+  // critical path, never a dialog, never a crash; a report only lights the
+  // banner in Manage and the debug log.
+  unawaited(_checkIntegrity(db, integrity));
   if (pass case final outcome?) _surfaceStaleBills(outcome.pausedRuleIds);
-  WidgetsBinding.instance.addObserver(_BillMaterializeObserver(repository));
+  // Replace (never stack) the observer across cold restarts.
+  final observer = _observer;
+  if (observer != null) WidgetsBinding.instance.removeObserver(observer);
+  _observer = _BillMaterializeObserver(repository);
+  WidgetsBinding.instance.addObserver(_observer!);
   BillNotifier.onOpen = (ruleId) => _openBillRule(repository, ruleId);
   final pending = BillNotifier.pendingOpenRuleId;
   if (pending != null) {
@@ -63,6 +91,36 @@ Future<void> main() async {
       (_) => _openBillRule(repository, pending),
     );
   }
+}
+
+/// §7 passive check: `DbIntegrity.check` already never throws; the catch is
+/// for a database that cannot even be opened, and even then the app boots.
+Future<void> _checkIntegrity(
+  AppDatabase db,
+  ValueNotifier<IntegrityReport?> target,
+) async {
+  try {
+    final report = await DbIntegrity.check(db);
+    if (!report.ok) {
+      debugPrint('integrity: ${report.problems.join('; ')}');
+      target.value = report;
+    }
+  } catch (e) {
+    debugPrint('integrity check skipped: $e');
+  }
+}
+
+/// Cold restart after `applyRestore` (§3): tear the widget tree down first
+/// (cancelling every drift stream), then close, then boot a fresh stack.
+/// The blank-root `runApp` is the documented cold-restart trick — same-type
+/// roots would otherwise keep stale state by slot.
+Future<void> restartLocalBudget() async {
+  runApp(const SizedBox.shrink());
+  await Future<void>(() {}); // let the old tree unmount (streams cancel)
+  final db = _liveDb;
+  _liveDb = null;
+  await db?.close();
+  await bootLocalBudget();
 }
 
 /// Warm resume runs the same pass (§3.4: "cold or warm resume"). Same-day
@@ -146,6 +204,10 @@ class LocalBudgetApp extends StatelessWidget {
   const LocalBudgetApp({
     super.key,
     required this.repository,
+    this.db,
+    this.fx,
+    this.integrity,
+    this.docsDir,
     this.capture,
     this.theme,
     this.darkTheme,
@@ -154,6 +216,21 @@ class LocalBudgetApp extends StatelessWidget {
   });
 
   final LedgerRepository repository;
+
+  /// The live handle behind [repository] — the Data section's export and
+  /// backup snapshots run on it; restore closes it (§3).
+  final AppDatabase? db;
+
+  /// E5 §6: FX lookups (null in tests that never exercise currency — the
+  /// entry sheet then behaves exactly like E1).
+  final FxService? fx;
+
+  /// §7 boot integrity report, set off the critical path; Manage's banner
+  /// listens. Null in tests/goldens (no banner).
+  final ValueNotifier<IntegrityReport?>? integrity;
+
+  /// App documents dir — the SQLite file's home and `applyRestore`'s root.
+  final Directory? docsDir;
   final CaptureServices? capture;
   final ThemeData? theme;
   final ThemeData? darkTheme;
@@ -168,7 +245,14 @@ class LocalBudgetApp extends StatelessWidget {
       theme: theme ?? AppTheme.light(),
       darkTheme: darkTheme ?? AppTheme.dark(),
       themeMode: themeMode,
-      home: LedgerScreen(repository: repository, capture: capture),
+      home: LedgerScreen(
+        repository: repository,
+        fx: fx,
+        integrity: integrity,
+        db: db,
+        docsDir: docsDir,
+        capture: capture,
+      ),
     );
   }
 }

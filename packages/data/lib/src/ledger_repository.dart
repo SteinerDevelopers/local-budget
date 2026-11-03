@@ -703,6 +703,8 @@ extension LedgerE1 on LedgerRepository {
     required bool isIncome,
     required int categoryId,
     String? note,
+    String? baseCurrencyCode,
+    double? fxRate,
   }) async {
     if (amount.isNegative) {
       throw ArgumentError('ledger amounts are unsigned; kind carries the sign');
@@ -716,6 +718,10 @@ extension LedgerE1 on LedgerRepository {
       categoryId: categoryId,
       note: note,
       isIncome: isIncome,
+      // E5 §6: entry in a foreign currency snapshots the device base at
+      // save time; a null rate still saves the row ("entry never blocks").
+      baseCurrencyCode: baseCurrencyCode,
+      fxRate: fxRate,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Directory;
 
 import 'package:capture/capture.dart' show CapturePipeline;
 import 'package:core/core.dart';
@@ -25,9 +26,31 @@ import 'view_models.dart';
 /// Everything is derived from the drift stream; this screen only keeps paging
 /// position and the QuickAdd warm state (§2.2 rule 5 lives with the caller).
 class LedgerScreen extends StatefulWidget {
-  const LedgerScreen({super.key, required this.repository, this.capture});
+  const LedgerScreen({
+    super.key,
+    required this.repository,
+    this.fx,
+    this.integrity,
+    this.db,
+    this.docsDir,
+    this.capture,
+  });
 
   final LedgerRepository repository;
+
+  /// E5 §6: device-base FX lookups at save time (null → no conversion; the
+  /// row saves rate-less exactly like pre-E5 manual rows).
+  final FxService? fx;
+
+  /// §7 boot integrity report for Manage's passive banner.
+  final ValueNotifier<IntegrityReport?>? integrity;
+
+  /// The live database — Manage's Data section flows (export/backup/restore)
+  /// work on it directly (§1–§3).
+  final AppDatabase? db;
+
+  /// Documents dir — restore's `applyRestore` root (§3).
+  final Directory? docsDir;
 
   /// E2 capture services (intake + extractor + attachment store). Null on
   /// builds without platform capture (iOS until E5); the FAB then explains
@@ -240,12 +263,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
       onManageCategories: _openManage,
     );
     if (entry == null || !mounted) return;
+    // E5 §6: a foreign-currency save snapshots the device-base rate at
+    // insert time. The lookup is bounded (2 s) and never throws — a null
+    // rate still saves the row; the ledger then flags it "No rate".
+    String? baseCode;
+    double? rate;
+    final fx = widget.fx;
+    if (fx != null && entry.amount.currency.code != _currency.code) {
+      baseCode = _currency.code;
+      rate = await fx.rateForDeviceBase(entry.amount.currency.code);
+      if (!mounted) return;
+    }
     await widget.repository.addEntry(
       date: entry.day,
       amount: entry.amount,
       isIncome: entry.kind == EntryKind.income,
       categoryId: entry.categoryId,
       note: entry.note,
+      baseCurrencyCode: baseCode,
+      fxRate: rate,
     );
     if (!mounted) return;
     setState(() {
@@ -377,7 +413,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _openManage() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ManageScreen(repository: widget.repository),
+        builder: (_) => ManageScreen(
+          repository: widget.repository,
+          fx: widget.fx,
+          integrity: widget.integrity,
+          db: widget.db,
+          docsDir: widget.docsDir,
+        ),
       ),
     );
     // Base currency may have changed (§2.4); categories re-read themselves

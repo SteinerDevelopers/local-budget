@@ -1,4 +1,7 @@
+import 'dart:io' show Directory;
+
 import 'package:data/data.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../budgets/budgets_sheet.dart';
@@ -6,13 +9,34 @@ import '../help/help_screen.dart';
 import '../ledger/ledger_screen.dart' show monthIndexOf;
 import 'base_currency_sheet.dart';
 import 'category_list_screen.dart';
+import 'integrity_banner.dart';
 
 /// Spec §2.4: Manage is a plain list — Categories, Base currency, About &
-/// help. No cards, no sections; rows are 64pt touch targets (§3).
+/// help. No cards, no sections; rows are 64pt touch targets (§3). E5 §1
+/// adds the Data section under one header — the app's only file-boundary.
 class ManageScreen extends StatefulWidget {
-  const ManageScreen({super.key, required this.repository});
+  const ManageScreen({
+    super.key,
+    required this.repository,
+    this.fx,
+    this.integrity,
+    this.db,
+    this.docsDir,
+  });
 
   final LedgerRepository repository;
+
+  /// E5 §6: hosts the *Live FX rates* toggle (default-on, per-device).
+  final FxService? fx;
+
+  /// E5 §7: boot-time integrity report; null or unset ⇒ no banner, ever.
+  final ValueListenable<IntegrityReport?>? integrity;
+
+  /// Data-section flows (export/backup/restore) operate on the live db.
+  final AppDatabase? db;
+
+  /// Documents dir: attachment store root + the SQLite file's home (§3).
+  final Directory? docsDir;
 
   @override
   State<ManageScreen> createState() => _ManageScreenState();
@@ -20,16 +44,30 @@ class ManageScreen extends StatefulWidget {
 
 class _ManageScreenState extends State<ManageScreen> {
   String? _base;
+  bool _liveFx = true;
 
   @override
   void initState() {
     super.initState();
     _loadBase();
+    _loadLiveFx();
   }
 
   Future<void> _loadBase() async {
     final code = await widget.repository.baseCurrency();
     if (mounted) setState(() => _base = code);
+  }
+
+  Future<void> _loadLiveFx() async {
+    final fx = widget.fx;
+    if (fx == null) return;
+    final on = await fx.liveRatesEnabled();
+    if (mounted) setState(() => _liveFx = on);
+  }
+
+  Future<void> _setLiveFx(bool on) async {
+    setState(() => _liveFx = on); // immediate flip — settings catch up
+    await widget.fx?.setLiveRatesEnabled(on);
   }
 
   @override
@@ -39,6 +77,10 @@ class _ManageScreenState extends State<ManageScreen> {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
+          // §7: the only surface a report ever gets — passive, above the
+          // list, never a dialog, gone when there is nothing to say.
+          if (widget.integrity case final listenable?)
+            IntegrityBanner(listenable: listenable),
           ListTile(
             leading: const Icon(Icons.category_outlined),
             title: const Text('Categories'),
@@ -71,6 +113,48 @@ class _ManageScreenState extends State<ManageScreen> {
               current: _base ?? 'USD',
             ).then((_) => _loadBase()),
           ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Text(
+              'Data',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.upload_file_outlined),
+            title: const Text('Export CSV'),
+            subtitle: const Text('Spreadsheet-friendly copy of the ledger'),
+            onTap: _todoFlow,
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_download_outlined),
+            title: const Text('Back up now'),
+            subtitle: const Text('Passphrase-protected file you own'),
+            onTap: _todoFlow,
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings_backup_restore),
+            title: const Text('Restore from backup'),
+            onTap: _todoFlow,
+          ),
+          ListTile(
+            leading: const Icon(Icons.table_view_outlined),
+            title: const Text('Import statement'),
+            subtitle: const Text('CSV or OFX from your bank'),
+            onTap: _todoFlow,
+          ),
+          if (widget.fx != null)
+            SwitchListTile(
+              key: const Key('live-fx'),
+              secondary: const Icon(Icons.currency_exchange),
+              title: const Text('Live FX rates'),
+              subtitle: const Text('Fetch a rate once, when it is needed'),
+              value: _liveFx,
+              onChanged: _setLiveFx,
+            ),
           ListTile(
             leading: const Icon(Icons.help_outline),
             title: const Text('About & help'),
@@ -79,6 +163,16 @@ class _ManageScreenState extends State<ManageScreen> {
         ],
       ),
     );
+  }
+
+  /// Placeholder until the flows land this same issue — wired tiles beat
+  /// dead ends (§2.1); replaced one-for-one as each flow ships.
+  void _todoFlow() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('This flow is landing right now.')),
+      );
   }
 }
 
