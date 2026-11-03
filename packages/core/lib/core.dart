@@ -10,3 +10,4 @@ export 'src/heuristics.dart';
 export 'src/money.dart';
 export 'src/ocr_lines.dart';
 export 'src/receipt.dart';
+export 'src/widget_state.dart';
