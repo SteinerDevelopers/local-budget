@@ -65,15 +65,36 @@ class AttachmentStore {
     if (f.existsSync()) f.deleteSync();
   }
 
+  /// Only `attachments/<file>` relative paths — what `imageRef` stores and
+  /// the only shape backup/restore is ever allowed to touch. Restore input
+  /// (zip entry names from a user-picked file) is hostile by default.
+  static bool isSafeRel(String rel) =>
+      rel.isNotEmpty &&
+      !rel.startsWith('/') &&
+      !rel.contains(r'\') &&
+      !rel.contains(':') &&
+      !_traversal.hasMatch(rel) &&
+      rel.startsWith('$dirName/');
+
   static void _assertSafeRel(String rel) {
-    if (rel.isEmpty ||
-        rel.startsWith('/') ||
-        rel.contains(r'\') ||
-        rel.contains(':') ||
-        _traversal.hasMatch(rel) ||
-        !rel.startsWith('$dirName/')) {
+    if (!isSafeRel(rel)) {
       throw ArgumentError.value(rel, 'rel', 'not an attachment path');
     }
+  }
+
+  /// All originals as `attachments/<name>` → bytes, name-sorted (the backup
+  /// container input, E5 §3). Missing directory simply means "no originals".
+  Map<String, Uint8List> listOriginals() {
+    final dir = Directory('${root.path}/$dirName');
+    if (!dir.existsSync()) return const {};
+    final out = <String, Uint8List>{};
+    final entries = dir.listSync().whereType<File>().toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+    for (final f in entries) {
+      final rel = '$dirName/${f.path.substring(dir.path.length + 1)}';
+      if (isSafeRel(rel)) out[rel] = f.readAsBytesSync();
+    }
+    return out;
   }
 
   static String _two(int v) => v.toString().padLeft(2, '0');

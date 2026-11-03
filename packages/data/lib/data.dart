@@ -8,6 +8,15 @@ library;
 export 'package:drift/drift.dart' show Value;
 
 export 'src/attachment_store.dart';
+export 'src/backup.dart';
+export 'src/backup_crypto.dart'
+    show
+        BackupFormatException,
+        BackupPassphraseException,
+        backupDefaultKdfIterations,
+        backupMagic,
+        backupFormatVersion,
+        backupHeaderBytes;
 export 'src/converters.dart';
 export 'src/csv_codec.dart';
 export 'src/database.dart';
