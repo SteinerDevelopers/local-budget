@@ -28,7 +28,7 @@ about it.
 
 ## The three things that do touch a network — each one optional, each one you start
 
-1. **Live exchange rates.** Foreign-currency entries can fetch a
+1. **Live FX rates.** Foreign-currency entries can fetch a
    conversion rate from a public rate API. It is a toggle in Settings
    (on by default, per device), and the request carries no personal
    data — only which currency pair you asked about. Turn it off and

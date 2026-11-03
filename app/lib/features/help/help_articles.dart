@@ -279,13 +279,15 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.backup_outlined,
     title: 'Backup and restore',
     paragraphs: [
-      'Manage → Back up writes one file to this device containing your '
+      'Manage → Back up now writes one file to this device containing '
+          'your '
           'whole ledger, encrypted with a passphrase you choose. The '
           'encryption is real, which means the passphrase is the only '
           'key: write it down somewhere safe, because nobody — not the '
           'developer, not your bank, not support — can recover a file '
           'without it.',
-      'Restore picks a file and puts this device back to how it was when '
+      'Restore from backup picks a file and puts this device back to how '
+          'it was when '
           'that file was made, after asking you to confirm. It replaces '
           'what is here, so a backup made before something important also '
           'removes it — check the file’s age before you reach for it.',
@@ -318,7 +320,7 @@ const List<HelpArticle> kHelpArticles = [
           'entry remembers the amount as you typed it and shows its value '
           'in your home currency alongside, so nothing is silently '
           'rewritten.',
-      'The “Live exchange rates” switch in Manage decides where rates '
+      'The “Live FX rates” switch in Manage decides where rates '
           'come from. With it on, the app fetches current rates when the '
           'network is available; with it off, nothing is ever fetched and '
           'entries use the rates the app already has. Either way the '
@@ -382,7 +384,7 @@ const List<HelpArticle> kHelpArticles = [
       'Pro adds three things to the same ledger and takes nothing away. '
           '“Upgrading to Pro” explains the switch itself; this article is '
           'about using the extras.',
-      'Cloud backups (Pro): Manage → Cloud destinations takes a WebDAV '
+      'Cloud backups (Pro): Manage → Cloud backups takes a WebDAV '
           'address, user name and password — your own server or hosting. '
           'Every upload is the same encrypted backup file the manual '
           'export makes, and the auto-backup switch keeps at most one '
