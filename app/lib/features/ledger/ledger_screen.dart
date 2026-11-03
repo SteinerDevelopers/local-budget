@@ -13,6 +13,7 @@ import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
 import '../capture/review_sheet.dart';
 import '../manage/icon_registry.dart';
+import '../manage/io.dart';
 import '../manage/manage_screen.dart';
 import '../quickadd/quick_add_sheet.dart';
 import '../reports/reports_screen.dart';
@@ -35,6 +36,8 @@ class LedgerScreen extends StatefulWidget {
     this.db,
     this.docsDir,
     this.capture,
+    this.io,
+    this.restore,
   });
 
   final LedgerRepository repository;
@@ -57,6 +60,11 @@ class LedgerScreen extends StatefulWidget {
   /// builds without platform capture (iOS until E5); the FAB then explains
   /// instead of dead-ending (§2.1 "never a dead end").
   final CaptureServices? capture;
+
+  /// Data-section file boundary + cold-restart restore, handed to Manage
+  /// (E5 §3); null ⇒ Manage uses RealIo / explains the Restore tile.
+  final Io? io;
+  final Future<void> Function(Backup backup)? restore;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -421,6 +429,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
           integrity: widget.integrity,
           db: widget.db,
           docsDir: widget.docsDir,
+          io: widget.io ?? const RealIo(),
+          restore: widget.restore,
         ),
       ),
     );

@@ -17,6 +17,7 @@ import 'features/capture/adapters/ml_kit_text_extractor.dart';
 
 import 'features/capture/capture_services.dart';
 import 'features/ledger/ledger_screen.dart';
+import 'features/manage/io.dart';
 
 /// The navigator notification taps resolve against (§5: tap opens the bill).
 final appNavigatorKey = GlobalKey<NavigatorState>();
@@ -71,6 +72,7 @@ Future<void> bootLocalBudget() async {
       docsDir: dir,
       capture: _androidCapture(dir),
       navigatorKey: appNavigatorKey,
+      restore: (backup) => restoreFromBackup(backup, docsDir: dir),
     ),
   );
   // §7: the integrity pass runs *after* the app is up — never on the boot
@@ -120,6 +122,28 @@ Future<void> restartLocalBudget() async {
   final db = _liveDb;
   _liveDb = null;
   await db?.close();
+  await bootLocalBudget();
+}
+
+/// Cold restore from an opened backup (E5 §3): the tree goes blank first so
+/// every drift stream is cancelled, the SQLite file is swapped while the
+/// handle is closed, then the ordinary boot runs — there is no second
+/// startup path to keep in sync. Nothing after this returns: the process
+/// has effectively restarted.
+Future<void> restoreFromBackup(
+  Backup backup, {
+  required Directory docsDir,
+}) async {
+  runApp(const SizedBox.shrink());
+  await Future<void>(() {}); // let the old tree unmount (streams cancel)
+  final db = _liveDb;
+  _liveDb = null;
+  await db?.close();
+  await applyRestore(
+    backup,
+    dbPath: '${docsDir.path}/localbudget.sqlite',
+    root: docsDir,
+  );
   await bootLocalBudget();
 }
 
@@ -213,6 +237,8 @@ class LocalBudgetApp extends StatelessWidget {
     this.darkTheme,
     this.themeMode,
     this.navigatorKey,
+    this.io,
+    this.restore,
   });
 
   final LedgerRepository repository;
@@ -237,6 +263,12 @@ class LocalBudgetApp extends StatelessWidget {
   final ThemeMode? themeMode;
   final GlobalKey<NavigatorState>? navigatorKey;
 
+  /// File boundary for the Data section; null ⇒ ManageScreen's RealIo.
+  final Io? io;
+
+  /// Cold-restart restore (E5 §3); null ⇒ the Restore tile explains itself.
+  final Future<void> Function(Backup backup)? restore;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -252,6 +284,8 @@ class LocalBudgetApp extends StatelessWidget {
         db: db,
         docsDir: docsDir,
         capture: capture,
+        io: io,
+        restore: restore,
       ),
     );
   }

@@ -1,0 +1,557 @@
+import 'dart:convert';
+
+import 'package:core/core.dart';
+import 'package:data/data.dart';
+import 'package:flutter/material.dart';
+
+import '../../design/money_display.dart';
+import '../../design/tokens.dart';
+import '../manage/io.dart';
+
+/// E5 §4/§5 — the full-screen import wizard (spec: "no new tab"). One route,
+/// four visual steps that are really three states + a done panel:
+/// Source → Map (CSV only; OFX carries its own mapping) → Preview → Done.
+/// Preview is the single shared screen for both formats, which is why the
+/// data layer reuses [CsvPreview] for OFX.
+class ImportWizardScreen extends StatefulWidget {
+  const ImportWizardScreen({
+    super.key,
+    required this.repository,
+    required this.db,
+    required this.io,
+  });
+
+  final LedgerRepository repository;
+  final AppDatabase db;
+  final Io io;
+
+  @override
+  State<ImportWizardScreen> createState() => _ImportWizardScreenState();
+}
+
+class _ImportWizardScreenState extends State<ImportWizardScreen> {
+  List<Account> _accounts = const [];
+  int? _accountId;
+
+  CsvFileData? _file;
+  List<ImportRole> _roles = const [];
+  String _dateFormat = csvDateFormats.first;
+  bool _debitExpense = true;
+  List<String> _profiles = const [];
+
+  CsvPreview? _preview;
+  Set<int> _checked = {};
+  bool _isOfx = false;
+  int? _done;
+  bool _busy = false;
+  final _profileName = TextEditingController();
+  bool _profileSaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final accounts = await widget.repository.accounts();
+    final fallback = await widget.repository.defaultAccount();
+    final profiles = await CsvImport(widget.db).profileNames();
+    if (!mounted) return;
+    setState(() {
+      _accounts = accounts;
+      _accountId ??= fallback.id;
+      _profiles = profiles;
+    });
+  }
+
+  @override
+  void dispose() {
+    _profileName.dispose();
+    super.dispose();
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Account get _account => _accounts.firstWhere(
+    (a) => a.id == _accountId,
+    orElse: () => _accounts.first,
+  );
+
+  CsvMapping get _mapping => CsvMapping(
+    roles: _roles,
+    dateFormat: _dateFormat,
+    debitMeansExpense: _debitExpense,
+  );
+
+  // ---- source ---------------------------------------------------------------
+
+  Future<void> _pick({required bool ofx}) async {
+    final accountId = _accountId;
+    if (accountId == null) return;
+    final picked = await widget.io.pickFile(
+      extensions: ofx ? const ['ofx'] : const ['csv', 'txt'],
+    );
+    if (picked == null || !mounted) return;
+    final String text;
+    try {
+      text = utf8.decode(picked.bytes);
+    } on FormatException {
+      _snack('That file is not plain text.');
+      return;
+    }
+    if (ofx) {
+      await _openOfx(text, accountId);
+      return;
+    }
+    final file = CsvFileData(text);
+    if (file.dataRows.isEmpty) {
+      _snack('That CSV has no data rows.');
+      return;
+    }
+    final csv = CsvImport(widget.db);
+    // Exact header match ⇒ one tap less (spec §4: profiles apply instantly).
+    final profile = await csv.profileMatching(file.headerRow);
+    if (!mounted) return;
+    final mapping = profile?.mapping ?? csv.autoMap(file);
+    setState(() {
+      _file = file;
+      _isOfx = false;
+      _preview = null;
+      _done = null;
+      _roles = mapping.roles;
+      _dateFormat = mapping.dateFormat ?? csvDateFormats.first;
+      _debitExpense = mapping.debitMeansExpense;
+    });
+    if (profile != null) _snack('Profile "${profile.name}" applied');
+  }
+
+  Future<void> _openOfx(String text, int accountId) async {
+    try {
+      final preview = await OfxImport(
+        widget.db,
+      ).buildPreview(xmlText: text, accountId: accountId);
+      if (!mounted) return;
+      setState(() {
+        _isOfx = true;
+        _file = null;
+        _preview = preview;
+        _done = null;
+        _checked = {
+          for (final r in preview.rows)
+            if (!r.duplicate) r.rowIndex,
+        };
+      });
+    } on OfxFormatException catch (e) {
+      _snack(e.message);
+    }
+  }
+
+  // ---- map → preview ----------------------------------------------------------
+
+  Future<void> _buildPreview() async {
+    final file = _file, accountId = _accountId;
+    if (file == null || accountId == null) return;
+    setState(() => _busy = true);
+    try {
+      final preview = await CsvImport(
+        widget.db,
+      ).buildPreview(file: file, mapping: _mapping, accountId: accountId);
+      if (!mounted) return;
+      setState(() {
+        _preview = preview;
+        _checked = {
+          for (final r in preview.rows)
+            if (!r.duplicate) r.rowIndex,
+        };
+      });
+    } on ArgumentError {
+      _snack('Pick a date column and an amount column first.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _applyProfile(String name) async {
+    final profile = await CsvImport(widget.db).loadProfile(name);
+    if (profile == null || !mounted) return;
+    setState(() {
+      _roles = profile.mapping.roles;
+      _dateFormat = profile.mapping.dateFormat ?? csvDateFormats.first;
+      _debitExpense = profile.mapping.debitMeansExpense;
+    });
+  }
+
+  // ---- commit -----------------------------------------------------------------
+
+  Future<void> _commit() async {
+    final preview = _preview, accountId = _accountId;
+    if (preview == null || accountId == null || _busy) return;
+    final rows = [
+      for (final r in preview.rows)
+        if (_checked.contains(r.rowIndex)) r,
+    ];
+    if (rows.isEmpty) {
+      _snack('Select at least one row to import.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final n = _isOfx
+          ? await OfxImport(widget.db).commit(
+              accountId: accountId,
+              currency: preview.currency,
+              rows: rows,
+            )
+          : await CsvImport(widget.db).commit(
+              accountId: accountId,
+              currency: preview.currency,
+              rows: rows,
+            );
+      if (!mounted) return;
+      setState(() => _done = n);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final file = _file;
+    if (file == null) return;
+    final name = _profileName.text.trim();
+    if (name.isEmpty) return;
+    await CsvImport(
+      widget.db,
+    ).saveProfile(name: name, file: file, mapping: _mapping);
+    if (!mounted) return;
+    setState(() => _profileSaved = true);
+    _snack('Profile "$name" saved');
+  }
+
+  // ---- build --------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_done != null ? 'Done' : 'Import statement')),
+      body: SafeArea(
+        child: switch ((_file, _preview, _done)) {
+          (_, _, final int n) => _donePanel(n),
+          (_, final CsvPreview preview, null) => _previewPanel(preview),
+          (final CsvFileData file?, _, null) => _mapPanel(file),
+          (null, null, null) => _sourcePanel(),
+        },
+      ),
+    );
+  }
+
+  Widget _accountDropdown() {
+    if (_accounts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(Tokens.space4),
+        child: Text('No accounts yet.'),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: DropdownButtonFormField<int>(
+        key: const Key('import-account'),
+        initialValue: _accountId,
+        decoration: const InputDecoration(labelText: 'Import into account'),
+        items: [
+          for (final a in _accounts)
+            DropdownMenuItem(value: a.id, child: Text(a.name)),
+        ],
+        onChanged: (id) => setState(() => _accountId = id),
+      ),
+    );
+  }
+
+  Widget _sourcePanel() => ListView(
+    padding: const EdgeInsets.only(bottom: Tokens.space5),
+    children: [
+      _accountDropdown(),
+      const SizedBox(height: Tokens.space4),
+      ListTile(
+        key: const Key('import-pick-csv'),
+        leading: const Icon(Icons.table_view_outlined, size: 32),
+        title: const Text('CSV file'),
+        subtitle: const Text('Spreadsheet export from your bank'),
+        onTap: () => _pick(ofx: false),
+      ),
+      ListTile(
+        key: const Key('import-pick-ofx'),
+        leading: const Icon(Icons.description_outlined, size: 32),
+        title: const Text('OFX statement'),
+        subtitle: const Text('Bank-format statement (1.x, XML)'),
+        onTap: () => _pick(ofx: true),
+      ),
+    ],
+  );
+
+  Widget _mapPanel(CsvFileData file) {
+    final headers = file.headerRow;
+    if (_roles.length != headers.length) {
+      _roles = List.filled(headers.length, ImportRole.ignore);
+    }
+    return Column(
+      children: [
+        _accountDropdown(),
+        if (_profiles.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Wrap(
+              spacing: Tokens.space2,
+              runSpacing: Tokens.space1,
+              children: [
+                for (final name in _profiles)
+                  ActionChip(
+                    key: Key('profile-chip-$name'),
+                    avatar: const Icon(Icons.bookmark_border, size: 16),
+                    label: Text(name),
+                    onPressed: () => _applyProfile(name),
+                  ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(top: Tokens.space2),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text(
+                  'What is each column?',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              for (var i = 0; i < headers.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          headers[i],
+                          overflow: TextOverflow.ellipsis,
+                          style: Tokens.body(context),
+                        ),
+                      ),
+                      const SizedBox(width: Tokens.space3),
+                      DropdownButton<ImportRole>(
+                        key: Key('role-$i'),
+                        value: _roles[i],
+                        isDense: true,
+                        items: [
+                          for (final r in ImportRole.values)
+                            DropdownMenuItem(
+                              value: r,
+                              child: Text(_roleLabel(r)),
+                            ),
+                        ],
+                        onChanged: (role) => setState(() {
+                          if (role == null) return;
+                          // Roles belong to exactly one column — picking a
+                          // used one moves it, never duplicates it.
+                          final previous = _roles.indexOf(role);
+                          if (previous >= 0 && role != ImportRole.ignore) {
+                            _roles[previous] = _roles[i];
+                          }
+                          _roles[i] = role;
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: DropdownButtonFormField<String>(
+                  key: const Key('import-date-format'),
+                  initialValue: _dateFormat,
+                  decoration: const InputDecoration(
+                    labelText: 'Date format — never guessed',
+                  ),
+                  items: [
+                    for (final f in csvDateFormats)
+                      DropdownMenuItem(value: f, child: Text(f)),
+                  ],
+                  onChanged: (f) =>
+                      setState(() => _dateFormat = f ?? csvDateFormats.first),
+                ),
+              ),
+              SwitchListTile(
+                key: const Key('import-debit-polarity'),
+                title: const Text('Debit means expense'),
+                subtitle: const Text('Turn off for cards that flip the sign'),
+                value: _debitExpense,
+                onChanged: (v) => setState(() => _debitExpense = v),
+              ),
+            ],
+          ),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(Tokens.space4),
+            child: FilledButton(
+              key: const Key('import-preview-button'),
+              onPressed: _busy ? null : _buildPreview,
+              child: Text(_busy ? 'Working…' : 'Preview'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _previewPanel(CsvPreview preview) {
+    final mismatch = _isOfx && preview.currency.code != _account.currencyCode;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${preview.newCount} new'
+                  '${preview.duplicateCount > 0 ? ' · ${preview.duplicateCount} already in ledger' : ''}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              if (preview.accountRef case final ref?)
+                Text('acct $ref', style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        if (preview.errors.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Text(
+              '${preview.errors.length} rows skipped — '
+              '${(preview.errors.take(2).map((e) => e.reason).toList()).join('; ')}'
+              '${preview.errors.length > 2 ? '…' : ''}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        if (mismatch)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Text(
+              'This statement is in ${preview.currency.code} but the account '
+              'is ${_account.currencyCode} — rows keep the statement currency.',
+              key: const Key('import-currency-note'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Tokens.warning),
+            ),
+          ),
+        Expanded(
+          child: ListView(
+            children: [
+              for (final row in preview.rows)
+                CheckboxListTile(
+                  key: Key('import-row-${row.rowIndex}'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _checked.contains(row.rowIndex),
+                  onChanged: (on) => setState(() {
+                    if (on == true) {
+                      _checked.add(row.rowIndex);
+                    } else {
+                      _checked.remove(row.rowIndex);
+                    }
+                  }),
+                  title: Text(
+                    row.description ?? row.categoryName ?? '—',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${_iso(row.date)} · '
+                    '${MoneyDisplay.signed(Money(row.minor, preview.currency), isExpense: !row.isIncome)}'
+                    '${row.duplicate ? ' · already imported' : ''}',
+                  ),
+                ),
+            ],
+          ),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(Tokens.space4),
+            child: FilledButton(
+              key: const Key('import-commit'),
+              onPressed: _busy ? null : _commit,
+              child: Text('Import ${_checked.length}'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _donePanel(int n) => Center(
+    child: ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.all(Tokens.space4),
+      children: [
+        Icon(
+          Icons.check_circle_outline,
+          size: 56,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(height: Tokens.space3),
+        Text(
+          'Imported $n ${n == 1 ? 'transaction' : 'transactions'}',
+          key: const Key('import-done'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        if (!_isOfx && !_profileSaved && _file != null) ...[
+          const SizedBox(height: Tokens.space5),
+          TextField(
+            key: const Key('profile-name-field'),
+            controller: _profileName,
+            decoration: const InputDecoration(
+              labelText: 'Remember this mapping — name it (e.g. My bank)',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: Tokens.space3),
+          FilledButton.tonal(
+            key: const Key('profile-save'),
+            onPressed: _saveProfile,
+            child: const Text('Save profile'),
+          ),
+        ],
+        const SizedBox(height: Tokens.space5),
+        FilledButton(
+          key: const Key('import-close'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Done'),
+        ),
+      ],
+    ),
+  );
+
+  static String _iso(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  static String _roleLabel(ImportRole role) => switch (role) {
+    ImportRole.date => 'Date',
+    ImportRole.description => 'Description',
+    ImportRole.amount => 'Amount',
+    ImportRole.debit => 'Debit',
+    ImportRole.credit => 'Credit',
+    ImportRole.category => 'Category',
+    ImportRole.note => 'Note',
+    ImportRole.ignore => 'Ignore',
+  };
+}

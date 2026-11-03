@@ -47,6 +47,9 @@ dev_dependencies:
   # Overrides the SQLite SONAME lookup in host widget tests (same as
   # packages/data tests: CI images carry libsqlite3.so.0, not the -dev .so).
   sqlite3: ^2.6.0
+  # E5 §6 tests stub the frankfurter.dev lookup with http's MockClient; the
+  # app's own code never imports http (the FxService lives in data).
+  http: ^1.5.0
   flutter_lints: ^6.0.0
 
 flutter:
