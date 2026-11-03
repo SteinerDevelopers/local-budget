@@ -254,6 +254,43 @@ e2e-android:
       - emu.log
     expire_in: 1 week
 
+# Manual: sideloadable debug APK (free flavor) for on-device dogfooding.
+# Play it from any pipeline, download out/*.apk, install over adb/Files.
+# Reuses the e2e image (baked Flutter + Android SDK); no emulator, so no
+# KVM needed. Debug keystore — fine for sideload, never a release artifact.
+package-apk:
+  stage: e2e
+  when: manual
+  needs: []
+  image: localbudget-e2e:latest
+  tags: [SteinerRunner]
+  variables:
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
+  cache:
+    - key:
+        files:
+          - app/pubspec.lock
+      paths:
+        - .pub-cache/
+    - key:
+        files:
+          - app/android/app/build.gradle.kts
+          - app/android/gradle/wrapper/gradle-wrapper.properties
+      paths:
+        - .gradle-home/
+  script:
+    - |
+      set -e
+      cd app
+      flutter pub get
+      flutter build apk --debug --flavor free
+      mkdir -p "$CI_PROJECT_DIR/out"
+      cp -v build/app/outputs/flutter-apk/*.apk "$CI_PROJECT_DIR/out/"
+  artifacts:
+    paths:
+      - out/*.apk
+    expire_in: 4 weeks
+
 # Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
   stage: probe
