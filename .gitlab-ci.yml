@@ -288,9 +288,14 @@ package-apk:
       set -e
       cd app
       flutter pub get
-      flutter build apk --debug --flavor free
+      # Split per ABI: the all-ABI debug APK (~205 MB) exceeds the GitLab
+      # coordinator's request body limit (job 595 died with 413 uploading
+      # artifacts). Per-ABI debug APKs ride under it; Galaxy Flip6 wants
+      # arm64, armeabi-v7a covers older test phones.
+      flutter build apk --debug --flavor free --split-per-abi
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/*.apk "$CI_PROJECT_DIR/out/"
+      ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
       - out/*.apk
