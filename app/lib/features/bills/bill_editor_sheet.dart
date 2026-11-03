@@ -22,13 +22,25 @@ import '../quickadd/quick_add_sheet.dart' show CategoryOption;
 import 'bill_notifier.dart';
 import 'bills_service.dart';
 
+/// Add-mode head start from an E7 Insights suggestion (§2.2): the merchant
+/// and its average amount arrive filled; the owner still taps Save —
+/// suggestions are never applied without a tap.
+final class BillPrefill {
+  const BillPrefill({required this.name, required this.amountMinor});
+
+  final String name;
+  final int amountMinor;
+}
+
 /// [line] non-null = edit mode; add mode starts today with sensible days.
+/// [prefill] only applies to add mode ([line] null).
 Future<bool?> showBillEditor(
   BuildContext context, {
   required LedgerRepository repository,
   required Currency currency,
   required List<Category> categories,
   BillLine? line,
+  BillPrefill? prefill,
 }) => showModalBottomSheet<bool>(
   context: context,
   isScrollControlled: true,
@@ -42,6 +54,7 @@ Future<bool?> showBillEditor(
     currency: currency,
     categories: categories,
     line: line,
+    prefill: prefill,
   ),
 );
 
@@ -51,12 +64,14 @@ class _BillEditorSheet extends StatefulWidget {
     required this.currency,
     required this.categories,
     required this.line,
+    required this.prefill,
   });
 
   final LedgerRepository repository;
   final Currency currency;
   final List<Category> categories;
   final BillLine? line;
+  final BillPrefill? prefill;
 
   @override
   State<_BillEditorSheet> createState() => _BillEditorSheetState();
@@ -65,7 +80,7 @@ class _BillEditorSheet extends StatefulWidget {
 class _BillEditorSheetState extends State<_BillEditorSheet> {
   late final AmountPad _pad = AmountPad(currency: widget.currency);
   late final TextEditingController _name = TextEditingController(
-    text: widget.line?.rule.name ?? '',
+    text: widget.line?.rule.name ?? widget.prefill?.name ?? '',
   );
 
   late BillFrequency _freq = widget.line == null
@@ -91,7 +106,9 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
   @override
   void initState() {
     super.initState();
-    final minor = widget.line?.rule.amountMinor;
+    // The keypad starts from the stored amount (edit) or the suggested
+    // average (E7 prefill); same digit-loop seeding either way.
+    final minor = widget.line?.rule.amountMinor ?? widget.prefill?.amountMinor;
     if (minor != null && minor > 0) {
       final pow10 = _pow10(widget.currency.minorUnits);
       for (final d in (minor ~/ pow10).toString().split('')) {

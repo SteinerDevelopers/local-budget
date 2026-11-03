@@ -135,6 +135,12 @@ app-test:
       flutter --version | head -1
       flutter pub get
       flutter analyze
+      # E7 §6 — trio import guard: nothing outside features/analytics/ may
+      # reach the analytics code without naming the gate it hides behind
+      # (reports_screen filters its segment on FeatureFlags.proTrio).
+      for f in $(grep -rl "analytics/" lib --include='*.dart' | grep -v '^lib/features/analytics/'); do
+        grep -q 'FeatureFlags.proTrio' "$f" || { echo "ungated analytics import: $f"; exit 1; }
+      done
       flutter test --reporter compact
 
 # Pixel-comparison of the §6 golden set. Refs live in app/test_goldens/goldens/

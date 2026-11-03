@@ -103,7 +103,7 @@ class ReportsService {
     final clock = now ?? DateTime.now();
     final base = Currency.resolve(await _repo.baseCurrency() ?? 'USD');
     final month = BudgetPeriod(BudgetPeriodType.monthly, monthStart);
-    final txs = await _engineRows(month.startDay, month.endDay - 1, base);
+    final txs = await engineRows(month.startDay, month.endDay - 1, base);
     final totals = _engine.monthTotals(month, txs);
     final todayDays = dayOf(DateTime.utc(clock.year, clock.month, clock.day));
     final daysInMonth = month.endDay - month.startDay;
@@ -125,7 +125,7 @@ class ReportsService {
     final base = Currency.resolve(await _repo.baseCurrency() ?? 'USD');
     final from = dayOf(DateTime.utc(year));
     final to = dayOf(DateTime.utc(year + 1)) - 1;
-    final txs = await _engineRows(from, to, base);
+    final txs = await engineRows(from, to, base);
     final buckets = _engine.yearTotals(year, txs);
     final total = buckets.fold<int>(0, (sum, b) => sum + b.spentMinor);
     // Same calendar-year anchor the yearly budget period uses (§2.2).
@@ -145,7 +145,10 @@ class ReportsService {
 
   /// Month transactions as engine inputs for a day window, in base minor
   /// units and with the merchant denormalized for the E4 aggregates.
-  Future<List<EngineTx>> _engineRows(int from, int to, Currency base) async {
+  /// Public because the E7 Insights loader must reuse this exact mapping —
+  /// the exclusion rules and merchant join live in ONE place (analytics
+  /// may not fork the truth).
+  Future<List<EngineTx>> engineRows(int from, int to, Currency base) async {
     if (from > to) return const [];
     final names = await _repo.merchantNames();
     final out = <EngineTx>[];

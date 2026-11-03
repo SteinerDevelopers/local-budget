@@ -5,6 +5,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../../flavor.dart';
+import '../analytics/insights_view.dart';
 import '../budgets/budgets_service.dart';
 import '../budgets/budgets_sheet.dart';
 import '../ledger/ledger_screen.dart' show monthIndexOf, monthTitle, tileFor;
@@ -16,7 +18,8 @@ import 'reports_service.dart';
 enum ReportSegment {
   month('Month'),
   year('Year'),
-  actual('Actual');
+  actual('Actual'),
+  insights('Insights');
 
   const ReportSegment(this.label);
   final String label;
@@ -139,12 +142,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: SegmentedButton<ReportSegment>(
                 segments: [
                   for (final s in ReportSegment.values)
-                    ButtonSegment(
-                      value: s,
-                      // ButtonSegment carries no key of its own — the label
-                      // is the widget; keys ride there for tests & e2e.
-                      label: Text(s.label, key: Key('segment-${s.name}')),
-                    ),
+                    // E7 §5: a free build shows no trio affordance — the
+                    // gate inside only hides the content, so the segment
+                    // itself is filtered here too.
+                    if (s != ReportSegment.insights || FeatureFlags.proTrio)
+                      ButtonSegment(
+                        value: s,
+                        // ButtonSegment carries no key of its own — the label
+                        // is the widget; keys ride there for tests & e2e.
+                        label: Text(s.label, key: Key('segment-${s.name}')),
+                      ),
                 ],
                 selected: {_segment},
                 showSelectedIcon: false,
@@ -162,7 +169,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 onPrev: () => _shiftYear(-1),
                 onNext: () => _shiftYear(1),
               )
-            else
+            else if (_segment != ReportSegment.insights)
+              // Insights carries its own range chip (§2.1); a month stepper
+              // next to it would be two truths about the same window.
               _Stepper(
                 title: monthTitle(_monthIndex),
                 prevKey: const Key('month-prev'),
@@ -234,6 +243,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         onSetBudgets: _openBudgets,
                       );
                     },
+                  ),
+                  ReportSegment.insights => ProTrioGate(
+                    key: const ValueKey(ReportSegment.insights),
+                    child: InsightsView(repository: widget.repository),
                   ),
                 },
               ),
