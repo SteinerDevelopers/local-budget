@@ -10,6 +10,8 @@ import '../../design/tokens.dart';
 import '../../flavor.dart';
 import '../../version.dart';
 import '../budgets/budgets_sheet.dart';
+import 'package:local_budget/features/cloud/cloud_backup_screen.dart';
+import 'package:local_budget/features/cloud/cloud_hub.dart';
 import '../help/help_screen.dart';
 import '../import/import_wizard_screen.dart';
 import '../ledger/ledger_screen.dart' show monthIndexOf;
@@ -37,6 +39,7 @@ class ManageScreen extends StatefulWidget {
     this.restore,
     this.tips,
     this.transfer,
+    this.cloud,
     this.kdfIterations = backupDefaultKdfIterations,
   });
 
@@ -67,6 +70,10 @@ class ManageScreen extends StatefulWidget {
 
   /// E6 §3 free→paid transfer channel; null off Android.
   final FreeTransfer? transfer;
+
+  /// E7b paid-pack cloud stack (Pro only — the tile below is built under
+  /// FeatureFlags.proTrio; free flavors never see a non-null hub anyway).
+  final CloudHub? cloud;
 
   /// PBKDF2 work for [createBackup] — production default; widget tests
   /// shrink it (§8) so the flow is testable without a 10-second wait.
@@ -209,6 +216,26 @@ class _ManageScreenState extends State<ManageScreen> {
             title: const Text('Restore from backup'),
             onTap: _restoreFromBackup,
           ),
+          // E7b §5: the paid-pack entry, pro-only by build-gate — the
+          // free flavor never composes this row at all.
+          if (FeatureFlags.proTrio && widget.cloud != null)
+            ListTile(
+              key: const Key('cloud-backups'),
+              leading: const Icon(Icons.cloud_sync_outlined),
+              title: const Text('Cloud backups'),
+              subtitle: const Text('Paid pack — to storage you own (WebDAV)'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CloudBackupScreen(
+                    hub: widget.cloud!,
+                    db: widget.db,
+                    docsDir: widget.docsDir,
+                    restore: widget.restore,
+                    kdfIterations: widget.kdfIterations,
+                  ),
+                ),
+              ),
+            ),
           ListTile(
             key: const Key('import-statement'),
             leading: const Icon(Icons.table_view_outlined),

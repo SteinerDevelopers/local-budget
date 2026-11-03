@@ -96,12 +96,7 @@ void main() {
       addTearDown(r.db.close);
       final food = await r.repo.addCategory('Food');
       // Mar 2026 spends 30.00 total; Mar 2025 spends 25.00.
-      await spend(
-        r.repo,
-        catId: food,
-        date: DateTime(2026, 3, 5),
-        minor: 2510,
-      );
+      await spend(r.repo, catId: food, date: DateTime(2026, 3, 5), minor: 2510);
       await spend(
         r.repo,
         catId: food,
@@ -109,12 +104,7 @@ void main() {
         minor: 490,
         merchant: 'Coffee',
       );
-      await spend(
-        r.repo,
-        catId: food,
-        date: DateTime(2025, 3, 6),
-        minor: 2500,
-      );
+      await spend(r.repo, catId: food, date: DateTime(2025, 3, 6), minor: 2500);
       final svc = AnalyticsService(r.repo);
       final rep = await svc.load(
         range: dayRangeFor(RangePreset.thisMonth, today: today),
@@ -140,12 +130,7 @@ void main() {
       addTearDown(r.db.close);
       final food = await r.repo.addCategory('Food');
       final pay = await r.repo.addCategory('Pay', isIncome: true);
-      await spend(
-        r.repo,
-        catId: food,
-        date: DateTime(2026, 3, 5),
-        minor: 3000,
-      );
+      await spend(r.repo, catId: food, date: DateTime(2026, 3, 5), minor: 3000);
       await spend(
         r.repo,
         catId: pay,

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Directory, Platform;
+import 'dart:io' show Directory, File, Platform;
 
 import 'package:billing/billing.dart' show TipService;
 import 'package:data/data.dart';
@@ -17,10 +17,14 @@ import 'features/capture/adapters/gemini_nano_structurer.dart';
 import 'features/capture/adapters/ml_kit_text_extractor.dart';
 
 import 'features/capture/capture_services.dart';
+import 'features/cloud/cloud_config.dart';
+import 'features/cloud/cloud_hub.dart';
+import 'features/cloud/secret_store.dart';
 import 'features/ledger/ledger_screen.dart';
 import 'features/manage/io.dart';
 import 'features/support/support_services.dart';
 import 'features/support/transfer.dart';
+import 'flavor.dart';
 
 /// The navigator notification taps resolve against (§5: tap opens the bill).
 final appNavigatorKey = GlobalKey<NavigatorState>();
@@ -84,6 +88,9 @@ Future<void> bootLocalBudget() async {
       restore: (backup) => restoreFromBackup(backup, docsDir: dir),
       tips: _tips,
       transfer: buildTransfer(),
+      // E7b — the paid-pack cloud stack exists only in pro; free builds
+      // never construct the keystore-backed hub (FeatureFlags.proTrio).
+      cloud: FeatureFlags.proTrio ? _cloudHub(dir) : null,
     ),
   );
   // §7: the integrity pass runs *after* the app is up — never on the boot
@@ -231,6 +238,13 @@ CaptureServices? _androidCapture(Directory docsDir) {
   );
 }
 
+/// E7b §3.1 — destinations JSON in the app-private dir (label/URL/user
+/// only; the password lives in flutter_secure_storage behind the hub).
+CloudHub _cloudHub(Directory dir) => CloudHub(
+  config: CloudConfigStore(File('${dir.path}/cloud-destinations.json')),
+  secrets: const SecureCloudSecretStore(),
+);
+
 class LocalBudgetApp extends StatelessWidget {
   /// [theme]/[darkTheme]/[themeMode] exist for the §6 golden harness (CI
   /// injects a font-pinned text theme); the app itself runs on AppTheme.
@@ -252,6 +266,7 @@ class LocalBudgetApp extends StatelessWidget {
     this.restore,
     this.tips,
     this.transfer,
+    this.cloud,
   });
 
   final LedgerRepository repository;
@@ -287,6 +302,9 @@ class LocalBudgetApp extends StatelessWidget {
   final TipService? tips;
   final FreeTransfer? transfer;
 
+  /// E7b paid-pack cloud stack (null in free/tests/goldens ⇒ no tile).
+  final CloudHub? cloud;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -306,6 +324,7 @@ class LocalBudgetApp extends StatelessWidget {
         restore: restore,
         tips: tips,
         transfer: transfer,
+        cloud: cloud,
       ),
     );
   }

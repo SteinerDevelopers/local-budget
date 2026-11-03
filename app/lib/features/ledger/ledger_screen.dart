@@ -8,11 +8,13 @@ import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../../flavor.dart';
 import '../budgets/budgets_sheet.dart';
 import '../capture/capture_intake.dart';
 import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
 import '../capture/review_sheet.dart';
+import 'package:local_budget/features/cloud/cloud_hub.dart';
 import '../manage/icon_registry.dart';
 import '../manage/io.dart';
 import '../manage/manage_screen.dart';
@@ -42,6 +44,7 @@ class LedgerScreen extends StatefulWidget {
     this.restore,
     this.tips,
     this.transfer,
+    this.cloud,
   });
 
   final LedgerRepository repository;
@@ -74,6 +77,11 @@ class LedgerScreen extends StatefulWidget {
   /// coffee sheet / copy row explain themselves, off-device).
   final TipService? tips;
   final FreeTransfer? transfer;
+
+  /// E7b paid-pack cloud stack, handed down to Manage; free builds never
+  /// forward it (FeatureFlags.proTrio gate in [_LedgerScreenState]
+  /// `_openManage`, doubled by main.dart's construction gate).
+  final CloudHub? cloud;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -442,6 +450,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           restore: widget.restore,
           tips: widget.tips,
           transfer: widget.transfer,
+          cloud: FeatureFlags.proTrio ? widget.cloud : null,
         ),
       ),
     );
