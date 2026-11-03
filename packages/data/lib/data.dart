@@ -9,6 +9,8 @@ export 'package:drift/drift.dart' show Value;
 
 export 'src/attachment_store.dart';
 export 'src/converters.dart';
+export 'src/csv_codec.dart';
 export 'src/database.dart';
+export 'src/export_csv.dart';
 export 'src/ledger_repository.dart';
 export 'src/tables.dart';
