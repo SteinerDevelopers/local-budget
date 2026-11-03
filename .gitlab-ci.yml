@@ -355,6 +355,9 @@ e2e-android:
   # renaming the group is the known dodge (same trick that retired
   # 'android-build' before).
   resource_group: apk-build-2
+  # Self-terminate a wedged build (VM2 zero-output wedge, p109) instead
+  # of holding the lock forever: 25 min is ~4x the warm-build time.
+  timeout: 25m
   variables:
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   cache:
