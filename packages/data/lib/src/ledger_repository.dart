@@ -580,6 +580,7 @@ class LedgerEntryData {
     required this.amountMinor,
     required this.currencyCode,
     this.baseAmountMinor,
+    this.fxRate,
     required this.isIncome,
     required this.categoryId,
     required this.categoryName,
@@ -597,6 +598,10 @@ class LedgerEntryData {
   /// The month summary must never add raw [amountMinor] across currencies
   /// (hardening #22).
   final int? baseAmountMinor;
+
+  /// The rate that produced [baseAmountMinor] (E5 §6 detail sheet); null
+  /// together with a foreign [currencyCode] is the "No rate" state.
+  final double? fxRate;
   final bool isIncome;
   final int? categoryId;
   final String? categoryName;
@@ -755,6 +760,7 @@ extension LedgerE1 on LedgerRepository {
             amountMinor: row.readTable(tx).amountMinor,
             currencyCode: row.readTable(tx).currencyCode,
             baseAmountMinor: row.readTable(tx).baseAmountMinor,
+            fxRate: row.readTable(tx).fxRate,
             isIncome: row.readTable(tx).isIncome,
             categoryId: row.readTable(tx).categoryId,
             // Outer-joined: null category must not throw.
@@ -763,6 +769,33 @@ extension LedgerE1 on LedgerRepository {
             note: row.readTable(tx).note,
           ),
       ],
+    );
+  }
+
+  /// E5 §6: the manual-rate correction for a saved foreign row — either a
+  /// "No rate" row (offline at save) or a rate the user wants amended. The
+  /// base snapshot is recomputed through core's audited [Money.convertTo]
+  /// from the row's stored amount; the same call restamps a row whose rate
+  /// was already machine-supplied. Device base resolves at write time, like
+  /// every other snapshot path.
+  Future<void> setManualRate({required int id, required double fxRate}) async {
+    if (!fxRate.isFinite || fxRate <= 0) {
+      throw ArgumentError.value(fxRate, 'fxRate', 'must be positive');
+    }
+    final row = await (db.select(
+      db.transactions,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (row == null) return;
+    final baseCode = await baseCurrency() ?? 'USD';
+    final baseMinor = Money(
+      row.amountMinor,
+      Currency.resolve(row.currencyCode),
+    ).convertTo(Currency.resolve(baseCode), fxRate).minorUnits;
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        fxRate: Value(fxRate),
+        baseAmountMinor: Value(baseMinor),
+      ),
     );
   }
 
