@@ -56,7 +56,8 @@ void main() {
     expect(
       (await db2.customSelect('PRAGMA user_version').getSingle())
           .data['user_version'],
-      5,
+      // Upgrades run to the live schemaVersion (v6 rides along).
+      6,
     );
     final cols = await db2.customSelect("PRAGMA table_info('goals')").get();
     expect(cols.map((r) => r.data['name']), contains('note'));

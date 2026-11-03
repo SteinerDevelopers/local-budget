@@ -159,6 +159,7 @@ class LedgerRepository {
     double? fxRate,
     bool isIncome = false,
     int? goalId,
+    String? externalId,
   }) async {
     int? merchantId;
     if (merchant != null && merchant.trim().isNotEmpty) {
@@ -191,6 +192,7 @@ class LedgerRepository {
             fxRate: Value(rate),
             isIncome: Value(isIncome),
             goalId: Value(goalId),
+            externalId: Value(externalId),
           ),
         );
   }

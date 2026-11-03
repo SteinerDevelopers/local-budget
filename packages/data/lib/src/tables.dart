@@ -78,6 +78,12 @@ class Transactions extends Table {
   /// exclusion; the schema encodes it from day one).
   IntColumn get goalId => integer().nullable().references(Goals, #id)();
 
+  /// E5 §5 (schema v6): OFX FITID — strongest dedupe key for incremental
+  /// bank re-imports. OFX imports set it; CSV leaves it null. The unique
+  /// partial index `(accountId, externalId) WHERE externalId NOT NULL`
+  /// is created in database.dart (drift cannot express partial indexes).
+  TextColumn get externalId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

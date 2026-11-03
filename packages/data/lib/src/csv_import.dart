@@ -217,6 +217,7 @@ class CsvPreviewRow {
     this.categoryId,
     this.categoryName,
     this.note,
+    this.externalId,
     this.duplicate = false,
   });
 
@@ -228,6 +229,10 @@ class CsvPreviewRow {
   final int? categoryId;
   final String? categoryName;
   final String? note;
+
+  /// OFX FITID when the row came from a statement import (E5 §5); CSV
+  /// rows leave it null, where dedupe uses the tuple key instead.
+  final String? externalId;
 
   /// Same (accountId, dateDays, amountMinor, isIncome) exists in the ledger.
   final bool duplicate;
@@ -241,6 +246,7 @@ class CsvPreviewRow {
     categoryId: categoryId ?? this.categoryId,
     categoryName: categoryName,
     note: note,
+    externalId: externalId,
     duplicate: duplicate ?? this.duplicate,
   );
 }
@@ -251,11 +257,16 @@ class CsvPreview {
     required this.rows,
     required this.errors,
     required this.currency,
+    this.accountRef,
   });
 
   final List<CsvPreviewRow> rows;
   final List<CsvImportError> errors;
   final Currency currency;
+
+  /// OFX BANKACCTFROM/ACCTID shown on the Preview so the user can confirm
+  /// the account they picked matches the file (E5 §5); null for CSV.
+  final String? accountRef;
 
   int get newCount => rows.where((r) => !r.duplicate).length;
   int get duplicateCount => rows.where((r) => r.duplicate).length;
@@ -593,6 +604,7 @@ class CsvImport {
           merchant: r.description,
           note: r.note,
           isIncome: r.isIncome,
+          externalId: r.externalId,
         );
         n++;
       }

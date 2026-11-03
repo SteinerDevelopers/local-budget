@@ -116,9 +116,10 @@ void main() {
     expect(
       (await db.customSelect('PRAGMA user_version').getSingle())
           .data['user_version'],
-      // Upgrades run to the live schemaVersion; v5 (goals.note) rides along
-      // because the v4 step's createTable already carries the column.
-      5,
+      // Upgrades run to the live schemaVersion; v5 (goals.note) and v6
+      // (transactions.externalId) ride along because the v4 step's
+      // createTable already carries the columns.
+      6,
     );
 
     final food = await repo.budgetFor(categoryId: 1, yearMonth: '2026-11');

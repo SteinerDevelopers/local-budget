@@ -36,12 +36,24 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(NativeDatabase(File(path)));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
+
+  /// E5 §5 — drift cannot express partial indexes, so neither onCreate nor
+  /// the v6 upgrade step can go through the table classes; one shared
+  /// statement keeps the fresh-install and upgraded shapes identical.
+  static const _createExternalIndex =
+      'CREATE UNIQUE INDEX IF NOT EXISTS tx_account_external '
+      'ON transactions (account_id, external_id) '
+      'WHERE external_id IS NOT NULL';
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    // v1 shipped with drift's default createAll; keep that behaviour.
-    onCreate: (m) => m.createAll(),
+    // v1 shipped with drift's default createAll; keep that behaviour —
+    // plus the raw partial index fresh installs would otherwise miss.
+    onCreate: (m) async {
+      await m.createAll();
+      await customStatement(_createExternalIndex);
+    },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         // #18 (spec §2.4): Manage screen stores an icon key per category.
@@ -79,6 +91,13 @@ class AppDatabase extends _$AppDatabase {
         // through here is safe via the same table_info check as v4.
         await _addColumnIfAbsent(m, goals, goals.note);
       }
+      if (from < 6) {
+        // E5 §5: OFX FITID for idempotent statement re-imports. Partial
+        // unique index is raw SQL by necessity; the table_info guard keeps
+        // the step re-runnable like v5's.
+        await _addColumnIfAbsent(m, transactions, transactions.externalId);
+        await customStatement(_createExternalIndex);
+      }
     },
     // v2: icon key on categories (Manage screen, #18). Line items remain a
     // feature flag — the table shipped in v1 (decision 2), not a migration.
@@ -86,6 +105,8 @@ class AppDatabase extends _$AppDatabase {
     // v4: E3 — Goals, RecurringRules, budget periodType/rolloverCapMinor,
     //     transactions.goalId, budget_month → budget_month_period (#33).
     // v5: goals.note for the B6 goals editor (#37).
+    // v6: transactions.externalId + tx_account_external partial index —
+    //     OFX FITID dedupe (E5 §5).
   );
 
   /// SQLite has no `ADD COLUMN IF NOT EXISTS`, and the from<4 step re-runs

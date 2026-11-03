@@ -1172,6 +1172,17 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _externalIdMeta = const VerificationMeta(
+    'externalId',
+  );
+  @override
+  late final GeneratedColumn<String> externalId = GeneratedColumn<String>(
+    'external_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1188,6 +1199,7 @@ class $TransactionsTable extends Transactions
     source,
     isIncome,
     goalId,
+    externalId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1293,6 +1305,12 @@ class $TransactionsTable extends Transactions
         goalId.isAcceptableOrUnknown(data['goal_id']!, _goalIdMeta),
       );
     }
+    if (data.containsKey('external_id')) {
+      context.handle(
+        _externalIdMeta,
+        externalId.isAcceptableOrUnknown(data['external_id']!, _externalIdMeta),
+      );
+    }
     return context;
   }
 
@@ -1360,6 +1378,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.int,
         data['${effectivePrefix}goal_id'],
       ),
+      externalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}external_id'],
+      ),
     );
   }
 
@@ -1405,6 +1427,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// hidden from ledger, balance strip and budget sums (B6 renders the
   /// exclusion; the schema encodes it from day one).
   final int? goalId;
+
+  /// E5 §5 (schema v6): OFX FITID — strongest dedupe key for incremental
+  /// bank re-imports. OFX imports set it; CSV leaves it null. The unique
+  /// partial index `(accountId, externalId) WHERE externalId NOT NULL`
+  /// is created in database.dart (drift cannot express partial indexes).
+  final String? externalId;
   const Transaction({
     required this.id,
     required this.accountId,
@@ -1420,6 +1448,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     required this.source,
     required this.isIncome,
     this.goalId,
+    this.externalId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1456,6 +1485,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || goalId != null) {
       map['goal_id'] = Variable<int>(goalId);
     }
+    if (!nullToAbsent || externalId != null) {
+      map['external_id'] = Variable<String>(externalId);
+    }
     return map;
   }
 
@@ -1487,6 +1519,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       goalId: goalId == null && nullToAbsent
           ? const Value.absent()
           : Value(goalId),
+      externalId: externalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalId),
     );
   }
 
@@ -1510,6 +1545,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       source: serializer.fromJson<TransactionSource>(json['source']),
       isIncome: serializer.fromJson<bool>(json['isIncome']),
       goalId: serializer.fromJson<int?>(json['goalId']),
+      externalId: serializer.fromJson<String?>(json['externalId']),
     );
   }
   @override
@@ -1530,6 +1566,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'source': serializer.toJson<TransactionSource>(source),
       'isIncome': serializer.toJson<bool>(isIncome),
       'goalId': serializer.toJson<int?>(goalId),
+      'externalId': serializer.toJson<String?>(externalId),
     };
   }
 
@@ -1548,6 +1585,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     TransactionSource? source,
     bool? isIncome,
     Value<int?> goalId = const Value.absent(),
+    Value<String?> externalId = const Value.absent(),
   }) => Transaction(
     id: id ?? this.id,
     accountId: accountId ?? this.accountId,
@@ -1565,6 +1603,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     source: source ?? this.source,
     isIncome: isIncome ?? this.isIncome,
     goalId: goalId.present ? goalId.value : this.goalId,
+    externalId: externalId.present ? externalId.value : this.externalId,
   );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -1592,6 +1631,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       source: data.source.present ? data.source.value : this.source,
       isIncome: data.isIncome.present ? data.isIncome.value : this.isIncome,
       goalId: data.goalId.present ? data.goalId.value : this.goalId,
+      externalId: data.externalId.present
+          ? data.externalId.value
+          : this.externalId,
     );
   }
 
@@ -1611,7 +1653,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('imageRef: $imageRef, ')
           ..write('source: $source, ')
           ..write('isIncome: $isIncome, ')
-          ..write('goalId: $goalId')
+          ..write('goalId: $goalId, ')
+          ..write('externalId: $externalId')
           ..write(')'))
         .toString();
   }
@@ -1632,6 +1675,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     source,
     isIncome,
     goalId,
+    externalId,
   );
   @override
   bool operator ==(Object other) =>
@@ -1650,7 +1694,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.imageRef == this.imageRef &&
           other.source == this.source &&
           other.isIncome == this.isIncome &&
-          other.goalId == this.goalId);
+          other.goalId == this.goalId &&
+          other.externalId == this.externalId);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -1668,6 +1713,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<TransactionSource> source;
   final Value<bool> isIncome;
   final Value<int?> goalId;
+  final Value<String?> externalId;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.accountId = const Value.absent(),
@@ -1683,6 +1729,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.source = const Value.absent(),
     this.isIncome = const Value.absent(),
     this.goalId = const Value.absent(),
+    this.externalId = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -1699,6 +1746,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required TransactionSource source,
     this.isIncome = const Value.absent(),
     this.goalId = const Value.absent(),
+    this.externalId = const Value.absent(),
   }) : accountId = Value(accountId),
        dateDays = Value(dateDays),
        amountMinor = Value(amountMinor),
@@ -1719,6 +1767,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? source,
     Expression<bool>? isIncome,
     Expression<int>? goalId,
+    Expression<String>? externalId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1735,6 +1784,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (source != null) 'source': source,
       if (isIncome != null) 'is_income': isIncome,
       if (goalId != null) 'goal_id': goalId,
+      if (externalId != null) 'external_id': externalId,
     });
   }
 
@@ -1753,6 +1803,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<TransactionSource>? source,
     Value<bool>? isIncome,
     Value<int?>? goalId,
+    Value<String?>? externalId,
   }) {
     return TransactionsCompanion(
       id: id ?? this.id,
@@ -1769,6 +1820,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       source: source ?? this.source,
       isIncome: isIncome ?? this.isIncome,
       goalId: goalId ?? this.goalId,
+      externalId: externalId ?? this.externalId,
     );
   }
 
@@ -1819,6 +1871,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (goalId.present) {
       map['goal_id'] = Variable<int>(goalId.value);
     }
+    if (externalId.present) {
+      map['external_id'] = Variable<String>(externalId.value);
+    }
     return map;
   }
 
@@ -1838,7 +1893,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('imageRef: $imageRef, ')
           ..write('source: $source, ')
           ..write('isIncome: $isIncome, ')
-          ..write('goalId: $goalId')
+          ..write('goalId: $goalId, ')
+          ..write('externalId: $externalId')
           ..write(')'))
         .toString();
   }
@@ -4848,6 +4904,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       required TransactionSource source,
       Value<bool> isIncome,
       Value<int?> goalId,
+      Value<String?> externalId,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
     TransactionsCompanion Function({
@@ -4865,6 +4922,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<TransactionSource> source,
       Value<bool> isIncome,
       Value<int?> goalId,
+      Value<String?> externalId,
     });
 
 class $$TransactionsTableFilterComposer
@@ -4944,6 +5002,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<int> get goalId => $composableBuilder(
     column: $table.goalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get externalId => $composableBuilder(
+    column: $table.externalId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5026,6 +5089,11 @@ class $$TransactionsTableOrderingComposer
     column: $table.goalId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -5088,6 +5156,11 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<int> get goalId =>
       $composableBuilder(column: $table.goalId, builder: (column) => column);
+
+  GeneratedColumn<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => column,
+  );
 }
 
 class $$TransactionsTableTableManager
@@ -5135,6 +5208,7 @@ class $$TransactionsTableTableManager
                 Value<TransactionSource> source = const Value.absent(),
                 Value<bool> isIncome = const Value.absent(),
                 Value<int?> goalId = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
                 accountId: accountId,
@@ -5150,6 +5224,7 @@ class $$TransactionsTableTableManager
                 source: source,
                 isIncome: isIncome,
                 goalId: goalId,
+                externalId: externalId,
               ),
           createCompanionCallback:
               ({
@@ -5167,6 +5242,7 @@ class $$TransactionsTableTableManager
                 required TransactionSource source,
                 Value<bool> isIncome = const Value.absent(),
                 Value<int?> goalId = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
                 accountId: accountId,
@@ -5182,6 +5258,7 @@ class $$TransactionsTableTableManager
                 source: source,
                 isIncome: isIncome,
                 goalId: goalId,
+                externalId: externalId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
