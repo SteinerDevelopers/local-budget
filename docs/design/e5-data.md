@@ -113,6 +113,12 @@ document picker on iOS, per feasibility §5 file-handling decision) in `app`.
   never a spinner, never a background timer).
 - Rates cache in `settings` (`fx.USD-EUR.2026-11-02 → 0.93`) and expire
   same-day; no historical series is kept (zero telemetry posture).
+- Direction, pinned: the cached quote is *per the provider's own* (1 base
+  unit = quote units — the URL and example above). The row's stored
+  `fx_rate` is its reciprocal expressed as *base units per 1 row-currency
+  unit* — exactly what `Money.convertTo` multiplies and the detail sheet
+  reads back as `1 EUR = 1.08 USD`; the pending sweep stamps the same
+  reciprocal, so cache, rows and manual entry share one arithmetic.
 
 ## 7. Integrity & the migration story
 

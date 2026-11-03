@@ -120,6 +120,20 @@ void main() {
       expect(calls, isEmpty);
     });
 
+    test('rateForDeviceBase is the reciprocal the row layer stamps', () async {
+      final (service, calls) = fx((_) async => ok('EUR', 0.93));
+      addTearDown(service.close);
+      // 1 unit of EUR in USD: the inverse of the provider's own quote.
+      expect(await service.rateForDeviceBase('EUR'), closeTo(1 / 0.93, 1e-9));
+      // The cache keeps the provider's direction (spec §6).
+      expect(await repo.setting(FxService.cacheKey('USD', 'EUR', now)), '0.93');
+      // Cached same-day path: reciprocal again, no second fetch.
+      expect(await service.rateForDeviceBase('EUR'), closeTo(1 / 0.93, 1e-9));
+      expect(calls, hasLength(1));
+      // Device base == quote is still an exact 1.0.
+      expect(await service.rateForDeviceBase('USD'), 1.0);
+    });
+
     test('malformed codes never leave the device', () async {
       final (service, calls) = fx((_) async => ok('EUR', 0.9));
       addTearDown(service.close);
@@ -198,10 +212,12 @@ void main() {
       final byMinor = {
         for (final r in rows) (r.currencyCode, r.amountMinor): r,
       };
-      // 1000 * 0.93 → 930 (half-away rounding matches Money.convertTo).
-      expect(byMinor[('EUR', 1000)]!.fxRate, closeTo(0.93, 1e-9));
-      expect(byMinor[('EUR', 1000)]!.baseAmountMinor, 930);
-      expect(byMinor[('EUR', 500)]!.baseAmountMinor, 465);
+      // Rows are stamped with the reciprocal — base units per 1 quote unit
+      // (spec §6): 1000 * 1/0.93 → 1075 (half-away matches Money.convertTo).
+      final rowRate = 1 / 0.93;
+      expect(byMinor[('EUR', 1000)]!.fxRate, closeTo(rowRate, 1e-9));
+      expect(byMinor[('EUR', 1000)]!.baseAmountMinor, 1075);
+      expect(byMinor[('EUR', 500)]!.baseAmountMinor, 538);
       expect(byMinor[('EUR', 700)]!.fxRate, isNull); // other day untouched
       expect(byMinor[('EUR', 990)]!.fxRate, 0.80); // existing snapshot wins
       expect(byMinor[('USD', 250)]!.fxRate, isNull);

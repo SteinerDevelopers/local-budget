@@ -64,7 +64,9 @@ class FxService {
 
   /// Rate converting [base] → [quote] (1 unit of [base] = rate [quote]s),
   /// or `null` when unavailable. Same-day cache first; one fetch with a
-  /// hard [budget] otherwise.
+  /// hard [budget] otherwise. This is the provider's own direction — the
+  /// multiplier a ledger row stamps is its reciprocal; see
+  /// [rateForDeviceBase].
   Future<double?> lookup(String base, String quote, {DateTime? day}) async {
     if (!_code.hasMatch(base) || !_code.hasMatch(quote)) return null;
     if (base == quote) return 1.0;
@@ -80,15 +82,23 @@ class FxService {
 
     await _repo.setSetting(key, rate.toString());
     await _purgeStaleRates(now);
-    await _sweepPending(base, quote, now, rate);
+    // Rows are stamped with the reciprocal (base units per 1 quote unit) —
+    // what `Money.convertTo` multiplies and the detail sheet reads back as
+    // `1 EUR = 1.08 USD` (spec §6, direction pinned).
+    await _sweepPending(base, quote, now, 1 / rate);
     return rate;
   }
 
-  /// Convenience for the entry sheet: rate from the device's base
-  /// currency (settings, default USD — same resolution as totals).
+  /// Convenience for the entry sheet: **base units per 1 unit of [quote]**
+  /// — the multiplier for the row's fxRate/baseAmountMinor snapshot
+  /// (detail sheet: `1 EUR = 1.08 USD`). The reciprocal of [lookup]'s
+  /// provider quote; the cache itself stays in the provider's direction
+  /// (`fx.USD-EUR → 0.93`, spec §6). Device base comes from settings
+  /// (default USD — same resolution as totals).
   Future<double?> rateForDeviceBase(String quote) async {
     final base = await _repo.baseCurrency() ?? 'USD';
-    return lookup(base, quote);
+    final perBase = await lookup(base, quote);
+    return perBase == null ? null : 1 / perBase;
   }
 
   Future<double?> _fetch(String base, String quote) async {
@@ -127,13 +137,14 @@ class FxService {
   /// A successful fetch relabels today's rows that were saved without a
   /// rate (pending-conversion sweep, one statement, opportunistic —
   /// never a spinner, never a timer, spec §6). Only rows in [quote] on a
-  /// device whose base is [base]; the ROUND-half-away matches
+  /// device whose base is [base]; [rowRate] is the stamping multiplier
+  /// (base units per 1 [quote] unit), and the ROUND-half-away matches
   /// `Money.convertTo` for unsigned ledger amounts.
   Future<void> _sweepPending(
     String base,
     String quote,
     DateTime day,
-    double rate,
+    double rowRate,
   ) async {
     if ((await _repo.baseCurrency() ?? 'USD') != base) return;
     await _db.customUpdate(
@@ -142,8 +153,8 @@ class FxService {
       'WHERE date_days = ? AND fx_rate IS NULL AND base_amount_minor IS NULL '
       'AND currency_code = ?',
       variables: [
-        Variable<double>(rate),
-        Variable<double>(rate),
+        Variable<double>(rowRate),
+        Variable<double>(rowRate),
         Variable<int>(epochDayOf(day)),
         Variable<String>(quote),
       ],
