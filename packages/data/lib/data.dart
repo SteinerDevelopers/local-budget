@@ -19,6 +19,7 @@ export 'src/backup_crypto.dart'
         backupHeaderBytes;
 export 'src/converters.dart';
 export 'src/csv_codec.dart';
+export 'src/csv_import.dart';
 export 'src/database.dart';
 export 'src/export_csv.dart';
 export 'src/ledger_repository.dart';
