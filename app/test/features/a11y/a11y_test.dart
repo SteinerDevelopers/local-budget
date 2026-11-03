@@ -46,6 +46,22 @@ void main() {
 
   Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
+  // Reports watches a live month stream; under fakeAsync that needs the
+  // same hard settle the reports widget tests learned (parallel CI load
+  // starves the drift isolate between pumps).
+  Future<void> settle(WidgetTester tester) async {
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> openReports(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('reports-open')));
+    await settle(tester);
+  }
+
   Future<void> openQuickAdd(WidgetTester tester) async {
     await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
     await tester.pumpAndSettle();
@@ -278,6 +294,119 @@ void main() {
     });
   });
 
+  group('§6 Reports segments speak their charts', () {
+    // Seed: $30 Food + $70 Rent today, one $300 Food limit. Shares are
+    // exact 30/70 so the spoken labels carry no rounding surprises.
+    Future<({int food, int rent})> seed(LedgerRepository repo) async {
+      await repo.ensureDefaults();
+      final food = await categoryId(repo);
+      final rent = await repo.addCategory('Rent');
+      final now = DateTime.now();
+      for (final (id, minor) in [(food, 3000), (rent, 7000)]) {
+        await repo.addEntry(
+          date: now,
+          amount: usd(minor),
+          isIncome: false,
+          categoryId: id,
+        );
+      }
+      await repo.setBudget(
+        categoryId: food,
+        yearMonth: yearMonthOf(now),
+        limitMinor: 30000,
+        currencyCode: 'USD',
+      );
+      return (food: food, rent: rent);
+    }
+
+    testWidgets('donut slices read as rows: name, money, share', (
+      tester,
+    ) async {
+      final r = freshRepo();
+      try {
+        final handle = tester.ensureSemantics();
+        final ids = await seed(r.repo);
+        await pumpApp(tester, r.repo);
+        await settle(tester);
+        await openReports(tester);
+
+        expect(
+          tester.getSemantics(find.byKey(Key('donut-slice-${ids.food}'))),
+          isSemantics(label: 'Food, \$30.00, 30%'),
+        );
+        expect(
+          tester.getSemantics(find.byKey(Key('donut-slice-${ids.rent}'))),
+          isSemantics(label: 'Rent, \$70.00, 70%'),
+        );
+        handle.dispose();
+      } finally {
+        await r.db.close();
+      }
+    });
+
+    testWidgets('year bars read as a table, one spoken row per month', (
+      tester,
+    ) async {
+      final r = freshRepo();
+      try {
+        final handle = tester.ensureSemantics();
+        await seed(r.repo);
+        await pumpApp(tester, r.repo);
+        await settle(tester);
+        await openReports(tester);
+        await tester.tap(find.text('Year'));
+        await settle(tester);
+
+        // §6 verbatim shape: "November, $100.00" per non-empty bucket.
+        const names = [
+          'January',
+          'February',
+          'March',
+          'April',
+          'May',
+          'June', //
+          'July',
+          'August',
+          'September',
+          'October',
+          'November',
+          'December',
+        ];
+        final now = DateTime.now();
+        expect(
+          tester.getSemantics(find.byKey(const Key('year-bars'))),
+          isSemantics(label: '${now.year}: ${names[now.month - 1]}, \$100.00'),
+        );
+        handle.dispose();
+      } finally {
+        await r.db.close();
+      }
+    });
+
+    testWidgets('budget-vs-actual row states spend, limit and name', (
+      tester,
+    ) async {
+      final r = freshRepo();
+      try {
+        final handle = tester.ensureSemantics();
+        final ids = await seed(r.repo);
+        await pumpApp(tester, r.repo);
+        await settle(tester);
+        await openReports(tester);
+        await tester.tap(find.text('Actual'));
+        await settle(tester);
+
+        expect(
+          tester.getSemantics(find.byKey(Key('actual-semantics-${ids.food}'))),
+          isSemantics(label: '\$30.00 of \$300.00 for Food'),
+        );
+        handle.dispose();
+      } finally {
+        await r.db.close();
+      }
+    });
+  });
+
   group('§5 text scale to 1.3× — no clipping', () {
     // Phone viewport; 1.3× system text. Any RenderFlex overflow surfaces as
     // a test exception, so takeException()==null *is* the "no clipping" gate.
@@ -359,6 +488,41 @@ void main() {
         // The 4-wide icon grid takes the same scale without clipping.
         await tester.tap(find.byTooltip('Add expense category'));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      } finally {
+        await r.db.close();
+      }
+    });
+
+    testWidgets('Reports — all three segments at 1.3×', (tester) async {
+      final r = freshRepo();
+      try {
+        await scaleUp(tester);
+        await r.repo.ensureDefaults();
+        final food = await categoryId(r.repo);
+        await r.repo.addEntry(
+          date: DateTime.now(),
+          amount: usd(3000),
+          isIncome: false,
+          categoryId: food,
+        );
+        await r.repo.setBudget(
+          categoryId: food,
+          yearMonth: yearMonthOf(DateTime.now()),
+          limitMinor: 30000,
+          currencyCode: 'USD',
+        );
+        await pumpApp(tester, r.repo);
+        await settle(tester);
+        await openReports(tester);
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.text('Year'));
+        await settle(tester);
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.text('Actual'));
+        await settle(tester);
         expect(tester.takeException(), isNull);
       } finally {
         await r.db.close();

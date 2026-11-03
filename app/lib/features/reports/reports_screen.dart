@@ -718,6 +718,24 @@ class _Donut extends StatelessWidget {
                   ),
                 ],
               ),
+              // §6: fl_chart tooltips are pointer-only, so TalkBack gets
+              // each slice as its own row of this section — "Food, 42%,
+              // $212.10". The nodes paint nothing; the expand child gives
+              // each one a real rect so traversal keeps it, and
+              // container:true stops it merging into the section label.
+              for (var i = 0; i < cats.length; i++)
+                Positioned.fill(
+                  child: Semantics(
+                    key: Key('donut-slice-${cats[i].categoryId}'),
+                    container: true,
+                    label:
+                        '${report.categoryNames[cats[i].categoryId] ?? 'Uncategorized'}'
+                        ', ${Money(cats[i].spentMinor, report.currency).format()}'
+                        ', ${(cats[i].shareBp / 100).round()}%',
+                    excludeSemantics: true,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
             ],
           ),
         ),
@@ -781,6 +799,8 @@ class _YearView extends StatelessWidget {
               ),
               const SizedBox(height: Tokens.space3),
               Semantics(
+                key: const Key('year-bars'),
+                container: true,
                 label: spoken.isEmpty
                     ? 'No spending in ${r.year}.'
                     : '${r.year}: ${spoken.join('; ')}',
@@ -1078,6 +1098,7 @@ class _ActualRow extends StatelessWidget {
         vertical: Tokens.space3,
       ),
       child: Semantics(
+        key: Key('actual-semantics-$keySuffix'),
         label: '$spent of $limit for $label',
         excludeSemantics: true,
         child: Column(
@@ -1093,12 +1114,16 @@ class _ActualRow extends StatelessWidget {
                     style: Tokens.body(context),
                   ),
                 ),
-                Text(
-                  'Spent $spent of $limit',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: overspent ? scheme.error : scheme.onSurfaceVariant,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                // Flexible so a 1.3× text scale (or a $100k limit) wraps
+                // the amount onto a second line instead of overflowing.
+                Flexible(
+                  child: Text(
+                    'Spent $spent of $limit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: overspent ? scheme.error : scheme.onSurfaceVariant,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
               ],
