@@ -298,6 +298,12 @@ const List<HelpArticle> kHelpArticles = [
           'this same encrypted file — read “Pro extras” for the schedule. '
           'A manual backup before a big cleanup is always a good habit: it is '
           'fast, and it can undo almost anything.',
+      'If a “Database check” banner appears at the top of the app, the app '
+          'could not read part of its own store cleanly — everything still '
+          'works, and the banner is safe to dismiss. If anything looks odd '
+          'later, restoring a backup you trust from Manage puts things '
+          'right. The banner only appears when something is genuinely '
+          'wrong, so quiet days need no action.',
     ],
   ),
   HelpArticle(

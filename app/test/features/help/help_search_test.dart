@@ -63,6 +63,13 @@ void main() {
     expect(searchHelpArticles('total').first.title, 'Scanning receipts');
   });
 
+  test('the startup integrity banner is explained, not just shown', () {
+    expect(
+      searchHelpArticles('database check').map(_title),
+      contains('Backup and restore'),
+    );
+  });
+
   test('the corpus covers the E8 screens', () {
     expect(
       kHelpArticles.map(_title),
