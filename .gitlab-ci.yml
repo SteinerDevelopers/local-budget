@@ -199,18 +199,22 @@ goldens:generate:
     expire_in: 4 weeks
 
 # On-device smoke on a headless x86_64 emulator (KVM-accelerated).
-# Image = localbudget-e2e:latest, baked once on this runner — see
-# docker/e2e-android/Dockerfile; if-not-present resolves the host-local tag.
+# Image = localbudget-e2e:latest, baked on BOTH fleet members (VM2 manually
+# per docker/e2e-android/Dockerfile; runner 2 via the bake-e2e-image-r2 job);
+# if-not-present resolves the host-local tag. Emulator host is now runner 2
+# (32 vCPU / 60 GiB; probe-r2 confirmed /dev/kvm inside job containers).
 # First green run: job #71, pipeline #18 (2026-11-02). Automatic whenever the
 # app or the emulator image definition changes.
 e2e-android:
   stage: e2e
   image: localbudget-e2e:latest
-  tags: [SteinerRunner]
-  # Serialize against package-apk: both can trigger an sdkmanager auto-install
-  # into the same host-mounted SDK, and two concurrent installs corrupt it and
-  # OOM the box (three runner crashes traced to exactly this overlap).
-  resource_group: android-build
+  tags: [SteinerRunner2]
+  # Serialize against package-apk: two concurrent Gradle/SDK builds on the
+  # same box corrupt the host-mounted caches and OOM it (three runner crashes
+  # traced to exactly this overlap). Name rotated from android-build: a job
+  # that died mid-cancel on VM2 (runner 1, p84 #644) wedged that lock open,
+  # and the lock is project-scoped - a new name walks past the stale holder.
+  resource_group: android-build-2
   # On-device runs gate on the app itself, not on golden refs: without this,
   # a goldens failure (stale PNG) skips the whole e2e stage (#53 taught this).
   needs: [app-test]
@@ -285,14 +289,19 @@ e2e-android:
 # Manual: sideloadable debug APK (free flavor) for on-device dogfooding.
 # Play it from any pipeline, download out/*.apk, install over adb/Files.
 # Reuses the e2e image (baked Flutter + Android SDK); no emulator, so no
-# KVM needed. Debug keystore — fine for sideload, never a release artifact.
+# KVM needed — runs on VM2, off the emulator host, with that box's warm
+# Gradle caches. Debug keystore — fine for sideload, never a release artifact.
 package-apk:
   stage: e2e
   when: manual
   needs: []
   image: localbudget-e2e:latest
   tags: [SteinerRunner]
-  resource_group: android-build # one Gradle/SDK build at a time (see e2e-android)
+  # Own lock now (was shared with e2e-android): this job lives on VM2 and
+  # e2e on runner 2, different host-mounted SDKs, so there is nothing left
+  # to serialize between them. Fresh name also dodges the wedged android-build
+  # lock (stale mid-cancel holder on VM2, see e2e-android).
+  resource_group: apk-build
   variables:
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   cache:
