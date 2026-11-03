@@ -91,6 +91,29 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// The pro flavor carries extra paid-pack rows; the lower settings rows
+  /// can fall below the 800x600 viewport — and out of the ListView cache
+  /// extent, where they are not even built — so reveal before touching.
+  Future<void> revealRow(WidgetTester tester, String key) async {
+    final row = find.byKey(Key(key));
+    if (row.evaluate().isEmpty) {
+      // Positive delta reveals rows below the fold (scrollUntilVisible
+      // negates it into a finger swipe).
+      await tester.scrollUntilVisible(
+        row,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapRow(WidgetTester tester, String key) async {
+    await revealRow(tester, key);
+    await tester.tap(find.byKey(Key(key)));
+  }
+
   Future<void> enterPassphrase(
     WidgetTester tester,
     String phrase, {
@@ -131,7 +154,7 @@ void main() {
         );
         await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
 
-        await tester.tap(find.byKey(const Key('export-csv')));
+        await tapRow(tester, 'export-csv');
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('export-account-all')), findsOneWidget);
         await tester.tap(find.byKey(const Key('export-account-all')));
@@ -177,7 +200,7 @@ void main() {
         );
         await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
 
-        await tester.tap(find.byKey(const Key('export-csv')));
+        await tapRow(tester, 'export-csv');
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(Key('export-account-$giroId')));
         await tester.pumpAndSettle();
@@ -200,7 +223,7 @@ void main() {
       try {
         await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
 
-        await tester.tap(find.byKey(const Key('back-up')));
+        await tapRow(tester, 'back-up');
         await tester.pumpAndSettle();
         expect(
           find.text('Choose a passphrase for this backup'),
@@ -228,7 +251,7 @@ void main() {
       final io = FakeIo();
       try {
         await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
-        await tester.tap(find.byKey(const Key('back-up')));
+        await tapRow(tester, 'back-up');
         await tester.pumpAndSettle();
 
         await tester.tap(find.byKey(const Key('passphrase-next')));
@@ -282,7 +305,7 @@ void main() {
           restore: (b) async => restored = b,
         );
 
-        await tester.tap(find.byKey(const Key('restore')));
+        await tapRow(tester, 'restore');
         await tester.pumpAndSettle();
         await enterPassphrase(tester, 'open sesame');
 
@@ -319,7 +342,7 @@ void main() {
           io: io,
           restore: (_) async => called = true,
         );
-        await tester.tap(find.byKey(const Key('restore')));
+        await tapRow(tester, 'restore');
         await tester.pumpAndSettle();
         await enterPassphrase(tester, 'open sesame');
         await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
@@ -351,7 +374,7 @@ void main() {
           io: io,
           restore: (_) async => called = true,
         );
-        await tester.tap(find.byKey(const Key('restore')));
+        await tapRow(tester, 'restore');
         await tester.pumpAndSettle();
         await enterPassphrase(tester, 'guess');
         expect(
@@ -375,16 +398,19 @@ void main() {
     );
     try {
       await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
+      // Pro adds paid-pack rows above; mount the tile before reading it.
+      await revealRow(tester, 'live-fx');
       // Default is on (§6), so a tap means off.
       expect(
         tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
         isTrue,
       );
-      await tester.tap(find.byKey(const Key('live-fx')));
+      await tapRow(tester, 'live-fx');
       await tester.pumpAndSettle();
       expect(await r.repo.setting(FxService.settingLiveFxRates), 'off');
 
       await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
+      await revealRow(tester, 'live-fx');
       expect(
         tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
         isFalse,
@@ -440,7 +466,7 @@ void main() {
       final io = FakeIo(PickedFile('bank.csv', csvBytes));
       try {
         await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
-        await tester.tap(find.byKey(const Key('import-statement')));
+        await tapRow(tester, 'import-statement');
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('import-account')), findsOneWidget);
 
@@ -483,7 +509,7 @@ void main() {
       );
       try {
         await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
-        await tester.tap(find.byKey(const Key('import-statement')));
+        await tapRow(tester, 'import-statement');
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('import-pick-ofx')));
         await tester.pumpAndSettle();
@@ -620,7 +646,7 @@ void main() {
         ('restore', 'Restoring'),
         ('import-statement', 'Importing'),
       ]) {
-        await tester.tap(find.byKey(Key(key)));
+        await tapRow(tester, key);
         await tester.pumpAndSettle();
         expect(find.text('$what needs the real app.'), findsOneWidget);
         await expireSnack(tester);
