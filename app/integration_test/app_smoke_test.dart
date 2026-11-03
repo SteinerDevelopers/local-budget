@@ -174,5 +174,27 @@ void main() {
     await tester.pageBack();
     await settle(tester);
     expect(find.text('EXPENSES'), findsWidgets);
+
+    // E8 #9 leg: Help opens from the home header, the search behaves
+    // like the host-tested index on a real keyboard (half-typed word
+    // lands), an article reads, and Reports carries its own entrance.
+    await tester.tap(find.byKey(const Key('help-open')));
+    await settle(tester);
+    expect(find.text('Search help'), findsOne);
+    await tester.enterText(find.byType(TextField), 'passphras');
+    await settle(tester);
+    expect(find.text('Backup and restore'), findsOne);
+    await tester.tap(find.text('Backup and restore'));
+    await settle(tester);
+    expect(find.textContaining('passphrase'), findsWidgets);
+    await tester.pageBack(); // article → list
+    await settle(tester);
+    await tester.pageBack(); // list → home
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('reports-open')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('reports-help')));
+    await settle(tester);
+    expect(find.text('Scanning receipts'), findsOne);
   });
 }
