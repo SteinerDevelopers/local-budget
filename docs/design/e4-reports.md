@@ -1,7 +1,12 @@
 # E4 Design Spec — Reports (month · year · breakdowns · budget-vs-actual)
 
 **Plan ref:** E4 (issue #5) — free-tier *standard analytics* (feasibility §3.4, §4.1.7).
-Perf bar: charts at 60 fps on a mid-range device (issue #5, §4.2). Status: draft v1, 2026-11-02.
+Perf bar: charts at 60 fps on a mid-range device (issue #5, §4.2).
+Status: implemented 2026-11-02 (issue #5). The 60 fps bar is a manual gate —
+a `-dProfile` fly-through is scheduled on a mid-range device before M2 exit.
+Data cost stays bounded the way the ledger's is: aggregates run in-memory on
+the already-index-backed month query the perf tripwire guards
+(`packages/data/test/perf_regression_test.dart`).
 
 Governing rule (§3.4): reports are **free and complete for budgeting**; depth toys
 (year-over-year, custom ranges, projection detail, multi-sheet exports) belong to the
