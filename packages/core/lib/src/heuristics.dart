@@ -2,6 +2,9 @@ import 'currency.dart';
 import 'money.dart';
 import 'receipt.dart';
 
+/// Paper kind driving the totals vocabulary (e2-capture.md §3 v1.1).
+enum DocType { receipt, cardStatement, utilityBill }
+
 /// Tier-2 extraction: deterministic heuristics over raw OCR lines.
 ///
 /// Pipeline (feasibility §2): tier 1 = ML Kit OCR text, tier 2 = *this*,
@@ -64,6 +67,137 @@ class ReceiptHeuristics {
     r'(?<amount>[-−(]?\s*(?:[$€£¥₹]|US\$|CA\$|AU\$|NZ\$|EUR|USD|GBP)?\s*\d{1,3}(?:[.,\s\u00A0]\d{3})*(?:[.,]\d{1,2})?\s*[-−)]?)',
   );
 
+  /// Document kind the totals vocabulary should follow (e2-capture.md §3 v1.1).
+  /// Classification never *requires* a type: everything defaults to the
+  /// retail `receipt` anchor list — the safest guess for an unknown paper.
+  DocType classify(List<String> lines) => DocType.values.firstWhere(
+        (t) => t != DocType.receipt && _signatureCount(t, lines) >= 2,
+        orElse: () => DocType.receipt,
+      );
+
+  /// Distinct signature patterns of [type] present anywhere in [lines].
+  int _signatureCount(DocType type, List<String> lines) {
+    final pats = switch (type) {
+      DocType.receipt => const <RegExp>[],
+      DocType.cardStatement => _cardSignatures,
+      DocType.utilityBill => _utilitySignatures,
+    };
+    final text = lines.join('\n').toUpperCase();
+    return pats.where((p) => p.hasMatch(text)).length;
+  }
+
+  static final List<RegExp> _cardSignatures = [
+    RegExp(r'STATEMENT BALANCE'),
+    RegExp(r'(NEW|PREVIOUS|OPENING|PRESENT|CURRENT) BALANCE'),
+    RegExp(r'MINIMUM (PAYMENT|PYMT|DUE)|MIN(?!U)\.? ?(PAYMENT|PYMT)'),
+    RegExp(r'CREDIT LIMIT'),
+    RegExp(r'FINANCE CHARGE'),
+    RegExp(r'PAYMENT CREDIT'),
+    RegExp(r'ANNUAL FEE'),
+    RegExp(r'\bAPR\b|ANNUAL PERCENTAGE RATE'),
+    RegExp(r'CASH ADVANCE'),
+    RegExp(r'ACCOUNT SUMMARY'),
+  ];
+
+  static final List<RegExp> _utilitySignatures = [
+    RegExp(r'SERVICE PERIOD|BILLING PERIOD|BILLING DATES'),
+    RegExp(r'METER READ'),
+    RegExp(r'KILOWATT|\bKWH\b|THERMS?|CU FT|GALLONS'),
+    RegExp(r'DUE BY|PAY BY|DUE DATE'),
+    // Account number *plus* the word BILL somewhere — utilities print both;
+    // a lone "account number" line is too generic to count (spec §3 v1.1).
+    RegExp(r'ACCOUNT\s*(NUMBER|NO\.?|#)'),
+    RegExp(r'\bBILL\b'),
+  ];
+
+  /// Anchors per document type — classification only *replaces* the list;
+  /// scanning stays bottom-up (e2-capture.md §3 v1.1). On a card statement
+  /// `STATEMENT/NEW/CURRENT BALANCE` is the amount a budgeting app should
+  /// pre-fill; a minimum-payment line is never it, whatever it is labeled.
+  static List<({RegExp re, FieldConfidence confidence})> _anchorsFor(
+          DocType type) =>
+      switch (type) {
+        DocType.receipt => _totalAnchors,
+        DocType.cardStatement => _cardAnchors,
+        DocType.utilityBill => _utilityAnchors,
+      };
+
+  static final List<({RegExp re, FieldConfidence confidence})> _cardAnchors = [
+    (
+      re: RegExp(r'\bSTATEMENT BALANCE\b', caseSensitive: false),
+      confidence: FieldConfidence.high
+    ),
+    (
+      re: RegExp(r'\b(NEW|CURRENT|PRESENT) BALANCE\b', caseSensitive: false),
+      confidence: FieldConfidence.high
+    ),
+    (
+      re: RegExp(r'\bBALANCE DUE\b', caseSensitive: false),
+      confidence: FieldConfidence.medium
+    ),
+    (
+      re: RegExp(r'\bTOTAL\s+(AMOUNT\s+)?DUE\b', caseSensitive: false),
+      confidence: FieldConfidence.low
+    ), // on statements this is usually the minimum
+    (
+      re: RegExp(r'\bTOTAL\b', caseSensitive: false),
+      confidence: FieldConfidence.low
+    ),
+  ];
+
+  static final List<({RegExp re, FieldConfidence confidence})>
+      _utilityAnchors = [
+    (
+      re: RegExp(r'\bTOTAL\s+AMOUNT\s+DUE\b', caseSensitive: false),
+      confidence: FieldConfidence.high
+    ),
+    (
+      re: RegExp(r'\bAMOUNT\s+DUE\b|\bDUE\s+AMOUNT\b', caseSensitive: false),
+      confidence: FieldConfidence.high
+    ),
+    (
+      re: RegExp(r'\bTOTAL\s+DUE\b', caseSensitive: false),
+      confidence: FieldConfidence.high
+    ),
+    (
+      re: RegExp(r'\bBALANCE\s+DUE\b', caseSensitive: false),
+      confidence: FieldConfidence.medium
+    ),
+    (
+      re: RegExp(r'\bTOTAL\b', caseSensitive: false),
+      confidence: FieldConfidence.medium
+    ),
+    (
+      re: RegExp(r'\bAMOUNT\b', caseSensitive: false),
+      confidence: FieldConfidence.low
+    ),
+  ];
+
+  static RegExp _blacklistFor(DocType type) => switch (type) {
+        DocType.receipt => _totalBlacklist,
+        DocType.cardStatement => RegExp(
+            '${_totalBlacklist.pattern}|$_cardBlacklistSrc',
+            caseSensitive: false,
+          ),
+        DocType.utilityBill => RegExp(
+            '${_totalBlacklist.pattern}|$_utilityBlacklistSrc',
+            caseSensitive: false,
+          ),
+      };
+
+  /// The payment you must NOT mistake for the bill: minimums, past payments,
+  /// credit lines, limits and finance charges (spec §3 v1.1).
+  static const String _cardBlacklistSrc =
+      r'MINIMUM (PAYMENT|PYMT|DUE)|MIN(?!U)\.? ?(PAYMENT|PYMT)'
+      r'|LAST PAYMENT|PARTIAL PAYMENT|CREDIT PAYMENT|PAYMENT RECEIVED'
+      r'|PREVIOUS BALANCE|OPENING BALANCE|NEW CHARGES|CREDIT LIMIT'
+      r'|AVAILABLE CREDIT|FINANCE CHARGE|CASH ADVANCE|ANNUAL FEE';
+
+  /// Components of a utility bill that are not the check you write.
+  static const String _utilityBlacklistSrc =
+      r'PREVIOUS BALANCE|AMOUNT PAID|PAYMENT RECEIVED|PAST DUE'
+      r'|AMOUNT ENCLOSED|BALANCE FORWARD';
+
   /// Merchant heuristic: first line with letters, short, not address-like,
   /// not a pure number/date. `high` when the very first line is already
   /// plausible (the usual printed-receipt layout), `medium` when the guess
@@ -103,37 +237,100 @@ class ReceiptHeuristics {
   /// the bottom wins, blacklist excluded. An explicit currency code/symbol on
   /// the anchor line overrides the device base currency (e2-capture.md §3:
   /// currency comes from the anchor line, falling back to base).
-  ({Money amount, FieldConfidence confidence})? guessTotal(List<String> lines) {
+  ///
+  /// v1.1 (device feedback, 2026-11-03): the anchor list follows the
+  /// [classify]d document type; an amount left of the anchor on the same line
+  /// counts; an amount-free anchor line looks *down* up to two non-empty
+  /// non-blacklisted lines (OCR column split); decimals beat bare integers
+  /// (`TOTAL 4 ITEMS 42.50` is 42.50, not 4); amounts re-joined across lines
+  /// must carry a symbol or decimal and inherit confidence minus one level.
+  ({Money amount, FieldConfidence confidence})? guessTotal(
+      List<String> lines) {
+    final type = classify(lines);
+    final anchors = _anchorsFor(type);
+    final blacklist = _blacklistFor(type);
     for (var i = lines.length - 1; i >= 0; i--) {
       final line = lines[i].trim();
       if (line.isEmpty) continue;
-      if (_totalBlacklist.hasMatch(line)) continue;
-      for (final anchor in _totalAnchors) {
+      if (blacklist.hasMatch(line)) continue;
+      for (final anchor in anchors) {
         final match = anchor.re.firstMatch(line);
         if (match == null) continue;
-        // Amount must come *after* the anchor word on the line.
-        final tail = line.substring(match.end);
-        final parsed = _firstAmount(tail);
-        if (parsed == null) continue;
-        final cur = _lineCurrency(line, parsed.token);
+        var source = line;
+        var merged = false;
+        // 1. Amount to the right of the anchor (the classic shape).
+        var parsed = _bestAmount(line.substring(match.end),
+            requireExact: false);
+        // 2. …or to its left on the same line (`42.50 TOTAL` POS layouts).
+        //    Must look like money (symbol or decimal) — digits glued to the
+        //    label (`TOTAL2`) are OCR noise, not a left-aligned amount.
+        if (parsed == null) {
+          parsed = _bestAmount(line.substring(0, match.start),
+              requireExact: true);
+        }
+        // 3. …or on one of the next two lines (anchor and right-aligned
+        //    amount OCR'd as separate blocks; e2-capture.md §3 v1.1).
+        if (parsed == null) {
+          var seen = 0;
+          for (var j = i + 1; j < lines.length && seen < 2; j++) {
+            final next = lines[j].trim();
+            if (next.isEmpty) continue;
+            seen++;
+            if (blacklist.hasMatch(next)) continue;
+            final p = _bestAmount(next, requireExact: true);
+            if (p != null) {
+              parsed = p;
+              source = next;
+              merged = true;
+              break;
+            }
+          }
+        }
+        if (parsed == null) continue; // no amount anywhere near this anchor
+        final cur = _lineCurrency(
+            merged ? '$line $source' : line, parsed.token);
         final amount = cur == null || cur.code == parsed.amount.currency.code
             ? parsed.amount
             : (Money.tryParse(parsed.token, cur) ?? parsed.amount);
-        return (amount: amount, confidence: anchor.confidence);
+        return (
+          amount: amount,
+          confidence:
+              merged ? _demote(anchor.confidence) : anchor.confidence,
+        );
       }
     }
     return null;
   }
 
-  ({String token, Money amount})? _firstAmount(String s) {
+  static FieldConfidence _demote(FieldConfidence c) => switch (c) {
+        FieldConfidence.high => FieldConfidence.medium,
+        FieldConfidence.medium || FieldConfidence.low => FieldConfidence.low,
+      };
+
+  /// "Exact money" = a decimal amount or one carrying a currency symbol —
+  /// the guard that keeps a barcode (`123456789012`) below a bare `TOTAL`
+  /// from becoming the total when lines get re-joined across blocks.
+  static bool _looksLikeMoney(String token) =>
+      RegExp(r'\d[.,]\d{1,2}\b').hasMatch(token) ||
+      RegExp(r'[$€£¥₹]').hasMatch(token);
+
+  /// First positive amount in [s]; a token that looks like money (decimal or
+  /// symbol) wins over a bare integer regardless of position, so
+  /// `TOTAL 4 ITEMS 42.50` yields 42.50 instead of the item count 4. With
+  /// [requireExact] only money-looking tokens count at all.
+  ({String token, Money amount})? _bestAmount(String s,
+      {required bool requireExact}) {
+    ({String token, Money amount})? firstInt;
     for (final m in _amountRe.allMatches(s)) {
       final token = m.namedGroup('amount')!;
+      final exact = _looksLikeMoney(token);
+      if (requireExact && !exact) continue;
       final parsed = Money.tryParse(token, currency);
-      if (parsed != null && parsed.isPositive) {
-        return (token: token, amount: parsed);
-      }
+      if (parsed == null || !parsed.isPositive) continue;
+      if (exact) return (token: token, amount: parsed);
+      firstInt ??= (token: token, amount: parsed);
     }
-    return null;
+    return firstInt;
   }
 
   static final RegExp _currencyCodeRe = RegExp(

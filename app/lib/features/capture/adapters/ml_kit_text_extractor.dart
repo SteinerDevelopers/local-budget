@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:capture/capture.dart' show TextExtractor;
+import 'package:core/core.dart' show OcrLineAssembly, OcrWord;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -31,11 +32,29 @@ class MlKitTextExtractor implements TextExtractor {
       final result = await recognizer.processImage(
         InputImage.fromFilePath(tmp.path),
       );
-      // blocks → lines keeps the top-to-bottom order §3's heuristics assume.
-      return [
+      // Words → visual lines (§3 v1.1): ML Kit blocks split a receipt's
+      // label and amount columns, which hides `TOTAL $42.50` from the
+      // anchors; regrouping by vertical center puts them back on one line.
+      final words = <OcrWord>[
         for (final block in result.blocks)
-          for (final line in block.lines) line.text,
+          for (final line in block.lines)
+            for (final element in line.elements)
+              OcrWord(
+                text: element.text,
+                centerX: element.boundingBox.center.dx,
+                centerY: element.boundingBox.center.dy,
+                height: element.boundingBox.height,
+              ),
       ];
+      if (words.isEmpty) {
+        // No boxes at all (unexpected engine output): keep the old
+        // block→line order rather than return nothing.
+        return [
+          for (final block in result.blocks)
+            for (final line in block.lines) line.text,
+        ];
+      }
+      return OcrLineAssembly.assemble(words);
     } catch (_) {
       return const [];
     } finally {

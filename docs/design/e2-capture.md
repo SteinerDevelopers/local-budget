@@ -147,6 +147,54 @@ overwrites `medium/high` values and never touches a field the user edited.
   helper *"Couldn't read this — retype or try the image again."* Nothing ever
   crashes the review; Save only needs amount + category anyway.
 
+**Tier 2 v1.1 — real-photo & bill support (device-feedback fix, 2026-11-03).**
+Debug runs on a real phone exposed two gaps: photographed receipts whose
+right-aligned amount column OCRs as *separate lines* never matched an anchor,
+and card/utility bills whose vocabulary (`Statement balance`, `Amount due`) the
+retail anchor list doesn't speak. Rules added, all deterministic:
+
+- **OCR line reassembly (Tier-1 adapter contract).** ML Kit returns spatial
+  blocks; a receipt's label column and amount column can arrive as two blocks,
+  so `TOTAL` and `$42.50` — same visual line — land in different strings. The
+  adapter must therefore regroup at *word* level: cluster words by vertical
+  center within a tolerance of half the median word height, order clusters
+  top-down, words left-to-right, joined by single spaces. Pure function
+  `OcrLineAssembly.assemble(words)` in `core` (100 % unit-tested); adapters
+  map ML Kit words to `(text, centerX, centerY)` records. PDF text layers and
+  screenshots that already arrive line-ordered are untouched.
+- **Total v1.1** (amends the bullet above; everything else stands):
+  1. Amount may sit **left** of the anchor on the same line (`42.50 TOTAL`).
+  2. If the anchor line carries no amount at all, look **down** up to two
+     non-empty lines and take the first amount-bearing line that is not
+     blacklisted (`TOTAL` ⏎ `$42.50` after column split). The merged amount
+     inherits the anchor's confidence minus one level — a guess re-joined
+     across lines is never `high`.
+  3. **Decimals beat bare integers** on the anchor line: `TOTAL 4 ITEMS 42.50`
+     is `42.50`, not `4` (silent mis-parse seen in the wild). Integer-only
+     anchors (`TOTAL 1200`, JPY) still work.
+  4. New anti-anchors: `TOTAL ITEMS/COUNT/QTY`, and in statement documents
+     `MINIMUM (PAYMENT|PYMT)`, `LAST/PARTIAL/CREDIT PAYMENT`, `PAYMENT
+     RECEIVED`, `PREVIOUS/OPENING BALANCE`, `NEW CHARGES`, `CREDIT LIMIT`,
+     `AVAILABLE CREDIT`, `FINANCE CHARGE`, `CASH ADVANCE`.
+- **Document classification** (`ReceiptHeuristics.classify(lines)` → `receipt`
+  | `cardStatement` | `utilityBill`, default `receipt`): a type wins with ≥ 2
+  distinct signature lines. Card: `STATEMENT/NEW/PREVIOUS BALANCE`, `MINIMUM
+  PAYMENT`, `CREDIT LIMIT`, `FINANCE CHARGE`, `PAYMENT CREDIT`, `ANNUAL FEE`,
+  `APR`, `CASH ADVANCE`, `ACCOUNT SUMMARY`. Utility: `SERVICE PERIOD`, `METER
+  READING`, `KILOWATT|kWh|THERMS|CU FT|GALLONS`, `DUE BY|PAY BY|DUE DATE`,
+  `ACCOUNT NUMBER` + `BILL`.
+- **Per-type total vocabulary** (classification only *replaces* the anchor
+  list; scanning stays bottom-up): `cardStatement` → `STATEMENT BALANCE = NEW
+  BALANCE = CURRENT BALANCE > BALANCE DUE > TOTAL DUE > TOTAL`, and the amount
+  of a minimum-payment line is **never** the total — paying the minimum is
+  precisely what a budgeting app must not pre-fill. `utilityBill` →
+  `TOTAL (AMOUNT )?DUE = AMOUNT DUE = DUE AMOUNT > TOTAL DUE > TOTAL > AMOUNT`,
+  anti-anchoring `PREVIOUS BALANCE`, `AMOUNT PAID`, `PAYMENT RECEIVED`,
+  `PAST DUE` (past-due is a component, not the check you write).
+- Bills are multi-page by nature; the M1 page-1 rule already covers them —
+  card and utility summaries live on page 1. If the summary OCRs poor, Tier 3
+  / manual entry paths are unchanged.
+
 **PDF (§2.5):** try text layer; < 20 chars on page 1 ⇒ treat as scanned →
 render page 1 (pdfium adapter) → Tier 1 OCR. Multi-page = one document,
 page 1 only (M1); statement splitting is v2 (decision 2/feasibility §2.5).
