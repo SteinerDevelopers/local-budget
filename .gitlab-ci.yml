@@ -359,3 +359,24 @@ runner-probe-r2:
   allow_failure: true
   tags: [SteinerRunner2]
   script: *probe-script
+
+# One-off bake of localbudget-e2e:latest into runner 2's own image store so
+# the emulator fleet can load-share (the image is if-not-present/local-only;
+# runner 2 failing on "pull access denied" was always just a missing image,
+# not a registry problem). Requires one line in runner 2's config.toml under
+# [[runners.docker]]: volumes = ["/var/run/docker.sock:/var/run/docker.sock"].
+# Re-run this job whenever docker/e2e-android changes and both boxes re-bake.
+bake-e2e-image-r2:
+  stage: probe
+  image: docker:27
+  needs: []
+  when: manual
+  allow_failure: true
+  tags: [SteinerRunner2]
+  script:
+    - docker build -t localbudget-e2e:latest docker/e2e-android
+    - |
+      docker run --rm localbudget-e2e:latest bash -lc \
+        'avdmanager list avd | grep -q "Name: ci" &&
+         sdkmanager --list_installed | grep -q "platforms;android-36" &&
+         flutter --version | head -1 && echo AVD-AND-SDK-OK'
