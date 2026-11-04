@@ -25,7 +25,9 @@ class CategoryChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      // Chips grow with the system font (device feedback 2026-11-04): a
+      // tight 40 dp box clipped chip glyphs at large accessibility scales.
+      height: MediaQuery.textScalerOf(context).scale(40),
       child: ListView(
         // Test handle: the Manage chip sits at the end of a row that can
         // overflow with many categories (#18).

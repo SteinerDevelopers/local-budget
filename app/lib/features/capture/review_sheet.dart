@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:capture/capture.dart';
@@ -312,23 +313,32 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
               ),
             ),
             Expanded(
-              child: AnimatedOpacity(
-                opacity: _busy ? 0 : 1,
-                duration: const Duration(milliseconds: 150),
-                child: Keypad(
-                  onDigit: (d) => setState(() {
-                    _pad.digit(d);
-                    _amountEdited = true;
-                  }),
-                  onDot: () => setState(() {
-                    _pad.dot();
-                    _amountEdited = true;
-                  }),
-                  onBackspace: () => setState(() {
-                    _pad.back();
-                    _amountEdited = true;
-                  }),
-                  dotEnabled: widget.pipeline.currency.minorUnits > 0,
+              // Same font-scale escape as QuickAdd (2026-11-04): below
+              // 4×touch-min the pad scrolls instead of crushing the sheet.
+              child: LayoutBuilder(
+                builder: (context, box) => SingleChildScrollView(
+                  child: SizedBox(
+                    height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+                    child: AnimatedOpacity(
+                      opacity: _busy ? 0 : 1,
+                      duration: const Duration(milliseconds: 150),
+                      child: Keypad(
+                        onDigit: (d) => setState(() {
+                          _pad.digit(d);
+                          _amountEdited = true;
+                        }),
+                        onDot: () => setState(() {
+                          _pad.dot();
+                          _amountEdited = true;
+                        }),
+                        onBackspace: () => setState(() {
+                          _pad.back();
+                          _amountEdited = true;
+                        }),
+                        dotEnabled: widget.pipeline.currency.minorUnits > 0,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -576,8 +586,10 @@ class _SourceStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 88,
+    return ConstrainedBox(
+      // Grows with the font instead of cutting it off at large scales
+      // (device feedback 2026-11-04).
+      constraints: const BoxConstraints(minHeight: 88),
       child: Row(
         children: [
           GestureDetector(

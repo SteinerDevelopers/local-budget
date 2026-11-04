@@ -100,7 +100,12 @@ void main() {
 
   Future<void> pressKeys(WidgetTester tester, String keys) async {
     for (final k in keys.split('')) {
-      await tester.tap(find.byKey(Key('keypad-${k == '.' ? 'dot' : k}')));
+      final key = find.byKey(Key('keypad-${k == '.' ? 'dot' : k}'));
+      // The keypad scrolls below 4×touch-min (font-scale escape, §3) — a
+      // finger scrolls first, so does the test.
+      await tester.ensureVisible(key);
+      await tester.pumpAndSettle();
+      await tester.tap(key);
       await tester.pump();
     }
   }

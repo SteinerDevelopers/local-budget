@@ -205,5 +205,49 @@ void main() {
       expect(result, isNotNull); // and only its own pop returned a value
       expect(find.text('open'), findsOneWidget); // host route survives
     });
+
+    // Device feedback 2026-11-04: a large system font scale made the fixed
+    // sheet budget overflow — pixel-overflow stripes and a Save button
+    // half-hidden behind the system nav bar.
+    testWidgets('large system font scale: no overflow, Save stays on screen', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0; // Android max
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      result = null;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  result = await showQuickAdd(
+                    context,
+                    categories: _cats,
+                    currency: _usd,
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull); // no RenderFlex overflow
+      final save = tester.getRect(find.widgetWithText(FilledButton, 'Save'));
+      expect(save.bottom, lessThanOrEqualTo(600)); // test surface 800×600
+      expect(save.top, greaterThanOrEqualTo(0));
+      // Chips must not be cut by their row: at 2× fonts a FilterChip stands
+      // ~64 dp tall — a fixed 40 dp row clips half the glyph (the overflow
+      // stripes on the device screenshot).
+      final row = tester.getRect(find.byKey(const Key('chip-row')));
+      final chip = tester.getRect(find.byType(FilterChip).first);
+      expect(chip.top, greaterThanOrEqualTo(row.top));
+      expect(chip.bottom, lessThanOrEqualTo(row.bottom + 0.5));
+    });
   });
 }

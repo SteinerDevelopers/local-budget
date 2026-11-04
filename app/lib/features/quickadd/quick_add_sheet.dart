@@ -151,8 +151,16 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   Widget build(BuildContext context) {
     // ~48 % of the screen (§2.2) with a 480 dp floor so the keypad keeps
     // §3 touch-min keys on short screens; keyboard (note only) pushes it up.
+    // The budget tracks the system font scale (device feedback 2026-11-04:
+    // large fonts made the fixed rows spill Save past the sheet's bottom —
+    // pixel-overflow stripes and a button behind the system nav bar) and is
+    // capped at 92 % so the sheet never consumes the whole screen.
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final height = math.max(480.0, screenHeight * 0.48);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final height = math.min(
+      screenHeight * 0.92,
+      math.max(480.0, screenHeight * 0.48) * math.max(1.0, textScale),
+    );
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 120),
@@ -169,8 +177,10 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                height: 40,
+              // min-height, not a tight box: the M3 button grows with the
+              // font instead of clipping it (device feedback 2026-11-04).
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 40),
                 child: SegmentedButton<EntryKind>(
                   segments: const [
                     ButtonSegment(
@@ -191,11 +201,21 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
               AmountDisplay(pad: _pad, currency: _pad.currency),
               const SizedBox(height: Tokens.space2),
               Expanded(
-                child: Keypad(
-                  onDigit: (d) => setState(() => _pad.digit(d)),
-                  onDot: () => setState(_pad.dot),
-                  onBackspace: () => setState(_pad.back),
-                  dotEnabled: _pad.currency.minorUnits > 0,
+                // Extreme font scales keep every key tappable: below
+                // 4×touch-min the pad holds its minimum and scrolls
+                // instead of pushing the rows below it off the sheet.
+                child: LayoutBuilder(
+                  builder: (context, box) => SingleChildScrollView(
+                    child: SizedBox(
+                      height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+                      child: Keypad(
+                        onDigit: (d) => setState(() => _pad.digit(d)),
+                        onDot: () => setState(_pad.dot),
+                        onBackspace: () => setState(_pad.back),
+                        dotEnabled: _pad.currency.minorUnits > 0,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               CategoryChips(
