@@ -326,7 +326,8 @@ e2e-android:
 # adb/Files.
 # Reuses the e2e image (baked Flutter + Android SDK); no emulator, so no
 # KVM needed — runs on VM2, off the emulator host, with that box's warm
-# Gradle caches. Debug keystore — fine for sideload, never a release artifact.
+# Gradle caches. Debug keystore is PINNED (see before_script below) so every
+# build is upgrade-in-place; never a release artifact.
 # FLEET RULE: play only when the test stages of this pipeline are DONE —
 # VM2 freezes solid if a Gradle build overlaps flutter-test suites on the
 # same box (pipeline 93 lost app-test + goldens + this job simultaneously,
@@ -360,6 +361,28 @@ e2e-android:
   timeout: 25m
   variables:
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
+  before_script:
+    - |
+      # PINNED debug signing identity (owner report 2026-11-04 "App not
+      # installed"): an ephemeral container HOME means Gradle generates a
+      # FRESH ~/.android/debug.keystore per job, so d55cab7/da84a50/aa0891e
+      # pairs carried four different certs and NO build could upgrade-install
+      # over an earlier one. Decode the pinned keystore (project CI variable
+      # LB_DEBUG_KEYSTORE_B64) to the AGP debug default path before building;
+      # the debug key is public knowledge (androiddebugkey/android), the
+      # release key is not involved here. Fails the job when the variable is
+      # missing: a silent fresh key is exactly the bug this guard exists for.
+      set -e
+      if [ -z "$LB_DEBUG_KEYSTORE_B64" ]; then
+        echo "FATAL: LB_DEBUG_KEYSTORE_B64 not set - refusing to build with a throwaway key" >&2
+        exit 1
+      fi
+      mkdir -p "$HOME/.android"
+      printf '%s' "$LB_DEBUG_KEYSTORE_B64" | base64 -d > "$HOME/.android/debug.keystore"
+      # Pinned bytes (rotate both together only with a fresh test-install
+      # instruction to the testers): proves the decoded variable is EXACTLY
+      # the key the deliverables were re-cut with, not a truncated blob.
+      echo "042c3622d3ee7ac835e960611b49729895ae10d45536512f352019b8eefa8069  $HOME/.android/debug.keystore" | sha256sum -c -
   cache:
     - key:
         files:
