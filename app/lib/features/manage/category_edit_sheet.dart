@@ -103,7 +103,15 @@ class _CategoryEditState extends State<_CategoryEdit> {
         maxHeight: MediaQuery.sizeOf(context).height * 0.86,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        // A scroll-controlled sheet sits flush with the physical bottom of
+        // the screen — the nav bar is ours to clear (device feedback
+        // 2026-11-04 pm: 3-button devices painted "Add category" under it).
+        padding: EdgeInsets.fromLTRB(
+          16,
+          12,
+          16,
+          16 + MediaQuery.viewPaddingOf(context).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

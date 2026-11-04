@@ -133,18 +133,29 @@ class _LimitEditorSheetState extends State<_LimitEditorSheet> {
         : widget.line == null
         ? 'New budget'
         : 'Edit budget';
-    return Padding(
+    // QuickAdd's height grammar (device feedback 2026-11-04 pm): a
+    // font-scaled budget capped at 92 % and nav-bar clearance the modal
+    // deliberately does not inset; landscape gives the pad its own pane
+    // because the short screen cannot stack it under the fields.
+    final size = MediaQuery.sizeOf(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final height = math.min(
+      size.height * 0.92,
+      math.max(480.0, size.height * 0.52) * math.max(1.0, textScale),
+    );
+    return AnimatedPadding(
       // No text fields here, but keep the same keyboard-proofing grammar as
       // QuickAdd in case the sheet grows one later.
+      duration: const Duration(milliseconds: 120),
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SizedBox(
-        height: math.max(480.0, MediaQuery.sizeOf(context).height * 0.52),
+        height: height,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             Tokens.space4,
             Tokens.space2,
             Tokens.space4,
-            Tokens.space4,
+            Tokens.space4 + MediaQuery.viewPaddingOf(context).bottom,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -208,32 +219,9 @@ class _LimitEditorSheetState extends State<_LimitEditorSheet> {
               const SizedBox(height: Tokens.space2),
               AmountDisplay(pad: _pad, currency: currency),
               Expanded(
-                child: Keypad(
-                  onDigit: (d) => setState(() => _pad.digit(d)),
-                  onDot: () => setState(_pad.dot),
-                  onBackspace: () => setState(_pad.back),
-                  dotEnabled: currency.minorUnits > 0,
-                ),
-              ),
-              const SizedBox(height: Tokens.space2),
-              Row(
-                children: [
-                  if (widget.line != null)
-                    TextButton(
-                      key: const Key('limit-delete'),
-                      onPressed: _delete,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.error,
-                      ),
-                      child: const Text('Delete'),
-                    ),
-                  const Spacer(),
-                  FilledButton(
-                    key: const Key('limit-save'),
-                    onPressed: _canSave ? _save : null,
-                    child: const Text('Save'),
-                  ),
-                ],
+                child: size.width > size.height
+                    ? _landscape()
+                    : _portraitKeypad(),
               ),
             ],
           ),
@@ -241,6 +229,62 @@ class _LimitEditorSheetState extends State<_LimitEditorSheet> {
       ),
     );
   }
+
+  Widget _portraitKeypad() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      // Below 4×touch-min the pad stops growing and scrolls instead of
+      // pushing the action row off the sheet (same as QuickAdd).
+      Expanded(
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: SizedBox(
+              height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+              child: _keypad(),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: Tokens.space2),
+      _actionsRow(),
+    ],
+  );
+
+  Widget _landscape() => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Expanded(flex: 3, child: SingleChildScrollView(child: _actionsRow())),
+      const SizedBox(width: Tokens.space2),
+      Expanded(flex: 2, child: _keypad()),
+    ],
+  );
+
+  Widget _keypad() => Keypad(
+    onDigit: (d) => setState(() => _pad.digit(d)),
+    onDot: () => setState(_pad.dot),
+    onBackspace: () => setState(_pad.back),
+    dotEnabled: widget.snapshot.currency.minorUnits > 0,
+  );
+
+  Widget _actionsRow() => Row(
+    children: [
+      if (widget.line != null)
+        TextButton(
+          key: const Key('limit-delete'),
+          onPressed: _delete,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: const Text('Delete'),
+        ),
+      const Spacer(),
+      FilledButton(
+        key: const Key('limit-save'),
+        onPressed: _canSave ? _save : null,
+        child: const Text('Save'),
+      ),
+    ],
+  );
 }
 
 /// Edit mode names the category with a static chip — the chip row is for

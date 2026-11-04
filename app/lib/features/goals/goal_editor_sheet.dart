@@ -135,33 +135,33 @@ class _GoalEditorSheetState extends State<_GoalEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // QuickAdd's height grammar (device feedback 2026-11-04 pm): a
+    // font-scaled budget capped at 92 % — the old 520 dp floor was taller
+    // than a landscape phone, so the pad clipped mid-row there — plus
+    // nav-bar clearance the modal deliberately does not inset.
     final pad = _pad;
-    return Padding(
+    final size = MediaQuery.sizeOf(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final height = math.min(
+      size.height * 0.92,
+      math.max(520.0, size.height * 0.56) * math.max(1.0, textScale),
+    );
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 120),
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SizedBox(
-        height: math.max(520.0, MediaQuery.sizeOf(context).height * 0.6),
+        height: height,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             Tokens.space4,
             Tokens.space2,
             Tokens.space4,
-            Tokens.space4,
+            Tokens.space4 + MediaQuery.viewPaddingOf(context).bottom,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Container(
-                  width: 32,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+              _dragBar(context),
               const SizedBox(height: Tokens.space2),
               Text(
                 _isEdit ? 'Edit goal' : 'New goal',
@@ -192,27 +192,84 @@ class _GoalEditorSheetState extends State<_GoalEditorSheet> {
                 const Expanded(
                   child: Center(child: CircularProgressIndicator()),
                 )
-              else ...[
-                AmountDisplay(pad: pad, currency: _currency!),
-                Expanded(
-                  child: Keypad(
-                    onDigit: (d) => setState(() => pad.digit(d)),
-                    onDot: () => setState(pad.dot),
-                    onBackspace: () => setState(pad.back),
-                    dotEnabled: _currency!.minorUnits > 0,
-                  ),
-                ),
-                const SizedBox(height: Tokens.space2),
-                FilledButton(
-                  key: const Key('goal-save'),
-                  onPressed: _name.text.trim().isEmpty ? null : _save,
-                  child: Text(_isEdit ? 'Save' : 'Create goal'),
-                ),
-              ],
+              else if (size.width > size.height)
+                Expanded(child: _landscape(pad))
+              else
+                ..._portrait(pad),
             ],
           ),
         ),
       ),
     );
   }
+
+  // ---- sheet pieces (same grammar as QuickAdd's sheet) ------------------
+
+  List<Widget> _portrait(AmountPad pad) => [
+    Expanded(
+      // Below 4×touch-min the pad stops growing and scrolls instead of
+      // pushing Save off the sheet — every key stays tappable even at
+      // extreme font scales.
+      child: LayoutBuilder(
+        builder: (context, box) => SingleChildScrollView(
+          child: SizedBox(
+            height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+            child: _keypad(pad),
+          ),
+        ),
+      ),
+    ),
+    const SizedBox(height: Tokens.space2),
+    _saveButton(),
+  ];
+
+  Widget _landscape(AmountPad pad) => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Expanded(
+        flex: 3,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AmountDisplay(pad: pad, currency: _currency!),
+              const SizedBox(height: Tokens.space2),
+              _saveButton(),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(width: Tokens.space2),
+      Expanded(flex: 2, child: _keypad(pad)),
+    ],
+  );
+
+  Widget _keypad(AmountPad pad) => Keypad(
+    onDigit: (d) => setState(() => pad.digit(d)),
+    onDot: () => setState(pad.dot),
+    onBackspace: () => setState(pad.back),
+    dotEnabled: _currency!.minorUnits > 0,
+  );
+
+  Widget _saveButton() => SizedBox(
+    height: Tokens.touchMin,
+    child: FilledButton(
+      key: const Key('goal-save'),
+      onPressed: _name.text.trim().isEmpty ? null : _save,
+      child: Text(_isEdit ? 'Save' : 'Create goal'),
+    ),
+  );
+
+  Widget _dragBar(BuildContext context) => Center(
+    child: Container(
+      width: 32,
+      height: 4,
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
 }

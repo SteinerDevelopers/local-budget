@@ -179,130 +179,141 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // A scroll-controlled sheet sits flush with the physical bottom of the
+    // screen — modal useSafeArea deliberately never insets it there — so
+    // the system navigation bar is ours to clear (device feedback
+    // 2026-11-04 pm: the Rollover row sat under the 3-button bar).
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.92,
-      child: Column(
-        children: [
-          const _DragBar(),
-          SizedBox(
-            height: 56,
-            child: Row(
-              children: [
-                _Chevron(
-                  keyName: 'budget-prev',
-                  icon: Icons.chevron_left,
-                  semantic: 'Previous month',
-                  onTap: () => _shiftMonth(-1),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      monthTitle(_index),
-                      style: TextStyle(
-                        fontSize: Tokens.monthLabelSize,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewPaddingOf(context).bottom,
+        ),
+        child: Column(
+          children: [
+            const _DragBar(),
+            SizedBox(
+              height: 56,
+              child: Row(
+                children: [
+                  _Chevron(
+                    keyName: 'budget-prev',
+                    icon: Icons.chevron_left,
+                    semantic: 'Previous month',
+                    onTap: () => _shiftMonth(-1),
                   ),
-                ),
-                _Chevron(
-                  keyName: 'budget-next',
-                  icon: Icons.chevron_right,
-                  semantic: 'Next month',
-                  onTap: () => _shiftMonth(1),
-                ),
-                // E4 §1: second Reports entrance — from the sheet that owns
-                // the limits, landing on Budget vs actual (e4-reports.md §1).
-                _Chevron(
-                  keyName: 'reports-open-actual',
-                  icon: Icons.insights_outlined,
-                  semantic: 'Reports',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ReportsScreen(
-                        repository: widget.repository,
-                        initialSegment: ReportSegment.actual,
-                      ),
-                    ),
-                  ),
-                ),
-                // E8 §3: Help stays one tap away on this screen too.
-                _Chevron(
-                  keyName: 'budget-help',
-                  icon: Icons.help_outline,
-                  semantic: 'Help',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
-            child: SizedBox(
-              height: 40,
-              child: SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 0, label: Text('Budgets')),
-                  ButtonSegment(value: 1, label: Text('Bills')),
-                  ButtonSegment(value: 2, label: Text('Goals')),
-                ],
-                selected: {_tab},
-                showSelectedIcon: false,
-                onSelectionChanged: (s) => setState(() => _tab = s.first),
-              ),
-            ),
-          ),
-          const SizedBox(height: Tokens.space2),
-          Expanded(
-            child: switch (_tab) {
-              1 =>
-                !_billsLoaded
-                    ? const KeyedSubtree(
-                        key: Key('tab-bills'),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : KeyedSubtree(
-                        key: const Key('tab-bills'),
-                        child: BillsTab(
-                          repository: widget.repository,
-                          bills: _bills,
-                          currency: _billCurrency,
-                          categories: _billCats,
-                          onChanged: _loadBills,
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        monthTitle(_index),
+                        style: TextStyle(
+                          fontSize: Tokens.monthLabelSize,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-              2 => KeyedSubtree(
-                key: const Key('tab-goals'),
-                child: !_goalsLoaded
-                    ? const Center(child: CircularProgressIndicator())
-                    : GoalsTab(
-                        repository: widget.repository,
-                        goals: _goals,
-                        onChanged: _loadGoals,
+                    ),
+                  ),
+                  _Chevron(
+                    keyName: 'budget-next',
+                    icon: Icons.chevron_right,
+                    semantic: 'Next month',
+                    onTap: () => _shiftMonth(1),
+                  ),
+                  // E4 §1: second Reports entrance — from the sheet that owns
+                  // the limits, landing on Budget vs actual (e4-reports.md §1).
+                  _Chevron(
+                    keyName: 'reports-open-actual',
+                    icon: Icons.insights_outlined,
+                    semantic: 'Reports',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ReportsScreen(
+                          repository: widget.repository,
+                          initialSegment: ReportSegment.actual,
+                        ),
                       ),
+                    ),
+                  ),
+                  // E8 §3: Help stays one tap away on this screen too.
+                  _Chevron(
+                    keyName: 'budget-help',
+                    icon: Icons.help_outline,
+                    semantic: 'Help',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const HelpScreen(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              _ =>
-                _snapshot == null || _snapshotIndex != _index
-                    ? const Center(child: CircularProgressIndicator())
-                    : BudgetsTab(
-                        snapshot: _snapshot!,
-                        onEditOverall: () => _edit(overall: true),
-                        onEditLine: (line) => _edit(line: line),
-                        onAdd: () => _edit(),
-                        onToggleRollover: (v) async {
-                          await widget.repository.setBudgetRollover(v);
-                          await _load();
-                        },
-                        onCopyLastMonth: () async {
-                          await _service.copyLastMonth(_index);
-                          await _load();
-                        },
-                      ),
-            },
-          ),
-        ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+              child: SizedBox(
+                height: 40,
+                child: SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('Budgets')),
+                    ButtonSegment(value: 1, label: Text('Bills')),
+                    ButtonSegment(value: 2, label: Text('Goals')),
+                  ],
+                  selected: {_tab},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (s) => setState(() => _tab = s.first),
+                ),
+              ),
+            ),
+            const SizedBox(height: Tokens.space2),
+            Expanded(
+              child: switch (_tab) {
+                1 =>
+                  !_billsLoaded
+                      ? const KeyedSubtree(
+                          key: Key('tab-bills'),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : KeyedSubtree(
+                          key: const Key('tab-bills'),
+                          child: BillsTab(
+                            repository: widget.repository,
+                            bills: _bills,
+                            currency: _billCurrency,
+                            categories: _billCats,
+                            onChanged: _loadBills,
+                          ),
+                        ),
+                2 => KeyedSubtree(
+                  key: const Key('tab-goals'),
+                  child: !_goalsLoaded
+                      ? const Center(child: CircularProgressIndicator())
+                      : GoalsTab(
+                          repository: widget.repository,
+                          goals: _goals,
+                          onChanged: _loadGoals,
+                        ),
+                ),
+                _ =>
+                  _snapshot == null || _snapshotIndex != _index
+                      ? const Center(child: CircularProgressIndicator())
+                      : BudgetsTab(
+                          snapshot: _snapshot!,
+                          onEditOverall: () => _edit(overall: true),
+                          onEditLine: (line) => _edit(line: line),
+                          onAdd: () => _edit(),
+                          onToggleRollover: (v) async {
+                            await widget.repository.setBudgetRollover(v);
+                            await _load();
+                          },
+                          onCopyLastMonth: () async {
+                            await _service.copyLastMonth(_index);
+                            await _load();
+                          },
+                        ),
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -181,107 +181,166 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: math.max(560.0, MediaQuery.sizeOf(context).height * 0.92),
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: Tokens.space2),
-            _dragBar(context),
-            _startRow(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
-              child: Column(
-                children: [
-                  TextField(
-                    key: const Key('bill-name'),
-                    controller: _name,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(labelText: 'Bill name'),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: Tokens.space3),
-                  CategoryChips(
-                    key: const Key('bill-categories'),
-                    categories: [
-                      for (final c in widget.categories)
-                        CategoryOption(
-                          c.id,
-                          c.name,
-                          ManageIcons.of(c.icon, c.name),
-                        ),
-                    ],
-                    selectedId: _categoryId,
-                    onSelect: (id) => setState(() => _categoryId = id),
-                    onManage: null,
-                  ),
-                  const SizedBox(height: Tokens.space3),
-                  SegmentedButton<BillFrequency>(
-                    segments: const [
-                      ButtonSegment(
-                        value: BillFrequency.weekly,
-                        label: Text('Weekly'),
-                      ),
-                      ButtonSegment(
-                        value: BillFrequency.monthly,
-                        label: Text('Monthly'),
-                      ),
-                      ButtonSegment(
-                        value: BillFrequency.yearly,
-                        label: Text('Yearly'),
-                      ),
-                    ],
-                    selected: {_freq},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (s) => setState(() => _freq = s.first),
-                  ),
-                  const SizedBox(height: Tokens.space2),
-                  _daySelector(),
-                ],
+    // The bill editor is inherently tall, so it keeps its shipped 92 % of
+    // the screen (device feedback 2026-11-04 pm kept the fraction — a
+    // shorter sheet buries the pad's bottom row behind the portrait scroll
+    // fold, which silently swallows keypad taps). Font-scale slack comes
+    // from inside: fixed rows grow with the system font and the keypad
+    // gives down to its 4×touch-min scroll floor. In landscape that stack
+    // cannot fit the short screen — the tester's stripe of a pad clipped
+    // mid-row — so the pad gets its own right-hand pane and the fields
+    // scroll beside it.
+    final size = MediaQuery.sizeOf(context);
+    final height = size.height * 0.92;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 120),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SizedBox(
+        height: height,
+        child: Padding(
+          // A scroll-controlled sheet sits flush with the physical bottom
+          // of the screen — modal useSafeArea deliberately never insets
+          // it there — so the system navigation bar is ours to clear
+          // (device feedback 2026-11-04 pm: 3-button devices painted
+          // "Add bill" underneath the bar).
+          padding: EdgeInsets.only(
+            bottom: Tokens.space4 + MediaQuery.viewPaddingOf(context).bottom,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: Tokens.space2),
+              _dragBar(context),
+              _startRow(),
+              Expanded(
+                child: size.width > size.height ? _landscape() : _portrait(),
               ),
-            ),
-            // Keypad takes every leftover pixel (its keys are Expanded
-            // rows), so it doubles as the Spacer here — same trick as
-            // QuickAdd's sheet.
-            AmountDisplay(pad: _pad, currency: widget.currency),
-            Expanded(
-              child: Keypad(
-                onDigit: (d) => setState(() => _pad.digit(d)),
-                onDot: () => setState(() => _pad.dot()),
-                onBackspace: () => setState(() => _pad.back()),
-              ),
-            ),
-            SwitchListTile(
-              key: const Key('bill-notify'),
-              title: const Text('Notify me the morning it is due'),
-              secondary: const Icon(Icons.notifications_none),
-              value: _notify,
-              onChanged: (v) => setState(() => _notify = v),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                Tokens.space4,
-                Tokens.space2,
-                Tokens.space4,
-                Tokens.space4,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  key: const Key('bill-save'),
-                  onPressed: _canSave ? _save : null,
-                  child: Text(_isAdd ? 'Add bill' : 'Save changes'),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  // ---- sheet pieces (same grammar as QuickAdd's sheet) ------------------
+
+  Widget _portrait() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _fields(),
+      AmountDisplay(pad: _pad, currency: widget.currency),
+      Expanded(
+        // Below 4×touch-min the pad stops growing and scrolls instead of
+        // pushing Notify/Save off the sheet — every key stays tappable
+        // even at extreme font scales.
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: SizedBox(
+              height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+              child: _keypad(),
+            ),
+          ),
+        ),
+      ),
+      _notifyTile(),
+      _saveButton(),
+    ],
+  );
+
+  Widget _landscape() => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Expanded(
+        flex: 3,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _fields(),
+              AmountDisplay(pad: _pad, currency: widget.currency),
+              _notifyTile(),
+              const SizedBox(height: Tokens.space2),
+              _saveButton(),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(width: Tokens.space2),
+      Expanded(flex: 2, child: _keypad()),
+    ],
+  );
+
+  Widget _fields() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+    child: Column(
+      children: [
+        TextField(
+          key: const Key('bill-name'),
+          controller: _name,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(labelText: 'Bill name'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: Tokens.space3),
+        CategoryChips(
+          key: const Key('bill-categories'),
+          categories: [
+            for (final c in widget.categories)
+              CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name)),
+          ],
+          selectedId: _categoryId,
+          onSelect: (id) => setState(() => _categoryId = id),
+          onManage: null,
+        ),
+        const SizedBox(height: Tokens.space3),
+        SegmentedButton<BillFrequency>(
+          segments: const [
+            ButtonSegment(value: BillFrequency.weekly, label: Text('Weekly')),
+            ButtonSegment(value: BillFrequency.monthly, label: Text('Monthly')),
+            ButtonSegment(value: BillFrequency.yearly, label: Text('Yearly')),
+          ],
+          selected: {_freq},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => setState(() => _freq = s.first),
+        ),
+        const SizedBox(height: Tokens.space2),
+        _daySelector(),
+      ],
+    ),
+  );
+
+  Widget _keypad() => Keypad(
+    onDigit: (d) => setState(() => _pad.digit(d)),
+    onDot: () => setState(() => _pad.dot()),
+    onBackspace: () => setState(() => _pad.back()),
+  );
+
+  Widget _notifyTile() => SwitchListTile(
+    key: const Key('bill-notify'),
+    title: const Text('Notify me the morning it is due'),
+    secondary: const Icon(Icons.notifications_none),
+    value: _notify,
+    onChanged: (v) => setState(() => _notify = v),
+  );
+
+  Widget _saveButton() => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      Tokens.space4,
+      Tokens.space2,
+      Tokens.space4,
+      0,
+    ),
+    child: SizedBox(
+      width: double.infinity,
+      // min-height, not a tight box: the M3 button grows with the font
+      // instead of clipping it.
+      height: Tokens.touchMin,
+      child: FilledButton(
+        key: const Key('bill-save'),
+        onPressed: _canSave ? _save : null,
+        child: Text(_isAdd ? 'Add bill' : 'Save changes'),
+      ),
+    ),
+  );
 
   Widget _dragBar(BuildContext context) => Center(
     child: Container(
