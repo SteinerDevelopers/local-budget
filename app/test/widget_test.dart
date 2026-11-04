@@ -53,9 +53,17 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
     await tester.pumpAndSettle(); // categories() lands synchronously
     await pressKeys(tester, keys);
-    await tester.tap(find.widgetWithText(FilterChip, chip));
+    // The landscape split keeps chip row and Save inside the left pane's
+    // scroll views — a finger scrolls first, so does the test.
+    final chipFinder = find.widgetWithText(FilterChip, chip);
+    await tester.ensureVisible(chipFinder);
+    await tester.pumpAndSettle();
+    await tester.tap(chipFinder);
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    final saveBtn = find.widgetWithText(FilledButton, 'Save');
+    await tester.ensureVisible(saveBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(saveBtn);
     await tester.pumpAndSettle(); // addEntry + stream re-emission + close
   }
 

@@ -250,4 +250,65 @@ void main() {
       expect(chip.bottom, lessThanOrEqualTo(row.bottom + 0.5));
     });
   });
+
+  // Device feedback 2026-11-04 pm: a 3-button-nav device painted Save
+  // under the system bar, and landscape clipped the pad mid-row. Both
+  // hid in tests because the fake view carries zero insets and the old
+  // surface (800×600) never rendered the landscape split on purpose.
+  group('system insets (device 2026-11-04 pm)', () {
+    void setPhoneView(WidgetTester tester, {required bool landscape}) {
+      tester.view.physicalSize = landscape
+          ? const Size(2520, 1080) // logical 840×360, like the device shot
+          : const Size(1080, 2400); // logical 360×800
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+    }
+
+    testWidgets('portrait + 48 dp nav bar: Save fully clears the bar', (
+      tester,
+    ) async {
+      setPhoneView(tester, landscape: false);
+      // A nav bar is view *padding*, not an inset — scroll-controlled
+      // sheets get no automatic bottom SafeArea; the sheet must clear it.
+      tester.view.viewPadding = const FakeViewPadding(bottom: 144); // 48 dp
+      await openSheet(tester);
+      expect(tester.takeException(), isNull);
+      final save = tester.getRect(find.widgetWithText(FilledButton, 'Save'));
+      expect(save.bottom, lessThanOrEqualTo(800 - 48 + 0.5));
+      expect(save.top, greaterThan(0));
+    });
+
+    testWidgets('landscape: whole pad renders, Save on screen', (tester) async {
+      setPhoneView(tester, landscape: true);
+      await openSheet(tester);
+      expect(tester.takeException(), isNull);
+      // The 0 key anchors the pad's bottom row — mid-row clipping (the
+      // device screenshot) left it outside the sheet.
+      final zero = tester.getRect(find.byKey(const Key('keypad-0')));
+      expect(zero.top, greaterThanOrEqualTo(0));
+      expect(zero.bottom, lessThanOrEqualTo(360 + 0.5));
+      final save = find.widgetWithText(FilledButton, 'Save');
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      final rect = tester.getRect(save);
+      expect(rect.top, greaterThanOrEqualTo(0));
+      expect(rect.bottom, lessThanOrEqualTo(360 + 0.5));
+    });
+
+    testWidgets('landscape at 2× font: no overflow, Save reachable', (
+      tester,
+    ) async {
+      setPhoneView(tester, landscape: true);
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await openSheet(tester);
+      expect(tester.takeException(), isNull);
+      final save = find.widgetWithText(FilledButton, 'Save');
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      final rect = tester.getRect(save);
+      expect(rect.top, greaterThanOrEqualTo(0));
+      expect(rect.bottom, lessThanOrEqualTo(360 + 0.5));
+    });
+  });
 }

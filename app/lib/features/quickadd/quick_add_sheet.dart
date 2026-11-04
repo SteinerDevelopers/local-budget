@@ -150,16 +150,17 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   @override
   Widget build(BuildContext context) {
     // ~48 % of the screen (§2.2) with a 480 dp floor so the keypad keeps
-    // §3 touch-min keys on short screens; keyboard (note only) pushes it up.
-    // The budget tracks the system font scale (device feedback 2026-11-04:
-    // large fonts made the fixed rows spill Save past the sheet's bottom —
-    // pixel-overflow stripes and a button behind the system nav bar) and is
-    // capped at 92 % so the sheet never consumes the whole screen.
-    final screenHeight = MediaQuery.sizeOf(context).height;
+    // §3 touch-min keys on short screens; keyboard (note only) pushes it
+    // up. The budget tracks the system font scale (device feedback
+    // 2026-11-04: large fonts made the fixed rows spill Save past the
+    // sheet’s bottom — pixel-overflow stripes and a button behind the
+    // system nav bar) and is capped at 92 % so the sheet never consumes
+    // the whole screen.
+    final size = MediaQuery.sizeOf(context);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final height = math.min(
-      screenHeight * 0.92,
-      math.max(480.0, screenHeight * 0.48) * math.max(1.0, textScale),
+      size.height * 0.92,
+      math.max(480.0, size.height * 0.48) * math.max(1.0, textScale),
     );
 
     return AnimatedPadding(
@@ -168,98 +169,144 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       child: SizedBox(
         height: height,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+          // A scroll-controlled sheet sits flush with the physical bottom
+          // of the screen — modal useSafeArea deliberately never insets
+          // it there — so the system navigation bar is ours to clear
+          // (device feedback 2026-11-04 pm: 3-button devices painted
+          // Save underneath the bar).
+          padding: EdgeInsets.fromLTRB(
             Tokens.space4,
             Tokens.space2,
             Tokens.space4,
-            Tokens.space4,
+            Tokens.space4 + MediaQuery.viewPaddingOf(context).bottom,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // min-height, not a tight box: the M3 button grows with the
-              // font instead of clipping it (device feedback 2026-11-04).
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 40),
-                child: SegmentedButton<EntryKind>(
-                  segments: const [
-                    ButtonSegment(
-                      value: EntryKind.expense,
-                      label: Text('Expense'),
-                    ),
-                    ButtonSegment(
-                      value: EntryKind.income,
-                      label: Text('Income'),
-                    ),
-                  ],
-                  selected: {_kind},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (s) => setState(() => _kind = s.first),
-                ),
-              ),
-              const SizedBox(height: Tokens.space2),
-              AmountDisplay(pad: _pad, currency: _pad.currency),
-              const SizedBox(height: Tokens.space2),
-              Expanded(
-                // Extreme font scales keep every key tappable: below
-                // 4×touch-min the pad holds its minimum and scrolls
-                // instead of pushing the rows below it off the sheet.
-                child: LayoutBuilder(
-                  builder: (context, box) => SingleChildScrollView(
-                    child: SizedBox(
-                      height: math.max(box.maxHeight, 4 * Tokens.touchMin),
-                      child: Keypad(
-                        onDigit: (d) => setState(() => _pad.digit(d)),
-                        onDot: () => setState(_pad.dot),
-                        onBackspace: () => setState(_pad.back),
-                        dotEnabled: _pad.currency.minorUnits > 0,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              CategoryChips(
-                categories: widget.categories,
-                selectedId: _categoryId,
-                onSelect: (id) => setState(() => _categoryId = id),
-                onManage: widget.onManageCategories,
-              ),
-              const SizedBox(height: Tokens.space2),
-              _OptionalRow(
-                day: _day,
-                currencyCode: _pad.currency.code,
-                stripOpen: _dateStripOpen,
-                noteActive: _noteActive,
-                noteController: _note,
-                noteFocus: _noteFocus,
-                onPickCurrency: _pickCurrency,
-                onToggleDateStrip: () =>
-                    setState(() => _dateStripOpen = !_dateStripOpen),
-                onPickDay: (day) => setState(() {
-                  _day = day;
-                  _dateStripOpen = false;
-                }),
-                onOpenCalendar: _openCalendar,
-                onActivateNote: () => setState(() {
-                  _noteActive = true;
-                  _dateStripOpen = false;
-                }),
-              ),
-              const SizedBox(height: Tokens.space2),
-              SizedBox(
-                height: Tokens.touchMin,
-                child: FilledButton(
-                  // M3 FilledButton renders its own disabled state (§2.2).
-                  onPressed: _canSave ? _save : null,
-                  child: const Text('Save'),
-                ),
-              ),
-            ],
-          ),
+          child: size.width > size.height ? _landscape() : _portrait(),
         ),
       ),
     );
   }
+
+  // ---- sheet pieces ----------------------------------------------------
+  //
+  // Portrait stacks everything and lets the keypad swallow the slack
+  // between amount and chips. Landscape flips the budget: the short
+  // screen cannot carry 4×touch-min rows on top of the fields, and the
+  // pad clipped mid-row — half a keypad reads as broken (device feedback
+  // 2026-11-04 pm). So the pad gets its own right-hand pane and the
+  // fields scroll beside it.
+
+  Widget _portrait() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      // min-height, not a tight box: the M3 button grows with the
+      // font instead of clipping it (device feedback 2026-11-04).
+      _kindToggle(),
+      const SizedBox(height: Tokens.space2),
+      AmountDisplay(pad: _pad, currency: _pad.currency),
+      const SizedBox(height: Tokens.space2),
+      Expanded(
+        // Extreme font scales keep every key tappable: below
+        // 4×touch-min the pad holds its minimum and scrolls
+        // instead of pushing the rows below it off the sheet.
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: SizedBox(
+              height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+              child: _keypad(),
+            ),
+          ),
+        ),
+      ),
+      _chips(),
+      const SizedBox(height: Tokens.space2),
+      _optionalRow(),
+      const SizedBox(height: Tokens.space2),
+      _saveButton(),
+    ],
+  );
+
+  Widget _landscape() => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Expanded(
+        flex: 3,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _kindToggle(),
+              const SizedBox(height: Tokens.space2),
+              AmountDisplay(pad: _pad, currency: _pad.currency),
+              const SizedBox(height: Tokens.space2),
+              _chips(),
+              const SizedBox(height: Tokens.space2),
+              _optionalRow(),
+              const SizedBox(height: Tokens.space2),
+              _saveButton(),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(width: Tokens.space2),
+      Expanded(flex: 2, child: _keypad()),
+    ],
+  );
+
+  Widget _kindToggle() => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 40),
+    child: SegmentedButton<EntryKind>(
+      segments: const [
+        ButtonSegment(value: EntryKind.expense, label: Text('Expense')),
+        ButtonSegment(value: EntryKind.income, label: Text('Income')),
+      ],
+      selected: {_kind},
+      showSelectedIcon: false,
+      onSelectionChanged: (s) => setState(() => _kind = s.first),
+    ),
+  );
+
+  Widget _keypad() => Keypad(
+    onDigit: (d) => setState(() => _pad.digit(d)),
+    onDot: () => setState(_pad.dot),
+    onBackspace: () => setState(_pad.back),
+    dotEnabled: _pad.currency.minorUnits > 0,
+  );
+
+  Widget _chips() => CategoryChips(
+    categories: widget.categories,
+    selectedId: _categoryId,
+    onSelect: (id) => setState(() => _categoryId = id),
+    onManage: widget.onManageCategories,
+  );
+
+  Widget _optionalRow() => _OptionalRow(
+    day: _day,
+    currencyCode: _pad.currency.code,
+    stripOpen: _dateStripOpen,
+    noteActive: _noteActive,
+    noteController: _note,
+    noteFocus: _noteFocus,
+    onPickCurrency: _pickCurrency,
+    onToggleDateStrip: () => setState(() => _dateStripOpen = !_dateStripOpen),
+    onPickDay: (day) => setState(() {
+      _day = day;
+      _dateStripOpen = false;
+    }),
+    onOpenCalendar: _openCalendar,
+    onActivateNote: () => setState(() {
+      _noteActive = true;
+      _dateStripOpen = false;
+    }),
+  );
+
+  Widget _saveButton() => SizedBox(
+    height: Tokens.touchMin,
+    child: FilledButton(
+      // M3 FilledButton renders its own disabled state (§2.2).
+      onPressed: _canSave ? _save : null,
+      child: const Text('Save'),
+    ),
+  );
 
   Future<void> _openCalendar() async {
     final picked = await showDatePicker(
