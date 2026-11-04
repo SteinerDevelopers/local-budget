@@ -244,6 +244,12 @@ class ReceiptHeuristics {
   /// non-blacklisted lines (OCR column split); decimals beat bare integers
   /// (`TOTAL 4 ITEMS 42.50` is 42.50, not 4); amounts re-joined across lines
   /// must carry a symbol or decimal and inherit confidence minus one level.
+  ///
+  /// v1.2 (device feedback, 2026-11-04): refund/return slips print the total
+  /// accounting-negative — `TOTAL AMOUNT:  (215.60)`. A money-looking
+  /// negative resolves to its magnitude demoted one level (amber "check
+  /// amount"; the user confirms Expense vs Income); column-header anchors
+  /// never look down into the item table.
   ({Money amount, FieldConfidence confidence})? guessTotal(List<String> lines) {
     final type = classify(lines);
     final anchors = _anchorsFor(type);
@@ -265,6 +271,10 @@ class ReceiptHeuristics {
         //    label (`TOTAL2`) are OCR noise, not a left-aligned amount.
         parsed ??=
             _bestAmount(line.substring(0, match.start), requireExact: true);
+        // A column header (`ITEM QTY PRICE TOTAL`) is an anchor word with no
+        // amount of its own; looking down from it would grab the first item
+        // price (device photo, 2026-11-04). Not an anchor — keep scanning.
+        if (parsed == null && _columnHeaderRe.hasMatch(line)) continue;
         // 3. …or on one of the next two lines (anchor and right-aligned
         //    amount OCR'd as separate blocks; e2-capture.md §3 v1.1).
         if (parsed == null) {
@@ -286,12 +296,15 @@ class ReceiptHeuristics {
         if (parsed == null) continue; // no amount anywhere near this anchor
         final cur =
             _lineCurrency(merged ? '$line $source' : line, parsed.token);
-        final amount = cur == null || cur.code == parsed.amount.currency.code
+        var amount = cur == null || cur.code == parsed.amount.currency.code
             ? parsed.amount
             : (Money.tryParse(parsed.token, cur) ?? parsed.amount);
+        if (amount.isNegative) amount = -amount; // re-resolved currency too
         return (
           amount: amount,
-          confidence: merged ? _demote(anchor.confidence) : anchor.confidence,
+          confidence: merged || parsed.negative
+              ? _demote(anchor.confidence)
+              : anchor.confidence,
         );
       }
     }
@@ -310,24 +323,39 @@ class ReceiptHeuristics {
       RegExp(r'\d[.,]\d{1,2}\b').hasMatch(token) ||
       RegExp(r'[$€£¥₹]').hasMatch(token);
 
-  /// First positive amount in [s]; a token that looks like money (decimal or
-  /// symbol) wins over a bare integer regardless of position, so
-  /// `TOTAL 4 ITEMS 42.50` yields 42.50 instead of the item count 4. With
-  /// [requireExact] only money-looking tokens count at all.
-  ({String token, Money amount})? _bestAmount(String s,
+  /// First amount in [s]; a token that looks like money (decimal or symbol)
+  /// wins over a bare integer regardless of position, so `TOTAL 4 ITEMS
+  /// 42.50` yields 42.50 instead of the item count 4. With [requireExact]
+  /// only money-looking tokens count at all. Accounting negatives — return
+  /// slips print `(215.60)` / `-215.60` — resolve to their magnitude with
+  /// [negative] set: the figure itself is real, but the sign's meaning
+  /// (charge vs credit) belongs to a human, so callers demote one
+  /// confidence level. A bare negative integer (`-1` in a qty column) is a
+  /// count, not money, and stays out.
+  ({String token, Money amount, bool negative})? _bestAmount(String s,
       {required bool requireExact}) {
-    ({String token, Money amount})? firstInt;
+    ({String token, Money amount, bool negative})? firstInt;
     for (final m in _amountRe.allMatches(s)) {
       final token = m.namedGroup('amount')!;
       final exact = _looksLikeMoney(token);
       if (requireExact && !exact) continue;
-      final parsed = Money.tryParse(token, currency);
-      if (parsed == null || !parsed.isPositive) continue;
-      if (exact) return (token: token, amount: parsed);
-      firstInt ??= (token: token, amount: parsed);
+      var parsed = Money.tryParse(token, currency);
+      if (parsed == null || parsed.isZero) continue;
+      final negative = parsed.isNegative;
+      if (negative && !exact) continue;
+      if (negative) parsed = -parsed;
+      if (exact) return (token: token, amount: parsed, negative: negative);
+      firstInt ??= (token: token, amount: parsed, negative: false);
     }
     return firstInt;
   }
+
+  /// An item-table header line: an anchor word (`TOTAL` as column title)
+  /// sitting in column vocabulary, never carrying an amount of its own.
+  static final RegExp _columnHeaderRe = RegExp(
+    r'\b(QTY|QUANTITY|PRICE|EACH|UNIT|ITEM)\b',
+    caseSensitive: false,
+  );
 
   static final RegExp _currencyCodeRe = RegExp(
     r'\b(USD|EUR|GBP|JPY|KRW|CNY|RMB|CHF|SEK|NOK|DKK|PLN|CZK|HUF|INR|BRL|MXN'
