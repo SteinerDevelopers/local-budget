@@ -8,6 +8,11 @@ import 'package:flutter/material.dart';
 /// any kind — the reader-facing app never names the machinery behind a
 /// reading, it says what the app did and what the user can do next. Every
 /// article ends where the user can act; none is a dead end.
+///
+/// Audience: the family budgeting at the kitchen table, not the reviewer in
+/// the repo. Everyday words only — engineering vocabulary ("ledger",
+/// "rendered", "snapshot", "taxonomy") belongs in commit messages, and UI
+/// labels the reader can see on screen are quoted exactly as they read.
 class HelpArticle {
   const HelpArticle({
     required this.icon,
@@ -33,13 +38,12 @@ const List<HelpArticle> kHelpArticles = [
       'Tap the camera button on the month screen and choose where the '
           'receipt comes from: the camera, your gallery, a PDF file, or a '
           'recent screenshot when the gallery has one.',
-      'The app reads the picture on this device and fills in what it '
-          'recognises — merchant, date and total — then opens a review '
-          'screen so you can fix anything before it is kept.',
-      'Nothing is ever saved by itself. The review screen is a suggestion: '
-          'the entry only reaches your ledger when you tap Save, and '
-          'swiping it away or pressing back keeps your ledger exactly as '
-          'it was.',
+      'The app reads the picture on your phone and fills in what it '
+          'recognises — the shop, the date and the total — then opens a '
+          'review screen so you can fix anything before it is kept.',
+      'Nothing is ever saved by itself. The review screen is only a '
+          'suggestion: the entry joins your list when you tap Save, and '
+          'swiping it away or pressing back changes nothing at all.',
       'You can edit every field once, twice or not at all. A scanned entry '
           'behaves like a typed one afterwards — swipe to delete, tap to '
           'edit, five seconds of Undo.',
@@ -49,15 +53,16 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.edit_note_outlined,
     title: 'Why is a field highlighted?',
     paragraphs: [
-      'A field drawn with an amber outline is the app being honest: that '
-          'value was read from the receipt, but the reading was uncertain. '
-          'Blur, glare, a crease, handwriting or a total printed far from '
-          'the word "total" all cause it.',
-      'Tap a highlighted field to correct it. The outline disappears as '
-          'soon as you type — the app stops guessing the moment you answer.',
-      'Fields without an outline still deserve a glance: an unmarked '
-          'reading is a likely one, not a guaranteed one. The whole point '
-          'of the review step is that you decide, not the app.',
+      'A field with an amber outline is the app being honest: it read '
+          'that value from the receipt, but it is not sure it got it '
+          'right. A blurry photo, a glare, a crease in the paper, '
+          'handwriting, or a total printed far away from the word '
+          '"total" can all cause it.',
+      'Tap a highlighted field to fix it. The outline disappears as soon '
+          'as you type — the app stops guessing the moment you answer.',
+      'Give the other fields a quick look too: no outline means the app '
+          'is fairly sure, never certain. The point of the review step '
+          'is that you decide, not the app.',
       'If a field you need is simply missing, type it in — an empty field '
           'is the app saying "I could not read this", and your keyboard is '
           'always the better reader.',
@@ -67,22 +72,21 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.picture_as_pdf_outlined,
     title: 'Importing PDFs & screenshots',
     paragraphs: [
-      'A PDF opens at its first page: the page is rendered on the device, '
-          'its text is read, and the review screen appears like any other '
+      'A PDF opens at its first page: the app shows that page, reads the '
+          'text on it, and the review screen appears like any other '
           'scan. The original PDF stays exactly where it was — the app '
-          'only ever copies what you explicitly picked, into its own '
-          'folder.',
+          'only ever copies what you chose, into its own folder.',
       'You can also send receipts to the app instead of hunting for them: '
           'use Share or Open with from your files app, email or scanner '
           'app and pick Local Budget. If you share several at once they '
           'arrive one at a time — review one, then the next.',
       'If the source sheet shows a "Recent screenshot" row, the most '
-          'recent screenshot on the device is one tap away. The row only '
-          'appears when the system lets the app see a screenshot at all, '
+          'recent screenshot on your phone is one tap away. The row only '
+          'appears when your phone lets the app see screenshots at all, '
           'and picking one copies just that single image into the app.',
-      'None of this touches a network. PDFs, images and screenshots are '
-          'processed on the device and stored in the app’s own folder '
-          'until you delete the entry.',
+      'None of this needs the internet. PDFs, images and screenshots are '
+          'read on your phone and stored in the app’s own folder until '
+          'you delete the entry.',
     ],
   ),
   HelpArticle(
@@ -92,55 +96,56 @@ const List<HelpArticle> kHelpArticles = [
       'Lay the receipt flat on a dark, plain surface and fill the frame — '
           'a receipt floating in the middle of the photo is text seen from '
           'far away.',
-      'Even light beats bright light: shade and overcasts are fine, a '
-          'flash glare across the total is not. A second of adjusting the '
-          'angle saves a round of corrections.',
-      'Hold steady and let the picture fill focus. Blur is the single '
-          'biggest cause of amber outlines and wrong amounts.',
+      'Even light beats bright light: shade and cloudy days are fine, a '
+          'flash glare across the total is not. A second spent adjusting '
+          'the angle saves a round of corrections.',
+      'Hold steady and let the picture focus. Blur is the single biggest '
+          'cause of amber outlines and wrong amounts.',
       'Scan one receipt at a time. Two overlapping receipts make one '
-          'muddled merchant and two crossed totals.',
-      'For PDFs, export the original document instead of photographing a '
-          'screen — native PDF text reads better than any photo ever will.',
+          'muddled shop name and two crossed totals.',
+      'For PDFs, use the original file instead of photographing a screen '
+          '— text from a real PDF file reads better than any photo ever '
+          'will.',
       'Crop close to the receipt when your gallery app offers it. '
-          'Clutter around the edges is noise the reader has to skip.',
+          'Clutter around the edges makes the words harder to find.',
     ],
   ),
   HelpArticle(
     icon: Icons.savings_outlined,
     title: 'Budgets, bills & goals',
     paragraphs: [
-      'Open the Budgets sheet from the Expenses stat on the month screen, '
-          'or through Manage. A budget counts every expense in its '
-          'period, across all your accounts, and its bar fills as the '
-          'period fills up. Weekly and yearly budgets track their own '
-          'week or year; the month switcher stays your waypoint either '
-          'way.',
-      'Rollover is a switch at the bottom of the Budgets sheet, and it '
-          'has exact rules. With it on, a month you did not fully spend '
-          'passes the remainder along: a badge like +\$20 from Oct means '
-          'last month’s leftover is part of this month’s limit. A '
-          'surplus never grows past your own limit — a \$30 budget '
-          'carries at most \$30, however many good months came before '
-          'it — and a month you overspent passes the hole along whole: '
-          'a \$50 budget finished \$80 over starts the next month at '
-          '−\$30. A category with no budget for a month breaks the '
-          'chain, and that roll stops there.',
-      'Rollover works on monthly budgets only. A weekly or yearly budget '
-          'shows progress for its own period and never carries anything '
-          'forward, and a Monthly budget needs no label at all — the '
-          'badge tells you when a roll has happened.',
-      'Money you move to a goal is saving, not spending — so goal '
-          'transfers never appear in the day list, the month totals, or '
-          'a budget’s spent number. Open the goal to read every deposit '
+      'Open the Budgets sheet from the Expenses tile on the month '
+          'screen, or through Manage. A budget counts every expense in '
+          'its period, across all your accounts, and its bar fills as '
+          'you spend. Weekly and yearly budgets track their own week or '
+          'year; you move between months the same way whichever budget '
+          'you set.',
+      'Rollover is the switch at the bottom of the Budgets sheet. Here '
+          'is exactly what it does. With it on, a month you did not '
+          'spend out of passes the leftover along: a badge like +\$20 '
+          'from Oct means last month’s leftover is part of this '
+          'month’s limit. The leftover never grows past your own limit '
+          '— a \$30 budget carries at most \$30, however many good '
+          'months came before it — and if you overspent, the overshoot '
+          'carries the same way: a \$50 budget finished \$80 over '
+          'starts the next month at −\$30. If a month has no budget for '
+          'that category, the carry-along stops there.',
+      'Only monthly budgets roll over. A weekly or yearly budget shows '
+          'progress for its own period and carries nothing forward. You '
+          'never have to remember which months rolled — the badge shows '
+          'it.',
+      'Money you move to a goal is saving, not spending — so a goal '
+          'transfer never appears in the day list, the month totals, or '
+          'a budget’s spent number. Open a goal to see every deposit '
           'and withdrawal it received; archiving a goal pauses new '
-          'transfers and keeps its history intact.',
-      'A bill can ask to be remembered on its due day, and the app '
-          'keeps that promise honestly: the notification is a hint, the '
+          'transfers and keeps its history.',
+      'A bill can ask to be remembered on its due day, and the app is '
+          'straight with you about it: the reminder is a nudge, the '
           'Bills tab is the truth. Android sometimes delays or drops '
-          'notifications to save battery — an overdue bill always waits '
-          'for you as a Due row in the list, and tapping Mark paid (or '
+          'reminders to save battery — an overdue bill always waits for '
+          'you as a Due row in the list, and tapping Mark paid (or '
           'simply opening the app again) is what records the payment. '
-          'Nothing hinges on a notification arriving on time.',
+          'Nothing hinges on a reminder arriving on time.',
     ],
   ),
   HelpArticle(
@@ -148,29 +153,31 @@ const List<HelpArticle> kHelpArticles = [
     title: 'Reports & privacy',
     paragraphs: [
       'The small chart icon at the top of the month screen opens Reports: '
-          'three readings of the same ledger — Month, Year and Actual. '
-          'Everything on them is computed on this device from the entries '
-          'you already saved. Reports never send anything anywhere; there '
-          'is no account, no sync and nothing to opt out of.',
+          'three views of the same entries — Month, Year and Actual. '
+          'Every number on them is worked out on your phone from what '
+          'you already saved. Reports never send anything anywhere: '
+          'there is no account, nothing syncs, and there is nothing to '
+          'turn off.',
       'Month shows what you spent, earned and kept, and — during the '
-          'current month — a projection: your pace so far carried to the '
-          'end of the month. It is arithmetic, not advice; a quiet week '
-          'or a big bill both move it. Tap a slice of the category donut '
-          'to see exactly the transactions behind it, in the same list '
-          'style as the ledger.',
-      'Year draws one bar per month and a dashed line at the average. Tap '
-          'any bar to jump straight to that month in the Month view. '
-          'Months with no spending count as zero in the average — a '
-          'honest denominator, not a flattering one.',
-      'Actual answers "how far into my limits am I?" with the very same '
-          'numbers the Budgets tab uses, drawn as bars with a marker at '
-          'the limit. When rollover is on, a faint ghost marker shows '
-          'the plain limit while the bar is measured against the carried, '
-          'adjusted one. A category without a limit stays out of the way.',
-      'Reports read only what is on this phone, so airplane mode changes '
-          'nothing about them. If a number looks wrong, the fix is always '
-          'in the ledger: tap through to the rows, correct or delete, and '
-          'every report updates the moment you go back.',
+          'current month — a best guess at the end of the month, based '
+          'on your pace so far. It is a sum, not advice; a quiet week '
+          'or a big bill both move it. Tap a slice of the category '
+          'donut to see exactly the entries behind it, listed just like '
+          'your day list.',
+      'Year draws one bar per month and a dashed line at the average. '
+          'Months with no spending count as zero — the average includes '
+          'every month, not just the busy ones. Tap any bar to jump '
+          'straight to that month in the Month view.',
+      'Actual answers "how close am I to my limits?" using the very '
+          'same numbers the Budgets tab shows, drawn as bars with a '
+          'mark at each limit. When rollover is on, a faint second mark '
+          'shows your plain limit, while the bar itself is measured '
+          'against the carried-over one. A category without a limit '
+          'stays out of the way.',
+      'Reports read only what is on this phone, so airplane mode '
+          'changes nothing about them. If a number looks wrong, the fix '
+          'is always in your entries: tap through to the rows, correct '
+          'or delete, and every report updates the moment you go back.',
     ],
   ),
   HelpArticle(
@@ -187,12 +194,12 @@ const List<HelpArticle> kHelpArticles = [
           'says so — a tip that is still processing completes on its own, '
           'and a cancelled one costs you nothing.',
       'Tipping depends on your store account and country, so the buttons '
-          'can be grey for reasons the app cannot see. When store billing '
-          'is unavailable, the same row offers a web page instead — '
-          'nothing here is required either way.',
+          'can look unavailable for reasons the app cannot see. When '
+          'your store cannot take payment here, the same row offers a '
+          'web page instead — nothing here is required either way.',
       'The second option, Get Pro, is described in the next article. '
-          'Neither one sends your ledger anywhere: support and upgrades '
-          'never read your data.',
+          'Neither one sends your entries anywhere: support and '
+          'upgrades never read your data.',
     ],
   ),
   HelpArticle(
@@ -200,20 +207,20 @@ const List<HelpArticle> kHelpArticles = [
     title: 'Upgrading to Pro, and copying your data',
     paragraphs: [
       'Pro is a separate app in the store, bought once — not a feature '
-          'switch inside this one. It is the same ledger with three extra '
-          'things: an encrypted personal cloud backup, home-screen '
-          'widgets and detailed analytics. The free app keeps everything '
+          'switch inside this one. It is the same app you know with '
+          'three extras: a cloud backup to storage you own, home-screen '
+          'widgets and in-depth reports. The free app keeps everything '
           'it does today; nothing is taken away when you upgrade.',
       'To move your data, first copy it out of the free app: open '
-          'Manage → Get Pro → Copy my data to Pro. The app encrypts a '
-          'snapshot of your ledger and attachments on this device — the '
-          'same envelope as an exported backup file — and holds it for '
-          'the other app. No network is involved at any step.',
+          'Manage → Get Pro → Copy my data to Pro. The app makes an '
+          'encrypted copy of everything you have saved — entries and '
+          'receipt photos alike — right on your phone, and holds it for '
+          'the other app. No internet is involved at any step.',
       'Then open Pro. Its Manage screen shows a Transfer from free app '
-          'row with how fresh the copied snapshot is — only tap it once '
+          'row with how fresh the copied data is — only tap it once '
           'the age looks right. Transfer replaces everything in Pro with '
-          'the copy, after asking you to confirm, because the free app '
-          'wins: two apps, one ledger.',
+          'the copy, after asking you to confirm, so the free app '
+          'wins: two apps, one set of entries.',
       'The free app is never changed by copying or transferring, and '
           'keeping it installed is optional afterwards — Pro keeps every '
           'entry it received. If the two apps cannot see each other (for '
@@ -230,7 +237,7 @@ const List<HelpArticle> kHelpArticles = [
       'The main screen is one month at a time. The name across the top is '
           'the month you are looking at; the arrows beside it step to the '
           'next or previous month, and you can also drag the row left or '
-          'right. Underneath, the spending and income readings summarise '
+          'right. Underneath, the spending and income figures summarise '
           'the month, and the chart icon opens Reports for the deeper '
           'views.',
       'Below the summary, your entries sit in day groups, newest day '
@@ -244,7 +251,7 @@ const List<HelpArticle> kHelpArticles = [
       'The camera button next to it scans a receipt — that flow has its '
           'own article. Money moved to a goal counts as saving, not '
           'spending, so it never appears in the day list or the spending '
-          'reading; income lands in its own reading and never eats a '
+          'number; income gets its own number and never eats a '
           'budget.',
     ],
   ),
@@ -252,41 +259,43 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.file_download_outlined,
     title: 'Importing a bank statement',
     paragraphs: [
-      'Manage → Import statement turns a bank export into entries. Two '
-          'kinds of file work: a CSV (the spreadsheet export your bank’s '
-          'website offers) and an OFX statement, the bank-format file. '
-          'Everything is read on this device; nothing is uploaded.',
+      'Manage → Import statement turns a file from your bank into '
+          'entries. Two kinds of file work: a CSV (the spreadsheet '
+          'export your bank’s website offers) and an OFX statement (a '
+          'ready-made format some banks use). Everything is read on '
+          'your phone; nothing is uploaded.',
       'Pick which account the rows belong to, then tell the app which '
           'column holds the date, the description and the amount — CSV '
-          'files vary wildly here, which is why the wizard asks instead '
-          'of guessing. OFX files carry their own labels, so there is '
-          'less to map. If your card writes expenses as positive numbers, '
-          'leave “Debit means expense” on; turn it off only for statements '
-          'that flip the sign.',
-      'Before anything is saved you see a preview of every row. Rows with '
-          'an unreadable date or amount are listed as skipped — fix them '
-          'in the file or add them by hand. Rows the app has seen before '
-          'are marked “already imported” and stay out of the count, so '
-          'importing the same statement twice never doubles your ledger.',
-      'Import adds the checked rows; save the mapping as a profile and '
-          'next month’s export from the same bank arrives already mapped. '
-          'Once imported, the rows are ordinary entries: tap to edit, '
-          'swipe to delete, and the ledger stays the single place your '
-          'money is written down.',
+          'files look different from bank to bank, which is why the '
+          'wizard asks instead of guessing. OFX files carry their own '
+          'labels, so there is less to sort out. If your card writes '
+          'expenses as positive numbers, leave “Debit means expense” '
+          'on; turn it off only for statements that flip the sign.',
+      'Before anything is saved you see a preview of every row. Rows '
+          'with an unreadable date or amount are listed as skipped — '
+          'fix them in the file or add them by hand. Rows the app has '
+          'seen before are marked “already imported” and stay out of '
+          'the count, so importing the same statement twice never '
+          'counts an expense twice.',
+      'Import adds the rows you tick; once you have picked the columns '
+          'once, the app remembers them and next month’s file from the '
+          'same bank arrives already set up. Once imported, the rows '
+          'are ordinary entries: tap to edit, swipe to delete — this '
+          'stays the one place your money is written down.',
     ],
   ),
   HelpArticle(
     icon: Icons.backup_outlined,
     title: 'Backup and restore',
     paragraphs: [
-      'Manage → Back up now writes one file to this device containing '
-          'your '
-          'whole ledger, encrypted with a passphrase you choose. The '
+      'Manage → Back up now writes one file to your phone containing '
+          'every entry you '
+          'have, encrypted with a passphrase you choose. The '
           'encryption is real, which means the passphrase is the only '
           'key: write it down somewhere safe, because nobody — not the '
-          'developer, not your bank, not support — can recover a file '
+          'developer, not your bank, not support — can open a file '
           'without it.',
-      'Restore from backup picks a file and puts this device back to how '
+      'Restore from backup picks a file and puts your phone back to how '
           'it was when '
           'that file was made, after asking you to confirm. It replaces '
           'what is here, so a backup made before something important also '
@@ -296,12 +305,13 @@ const List<HelpArticle> kHelpArticles = [
           'it anywhere. Changing phones is the simple case: back up on '
           'the old phone, restore on the new one, and the passphrase is '
           'the only thing that travels with you.',
-      'If you use Pro’s cloud destinations, automatic copies use exactly '
-          'this same encrypted file — read “Pro extras” for the schedule. '
-          'A manual backup before a big cleanup is always a good habit: it is '
+      'If you turn on Pro’s cloud backups, the automatic copies are '
+          'exactly this same encrypted file — read “Pro extras” for '
+          'when they run. A manual backup before a big tidy-up is '
+          'always a good habit: it is '
           'fast, and it can undo almost anything.',
       'If a “Database check” banner appears at the top of the app, the app '
-          'could not read part of its own store cleanly — everything still '
+          'could not read part of your saved data cleanly — everything still '
           'works, and the banner is safe to dismiss. If anything looks odd '
           'later, restoring a backup you trust from Manage puts things '
           'right. The banner only appears when something is genuinely '
@@ -312,22 +322,23 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.currency_exchange_outlined,
     title: 'Currencies and exchange rates',
     paragraphs: [
-      'The app keeps one home currency — the one every reading is shown '
-          'in — and you choose it in Manage. Your sums, budgets and '
-          'reports all speak that currency.',
+      'The app keeps one home currency — the currency every amount is '
+          'shown in — and you choose it in Manage. Your sums, budgets '
+          'and reports all speak that currency.',
       'Individual entries can be in a different currency: the entry form '
           'and the scan review both offer an “Entry currency” choice. The '
           'entry remembers the amount as you typed it and shows its value '
-          'in your home currency alongside, so nothing is silently '
-          'rewritten.',
-      'The “Live FX rates” switch in Manage decides where rates '
-          'come from. With it on, the app fetches current rates when the '
-          'network is available; with it off, nothing is ever fetched and '
-          'entries use the rates the app already has. Either way the '
-          'choice is remembered on this device.',
-      'A rate is a conversion aid, not a bank statement: if one looks '
-          'off, edit the entry and type the value you actually paid — '
-          'your number is the one the ledger keeps.',
+          'in your home currency alongside, so nothing is changed '
+          'behind your back.',
+      'The “Live FX rates” switch in Manage decides where exchange '
+          'rates come from. With it on, the app looks up current rates '
+          'when there is internet; with it off, nothing is ever looked '
+          'up and entries use the rates the app already has. Either way '
+          'the choice is remembered on this phone.',
+      'A converted amount is the app’s best help, not a bank '
+          'statement: if one looks off, edit the entry and type the '
+          'value you actually paid — your number is the one that gets '
+          'kept.',
     ],
   ),
   HelpArticle(
@@ -336,18 +347,19 @@ const List<HelpArticle> kHelpArticles = [
     paragraphs: [
       'Every entry carries one category, and categories are what the '
           'donut in Reports, the Budgets screen and the home-screen '
-          'envelope widget all read. The app ships a sensible default set '
+          'widget all read. The app ships a sensible default set '
           '— groceries, dining, transport, utilities and the rest — each '
           'with its own icon.',
-      'The quick-add sheet shows your most-used categories as chips; the '
-          'Manage chip on the same row opens the category editor, where '
-          'you name a new category and pick its icon. Making one is a '
-          'few seconds, and it is instantly available everywhere.',
+      'The quick-add sheet shows your most-used categories as little '
+          'buttons you tap; the Manage button on the same row opens the '
+          'category editor, where you name a new category and pick its '
+          'icon. Making one is a few seconds, and it is instantly '
+          'available everywhere.',
       'Rename a category whenever you like — existing entries follow the '
-          'new name, because the ledger remembers the category, not a '
-          'spelling. A category earns a budget on the Budgets screen, '
+          'new name automatically, and old entries keep counting under '
+          'it. A category earns a budget on the Budgets screen, '
           'where it gets a limit and, if you switch it on, rollover.',
-      'The best taxonomy is a small one: if you can never tell two '
+      'Keep the list small on purpose: if you can never tell two '
           'categories apart at a glance, merge them — a report you do '
           'not read is a report that does not help.',
     ],
@@ -356,22 +368,22 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.privacy_tip_outlined,
     title: 'Your data stays yours',
     paragraphs: [
-      'There is no account, no sign-in and no profile. Your ledger lives '
-          'in this device’s own storage, and the app collects nothing: '
-          'no analytics, no ads, no statistics about you leaving the '
+      'There is no account, no sign-in and no profile. Your entries live '
+          'in this phone’s own storage, and the app collects nothing: '
+          'no tracking, no ads, no reports about you leaving the '
           'phone. The store’s own privacy form should read the same way — '
           'data is not collected — and if it ever reads differently, '
           'that is a bug worth reporting.',
-      'Receipt scanning runs entirely on the device. The photos and PDFs '
+      'Receipt scanning runs entirely on your phone. The photos and PDFs '
           'you pick are copied into the app’s own folder for your review '
-          'and go no further; deleting an entry deletes its attachment.',
+          'and go no further; deleting an entry deletes its picture too.',
       'The app reaches outside the phone in exactly three situations, '
           'and you can see every one of them: exchange rates when the '
-          'Live rates switch is on, your own WebDAV destination when a '
+          'Live rates switch is on, the cloud storage you set up when a '
           'Pro automatic backup runs, and the store when you buy a tip or '
-          'Pro. Everything else — every reading, edit, search and report '
-          '— works in airplane mode because it never needed the network.',
-      'Backups and exports are your copies, made on the device and '
+          'Pro. Everything else — every entry, edit, search and report '
+          '— works in airplane mode because it never needed the internet.',
+      'Backups and exports are your copies, made on your phone and '
           'encrypted with your passphrase. Uninstalling the app removes '
           'everything it holds. If you ever leave, the door is wide open '
           '— that is the whole design.',
@@ -381,28 +393,30 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.workspace_premium_outlined,
     title: 'Pro extras: cloud, widgets & insights',
     paragraphs: [
-      'Pro adds three things to the same ledger and takes nothing away. '
+      'Pro adds three things to the same app and takes nothing away. '
           '“Upgrading to Pro” explains the switch itself; this article is '
           'about using the extras.',
-      'Cloud backups (Pro): Manage → Cloud backups takes a WebDAV '
-          'address, user name and password — your own server or hosting. '
+      'Cloud backups (Pro): Manage → Cloud backups asks for the '
+          'address, user name and password of storage you own online — '
+          'a home server (NAS) or web hosting that speaks WebDAV. '
           'Every upload is the same encrypted backup file the manual '
-          'export makes, and the auto-backup switch keeps at most one '
-          'unattended copy per day, only when the phone has network and '
-          'is not saving battery. The destination row shows when a copy '
+          'backup makes, and the auto-backup switch runs on its own at '
+          'most once a day, only when the phone is online and not saving '
+          'battery. The screen shows when a copy '
           'last succeeded, so “automatic” is never “mysterious”.',
       'Widgets (Pro): long-press an empty spot on your home screen, open '
           'the widget picker and find LocalBudget Pro. Spend this month '
           'opens Reports when tapped; Envelope left shows whichever '
-          'envelope has the least room left — long-press the widget while '
-          'placing it to pin a specific one — and Quick scan lands '
-          'straight on the capture sheet. A widget showing a dash means '
-          'its reading is from another month: open the app and every '
-          'tile refreshes.',
-      'Insights (Pro): the fourth tab inside Reports answers the "over '
-          'what range?" questions — pick a range with the chip at the '
-          'top and share a tidy PDF of exactly what you see, built on '
-          'the device like everything else.',
+          'budget has the least room left — long-press the widget while '
+          'placing it to pin a specific one — and Quick scan opens the '
+          'receipt camera right away. A widget showing a dash means '
+          'its number is from another month: open the app and every '
+          'widget refreshes.',
+      'Insights (Pro): the fourth tab inside Reports answers questions '
+          'like “what did I spend on groceries this year?” — pick the '
+          'stretch of time with the buttons at the top and share a tidy '
+          'PDF of exactly what you see, made on your phone like '
+          'everything else.',
     ],
   ),
 ];
