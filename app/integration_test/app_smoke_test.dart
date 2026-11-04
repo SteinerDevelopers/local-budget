@@ -34,7 +34,10 @@ void main() {
     final now = DateTime.now();
     expect(find.text(monthTitle(monthIndexOf(now))), findsOneWidget);
 
-    // QuickAdd: 25.43 Food → save.
+    // QuickAdd: 25.43 Food → save. The sheet now keeps its content above
+    // the AVD's nav bar (pipeline 146: that inset pushed the keypad's last
+    // row under the clip edge and a raw tap fell through to the ledger),
+    // so the driver scrolls before each tap — as a thumb does.
     await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
     await settle(tester);
     for (final key in [
@@ -44,12 +47,21 @@ void main() {
       'keypad-4',
       'keypad-3',
     ]) {
-      await tester.tap(find.byKey(Key(key)));
+      final keyFinder = find.byKey(Key(key));
+      await tester.ensureVisible(keyFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(keyFinder);
       await tester.pump();
     }
-    await tester.tap(find.widgetWithText(FilterChip, 'Food'));
+    final food = find.widgetWithText(FilterChip, 'Food');
+    await tester.ensureVisible(food);
+    await tester.pumpAndSettle();
+    await tester.tap(food);
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    final save = find.widgetWithText(FilledButton, 'Save');
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
     await settle(tester);
 
     expect(find.text('\u2212\$25.43'), findsWidgets); // row and/or strip
