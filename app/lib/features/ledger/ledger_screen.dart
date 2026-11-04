@@ -543,6 +543,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               onNext: () => _animate(_index + 1),
               onOpenReports: _openReports,
               onOpenHelp: _openHelp,
+              onOpenManage: _openManage,
             ),
             Expanded(
               child: PageView.builder(
@@ -598,6 +599,7 @@ class _MonthHeader extends StatelessWidget {
     required this.onNext,
     required this.onOpenReports,
     required this.onOpenHelp,
+    required this.onOpenManage,
   });
 
   final String title;
@@ -605,6 +607,7 @@ class _MonthHeader extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onOpenReports;
   final VoidCallback onOpenHelp;
+  final VoidCallback onOpenManage;
 
   @override
   Widget build(BuildContext context) {
@@ -663,6 +666,15 @@ class _MonthHeader extends StatelessWidget {
               tooltip: 'Help',
               onPressed: onOpenHelp,
               icon: const Icon(Icons.help_outline, size: 24),
+            ),
+            // Owner 2026-11-04 pm: Manage joins the cluster too —
+            // reaching it used to mean opening a sheet and hunting the
+            // chip at the end of a scrolled row.
+            IconButton(
+              key: const Key('manage-open'),
+              tooltip: 'Manage',
+              onPressed: onOpenManage,
+              icon: const Icon(Icons.settings_outlined, size: 24),
             ),
           ],
         ),

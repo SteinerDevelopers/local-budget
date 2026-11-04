@@ -29,18 +29,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// FAB → QuickAdd → its Manage chip → the Manage screen. The chip is the
-  /// last child of a row that can overflow, so scroll it into view first.
+  /// Month-header gear → the Manage screen — the direct path (owner
+  /// 2026-11-04 pm: Manage must not hide behind Add + a scrolled chip).
+  /// The QuickAdd chip jump keeps its own §2.4 test below and in a11y.
   Future<void> openManage(WidgetTester tester) async {
-    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
-    await tester.pumpAndSettle();
-    await tester.dragUntilVisible(
-      find.text('Manage'),
-      find.byKey(const Key('chip-row')),
-      const Offset(-80, 0),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ActionChip, 'Manage'));
+    await tester.tap(find.byKey(const Key('manage-open')));
     await tester.pumpAndSettle();
   }
 
@@ -76,7 +69,18 @@ void main() {
       // main() seeds on device; pumping the widget directly must too.
       await r.repo.ensureDefaults();
       await pumpApp(tester, r.repo);
-      await openManage(tester);
+      // Chip path kept verbatim here: the chip is the last child of a
+      // row that can overflow, so scroll it into view first.
+      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+      await tester.pumpAndSettle();
+      await tester.dragUntilVisible(
+        find.text('Manage'),
+        find.byKey(const Key('chip-row')),
+        const Offset(-80, 0),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ActionChip, 'Manage'));
+      await tester.pumpAndSettle();
 
       expect(find.widgetWithText(AppBar, 'Manage'), findsOneWidget);
       expect(find.text('Categories'), findsOneWidget);
@@ -85,6 +89,25 @@ void main() {
       expect(find.text('About & help'), findsOneWidget);
       // The QuickAdd sheet closed instead of stacking under Manage.
       expect(find.byKey(const Key('keypad-5')), findsNothing);
+    } finally {
+      await r.db.close();
+    }
+  });
+
+  testWidgets('month-header gear opens Manage directly (owner 2026-11-04 pm)', (
+    tester,
+  ) async {
+    final r = freshRepo();
+    try {
+      await r.repo.ensureDefaults();
+      await pumpApp(tester, r.repo);
+      await openManage(tester);
+      expect(find.widgetWithText(AppBar, 'Manage'), findsOneWidget);
+      expect(find.text('Categories'), findsOneWidget);
+      // The ledger stays underneath; back returns to it.
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('fab-quickadd')), findsOneWidget);
     } finally {
       await r.db.close();
     }
