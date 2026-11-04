@@ -270,115 +270,162 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Same insets lesson as QuickAdd (device feedback 2026-11-04 pm): a
+    // scroll-controlled modal never gets a bottom SafeArea, so this sheet
+    // clears the system nav bar itself; landscape moves the pad to its
+    // own pane instead of clipping rows against the short axis.
+    final size = MediaQuery.sizeOf(context);
     return AnimatedPadding(
       duration: const Duration(milliseconds: 120),
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           Tokens.space4,
           Tokens.space2,
           Tokens.space4,
-          Tokens.space4,
+          Tokens.space4 + MediaQuery.viewPaddingOf(context).bottom,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SourceStrip(
-              source: widget.source,
-              imageBytes: widget.imageBytes,
-              busy: _busy,
-              noTotal: _noTotal,
-              page1: _page1,
-            ),
-            const SizedBox(height: Tokens.space2),
-            // Fields appear as extraction lands (§2.3, §6: 150 ms fade).
-            AnimatedOpacity(
-              opacity: _busy ? 0 : 1,
-              duration: const Duration(milliseconds: 150),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _amberBox(
-                    context,
-                    amber: _amountAmber,
-                    announce: 'Amount',
-                    helper: 'Check amount',
-                    child: AmountDisplay(pad: _pad, currency: _pad.currency),
-                  ),
-                  const SizedBox(height: Tokens.space2),
-                  _dateRow(context),
-                  const SizedBox(height: Tokens.space2),
-                  _merchantField(context),
-                ],
-              ),
-            ),
-            Expanded(
-              // Same font-scale escape as QuickAdd (2026-11-04): below
-              // 4×touch-min the pad scrolls instead of crushing the sheet.
-              child: LayoutBuilder(
-                builder: (context, box) => SingleChildScrollView(
-                  child: SizedBox(
-                    height: math.max(box.maxHeight, 4 * Tokens.touchMin),
-                    child: AnimatedOpacity(
-                      opacity: _busy ? 0 : 1,
-                      duration: const Duration(milliseconds: 150),
-                      child: Keypad(
-                        onDigit: (d) => setState(() {
-                          _pad.digit(d);
-                          _amountEdited = true;
-                        }),
-                        onDot: () => setState(() {
-                          _pad.dot();
-                          _amountEdited = true;
-                        }),
-                        onBackspace: () => setState(() {
-                          _pad.back();
-                          _amountEdited = true;
-                        }),
-                        dotEnabled: widget.pipeline.currency.minorUnits > 0,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            CategoryChips(
-              categories: widget.categories,
-              selectedId: _categoryId,
-              onSelect: (id) => setState(() => _categoryId = id),
-              onManage: widget.onManageCategories,
-            ),
-            const SizedBox(height: Tokens.space2),
-            SegmentedButton<EntryKind>(
-              segments: const [
-                ButtonSegment(value: EntryKind.expense, label: Text('Expense')),
-                ButtonSegment(value: EntryKind.income, label: Text('Income')),
-              ],
-              selected: {_kind},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => setState(() => _kind = s.first),
-            ),
-            const SizedBox(height: Tokens.space2),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: Tokens.touchMin,
-                    child: FilledButton(
-                      // M3 renders its own disabled state; same gate as QuickAdd.
-                      onPressed: _canSave ? _save : null,
-                      child: const Text('Save'),
-                    ),
-                  ),
-                ),
-                TextButton(onPressed: _discard, child: const Text('Discard')),
-              ],
-            ),
-          ],
-        ),
+        child: size.width > size.height ? _landscape() : _portrait(),
       ),
     );
   }
+
+  Widget _portrait() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _strip(),
+      const SizedBox(height: Tokens.space2),
+      // Fields appear as extraction lands (§2.3, §6: 150 ms fade).
+      _fields(),
+      Expanded(
+        // Same font-scale escape as QuickAdd (2026-11-04): below
+        // 4×touch-min the pad scrolls instead of crushing the sheet.
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: SizedBox(
+              height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+              child: _keypad(),
+            ),
+          ),
+        ),
+      ),
+      _chips(),
+      const SizedBox(height: Tokens.space2),
+      _kindToggle(),
+      const SizedBox(height: Tokens.space2),
+      _saveRow(),
+    ],
+  );
+
+  Widget _landscape() => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Expanded(
+        flex: 3,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _strip(),
+              const SizedBox(height: Tokens.space2),
+              _fields(),
+              const SizedBox(height: Tokens.space2),
+              _chips(),
+              const SizedBox(height: Tokens.space2),
+              _kindToggle(),
+              const SizedBox(height: Tokens.space2),
+              _saveRow(),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(width: Tokens.space2),
+      Expanded(flex: 2, child: _keypad()),
+    ],
+  );
+
+  Widget _strip() => _SourceStrip(
+    source: widget.source,
+    imageBytes: widget.imageBytes,
+    busy: _busy,
+    noTotal: _noTotal,
+    page1: _page1,
+  );
+
+  /// Fields appear as extraction lands (§2.3, §6: 150 ms fade).
+  Widget _fields() => AnimatedOpacity(
+    opacity: _busy ? 0 : 1,
+    duration: const Duration(milliseconds: 150),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _amberBox(
+          context,
+          amber: _amountAmber,
+          announce: 'Amount',
+          helper: 'Check amount',
+          child: AmountDisplay(pad: _pad, currency: _pad.currency),
+        ),
+        const SizedBox(height: Tokens.space2),
+        _dateRow(context),
+        const SizedBox(height: Tokens.space2),
+        _merchantField(context),
+      ],
+    ),
+  );
+
+  Widget _chips() => CategoryChips(
+    categories: widget.categories,
+    selectedId: _categoryId,
+    onSelect: (id) => setState(() => _categoryId = id),
+    onManage: widget.onManageCategories,
+  );
+
+  Widget _kindToggle() => SegmentedButton<EntryKind>(
+    segments: const [
+      ButtonSegment(value: EntryKind.expense, label: Text('Expense')),
+      ButtonSegment(value: EntryKind.income, label: Text('Income')),
+    ],
+    selected: {_kind},
+    showSelectedIcon: false,
+    onSelectionChanged: (s) => setState(() => _kind = s.first),
+  );
+
+  Widget _saveRow() => Row(
+    children: [
+      Expanded(
+        child: SizedBox(
+          height: Tokens.touchMin,
+          child: FilledButton(
+            // M3 renders its own disabled state; same gate as QuickAdd.
+            onPressed: _canSave ? _save : null,
+            child: const Text('Save'),
+          ),
+        ),
+      ),
+      TextButton(onPressed: _discard, child: const Text('Discard')),
+    ],
+  );
+
+  Widget _keypad() => AnimatedOpacity(
+    opacity: _busy ? 0 : 1,
+    duration: const Duration(milliseconds: 150),
+    child: Keypad(
+      onDigit: (d) => setState(() {
+        _pad.digit(d);
+        _amountEdited = true;
+      }),
+      onDot: () => setState(() {
+        _pad.dot();
+        _amountEdited = true;
+      }),
+      onBackspace: () => setState(() {
+        _pad.back();
+        _amountEdited = true;
+      }),
+      dotEnabled: widget.pipeline.currency.minorUnits > 0,
+    ),
+  );
 
   /// §2.3 uncertainty mechanism: 1.5 dp warning outline + one helper line,
   /// and TalkBack appends "needs checking" while the outline is up

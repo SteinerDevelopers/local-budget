@@ -370,4 +370,23 @@ void main() {
       }
     },
   );
+
+  // Device feedback 2026-11-04 pm: Review painted Save under a 3-button
+  // nav bar; the fake view's zero padding hid it in every earlier test.
+  testWidgets('review: portrait nav bar never covers Save', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400); // logical 360×800
+    tester.view.devicePixelRatio = 3;
+    tester.view.viewPadding = const FakeViewPadding(bottom: 144); // 48 dp
+    addTearDown(tester.view.reset);
+    final ctx = await pumpCapture(tester, services());
+    try {
+      await openReview(tester);
+      expect(tester.takeException(), isNull);
+      final save = tester.getRect(find.widgetWithText(FilledButton, 'Save'));
+      expect(save.bottom, lessThanOrEqualTo(800 - 48 + 0.5));
+      expect(save.top, greaterThan(0));
+    } finally {
+      await ctx.db.close();
+    }
+  });
 }
