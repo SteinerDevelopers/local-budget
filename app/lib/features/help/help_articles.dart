@@ -239,7 +239,9 @@ const List<HelpArticle> kHelpArticles = [
           'next or previous month, and you can also drag the row left or '
           'right. Underneath, the spending and income figures summarise '
           'the month, and the chart icon opens Reports for the deeper '
-          'views.',
+          'views. Next to them, the question mark opens this Help, and '
+          'the gear opens Manage — the app’s settings and tools all '
+          'live there.',
       'Below the summary, your entries sit in day groups, newest day '
           'first. Tap any row to edit it. Swipe a row to delete it, and '
           'the bar that appears offers five seconds of Undo — a deleted '
