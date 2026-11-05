@@ -120,7 +120,8 @@ void main() {
       expect(heur().guessMerchant(['123 456', '***', '05/05/2026']), isNull);
     });
 
-    test('template-statement boilerplate never mints a payee (device trace)', () {
+    test('template-statement boilerplate never mints a payee (device trace)',
+        () {
       // Real ML Kit lines off the SL219A, CFPB "Building Blocks" raster
       // (US Government work, public domain), captured 2026-11-05. The page
       // header + labelled field rows used to mint "E BUILDING BLOCKS STUDENT
