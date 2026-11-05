@@ -1,8 +1,7 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 import 'package:capture/capture.dart' show TextExtractor;
 import 'package:core/core.dart' show OcrLineAssembly, OcrWord;
@@ -24,14 +23,19 @@ class MlKitTextExtractor implements TextExtractor {
 
   /// Debug-build trace of the assembled lines the heuristics will read.
   /// Field reports ("the payee came out wrong") become reproducible from
-  /// `adb logcat -s ocr-lines` instead of guesswork. Never compiled into
+  /// `adb logcat -s flutter:V | grep ocr-lines` instead of guesswork.
+  /// Must be debugPrint (stdout → Logcat under tag `flutter`), NOT
+  /// `dart:developer log()`: on stock Android the latter goes only to the
+  /// Dart VM service, which is unreachable without a workstation attach —
+  /// proven on the SL219A test phone (zero `ocr-lines` entries ever
+  /// reached Logcat while the recognizer ran). Never compiled into
   /// behavior outside debug builds — document text stays on-device and
   /// off the logs in release, per the Tier-1 privacy story.
   void _dump(List<String> lines) {
     if (!kDebugMode) return;
-    developer.log('assemble → ${lines.length} lines', name: 'ocr-lines');
+    debugPrint('[ocr-lines] assemble → ${lines.length} lines');
     for (var i = 0; i < lines.length; i++) {
-      developer.log('[$i] ${lines[i]}', name: 'ocr-lines');
+      debugPrint('[ocr-lines][$i] ${lines[i]}');
     }
   }
 
