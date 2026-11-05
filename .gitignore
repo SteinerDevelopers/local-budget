@@ -25,3 +25,5 @@ app/pubspec.lock
 
 # OCR benchmark corpus (#31) — generated, never committed
 packages/capture/corpus/
+packages/capture/tool/corpus/
+packages/data/tool/corpus/

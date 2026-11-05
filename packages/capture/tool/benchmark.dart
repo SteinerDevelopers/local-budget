@@ -105,6 +105,9 @@ Future<void> main(List<String> args) async {
 
   for (final img in images) {
     final file = img['file'] as String;
+    // E11 statement/bill frames are scored by the data package's
+    // document_bench.dart; this harness measures the receipt pipeline only.
+    if ((img['kind'] ?? 'receipt') != 'receipt') continue;
     final bytes = File('$corpusDir/$file').readAsBytesSync();
     final List<String> lines;
     if (backend == 'gold') {

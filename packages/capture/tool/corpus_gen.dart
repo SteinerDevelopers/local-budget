@@ -12,6 +12,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'document_scripts.dart';
 import 'font5x7.dart';
 import 'png_writer.dart';
 import 'receipt_scripts.dart';
@@ -66,6 +67,7 @@ void main(List<String> args) {
               .writeAsStringSync('${r.lines.join('\n')}\n');
           images.add({
             'file': name,
+            'kind': 'receipt',
             'script': script,
             'resolution': res,
             'mode': mode,
@@ -85,9 +87,68 @@ void main(List<String> args) {
     }
   }
 
+  // E11 §6 — statements (both scripts) and US bills (latin only: the bill
+  // vocabulary the draft reads is English). Same cell matrix as receipts.
+  for (final kind in const ['statement', 'bill']) {
+    for (final script in kind == 'statement'
+        ? const ['latin', 'cyrillic']
+        : const ['latin']) {
+      for (final mode in const ['light', 'dark']) {
+        for (final e in kResolutions.entries) {
+          final res = e.key;
+          final (w, h) = e.value;
+          final rnd =
+              Random(seed + kind.hashCode + script.hashCode + mode.hashCode);
+          for (var i = 0; i < perCell; i++) {
+            final name = '${kind}_${script}_${res}_${mode}_$i.png';
+            final Map<String, Object?> entry;
+            final List<String> lines;
+            if (kind == 'statement') {
+              final s = makeStatement(script, rnd);
+              lines = s.lines;
+              entry = {
+                'currency': s.currency,
+                'expected': {
+                  'rows': [for (final r in s.rows) r.toJson()],
+                },
+              };
+            } else {
+              final b = makeBill(rnd);
+              lines = b.lines;
+              entry = {
+                'currency': b.currency,
+                'expected': {
+                  'payee': b.payee,
+                  'amountCents': b.amountCents,
+                  'dueDate': isoDate(b.dueDate),
+                },
+              };
+            }
+            final bytes = renderLines(lines, w, h, dark: mode == 'dark');
+            File('${outDir.path}/$name').writeAsBytesSync(bytes);
+            File('${outDir.path}/$name'.replaceAll('.png', '.lines.txt'))
+                .writeAsStringSync('${lines.join('\n')}\n');
+            images.add({
+              'file': name,
+              'kind': kind,
+              'script': script,
+              'resolution': res,
+              'mode': mode,
+              'width': w,
+              'height': h,
+              ...entry,
+              'lines': lines,
+            });
+          }
+        }
+      }
+    }
+  }
+
   final manifest = {
     'seed': seed,
     'perCell': perCell,
+    'benchNow': kBenchNow.toIso8601String(),
     'generatedBy': 'tool/corpus_gen.dart',
     'images': images,
   };
@@ -98,8 +159,13 @@ void main(List<String> args) {
 }
 
 /// Paint one receipt into a [w]x[h] portrait PNG (light or dark mode).
-Uint8List renderReceipt(ReceiptScript r, int w, int h, {bool dark = false}) {
-  final maxLen = maxLineLength(r);
+Uint8List renderReceipt(ReceiptScript r, int w, int h, {bool dark = false}) =>
+    renderLines(r.lines, w, h, dark: dark);
+
+/// Paint arbitrary document lines — receipts, statements, bills all land
+/// here; the fit rule is a property of the text, not the document kind.
+Uint8List renderLines(List<String> lines, int w, int h, {bool dark = false}) {
+  final maxLen = lines.fold<int>(1, (m, l) => l.length > m ? l.length : m);
   // Fit the widest line into 86% of the width, but never exceed the
   // resolution's own scale (w/180) — smaller text at 1440p is as realistic
   // as larger text at 720p.
@@ -113,7 +179,7 @@ Uint8List renderReceipt(ReceiptScript r, int w, int h, {bool dark = false}) {
   final pm = Pixmap(w, h);
   pm.fillGray(dark ? 0 : 255);
   var y = (h * 0.06).round();
-  for (final line in r.lines) {
+  for (final line in lines) {
     drawText(pm, line, left, y, scale, dark ? 255 : 0);
     y += lineHeight;
   }
