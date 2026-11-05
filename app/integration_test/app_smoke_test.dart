@@ -165,9 +165,13 @@ void main() {
     await tester.tap(find.byKey(const Key('bill-mark-paid')));
     await settle(tester);
 
-    // Dismiss the sheet via the barrier gap above it — the paid bill must
-    // now stand out on the home ledger as today's expense.
+    // Dismiss the sheet via the barrier gap above it, then walk the home
+    // bar back to Receipts — since the 2026-11-05 IA pass the ledger is a
+    // destination, not the surface a dismissed sheet revealed. The paid
+    // bill must stand out there as today's expense.
     await tester.tapAt(const Offset(5, 5));
+    await settle(tester);
+    await tester.tap(find.text('Receipts'));
     await settle(tester);
     expect(find.textContaining('Bill: $billName'), findsWidgets);
     expect(find.text('−\$20.00'), findsWidgets);
