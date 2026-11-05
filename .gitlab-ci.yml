@@ -201,6 +201,11 @@ goldens:
       fi
       flutter pub get
       flutter test test_goldens --reporter compact
+  artifacts:
+    when: always
+    paths:
+      - app/test_goldens/failures
+    expire_in: 1 week
 
 # Manual: renders the current test_goldens suite and uploads the PNG set.
 # Play it after changing QuickAdd/layout/theme; download the artifacts and
