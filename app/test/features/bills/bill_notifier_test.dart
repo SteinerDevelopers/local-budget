@@ -45,4 +45,24 @@ void main() {
     BillNotifier.onOpen = null;
     expect(BillNotifier.pendingOpenRuleId, 3);
   });
+
+  test('bootstrap ladder escalates — a slow boot gets a widening runway', () {
+    // The field failure this pins (SL219A, 2026-11-05): a lone 5 s cap
+    // surrendered during a slow cold boot and reminders stayed off until
+    // the next launch. The ladder must retry with strictly growing
+    // budgets totalling enough runway for the slowest tested phone —
+    // asserted as data so no test ever bootstraps the real plugin.
+    expect(BillNotifier.bootBudgets.length, greaterThanOrEqualTo(3));
+    for (var i = 1; i < BillNotifier.bootBudgets.length; i++) {
+      expect(
+        BillNotifier.bootBudgets[i].inSeconds,
+        greaterThan(BillNotifier.bootBudgets[i - 1].inSeconds),
+      );
+    }
+    final total = BillNotifier.bootBudgets.fold<int>(
+      0,
+      (s, d) => s + d.inSeconds,
+    );
+    expect(total, greaterThanOrEqualTo(50));
+  });
 }
