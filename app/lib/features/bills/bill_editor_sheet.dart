@@ -260,7 +260,14 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _fields(),
-      AmountDisplay(pad: _pad, currency: widget.currency),
+      // The shell pads only its bottom — every piece insets itself in
+      // this sheet — and the hero had no inset: on-device it painted
+      // "$36" flush against the screen edge (Coosea capture, 2026-11-05).
+      // QuickAdd wraps its whole content at space4; match that here.
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+        child: AmountDisplay(pad: _pad, currency: widget.currency),
+      ),
       Expanded(
         // Below 4×touch-min the pad stops growing and scrolls instead of
         // pushing Notify/Save off the sheet — every key stays tappable
@@ -289,7 +296,10 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _fields(),
-              AmountDisplay(pad: _pad, currency: widget.currency),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+                child: AmountDisplay(pad: _pad, currency: widget.currency),
+              ),
               _notifyTile(),
               const SizedBox(height: Tokens.space2),
               _saveButton(),
