@@ -368,6 +368,16 @@ e2e-android:
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   before_script:
     - |
+      # FIT-15-GiB CAP (owner 2026-11-05): VM2 was deliberately shrunk to
+      # 15 GiB because the Proxmox host oversubscribes RAM across its VMs —
+      # growing the VM re-opens host OOM, so CI must fit the 15 GiB instead.
+      # The repo's gradle.properties asks for -Xmx8G (fine on the 121 GiB
+      # dev box); a $GRADLE_USER_HOME/gradle.properties outranks the project
+      # file, so the daemon caps at 3g here and only here (this GRADLE_USER_HOME
+      # is per-host cache; Runner2 has its own copy, dev machines their own).
+      mkdir -p "$GRADLE_USER_HOME"
+      printf 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m\nkotlin.daemon.jvmargs=-Xmx1536m\n' > "$GRADLE_USER_HOME/gradle.properties"
+    - |
       # PINNED debug signing identity (owner report 2026-11-04 "App not
       # installed"): an ephemeral container HOME means Gradle generates a
       # FRESH ~/.android/debug.keystore per job, so d55cab7/da84a50/aa0891e
