@@ -6,6 +6,7 @@ import 'package:drift/drift.dart';
 import 'csv_codec.dart';
 import 'database.dart';
 import 'ledger_repository.dart';
+import 'statement_lines.dart';
 
 /// Column roles the import wizard can map a CSV column to (E5 spec §4).
 enum ImportRole {
@@ -610,6 +611,38 @@ class CsvImport {
       }
       return n;
     });
+  }
+
+  // ---- document statements (E11) ---------------------------------------------
+
+  /// Preview for rows parsed out of a photographed/PDF statement
+  /// (`StatementLineParser`, e11 §3). Maps 1:1 to [CsvPreviewRow] —
+  /// externalId stays null; the duplicate flag is the same date|amount|
+  /// direction tuple the CSV/OFX preview uses. Commit rides [commit]
+  /// unchanged (source stays `statementImport`).
+  Future<CsvPreview> previewStatement({
+    required int accountId,
+    required Currency currency,
+    required List<StatementRow> rows,
+  }) async {
+    final existing = await _dedupKeys(accountId);
+    return CsvPreview(
+      rows: [
+        for (var i = 0; i < rows.length; i++)
+          CsvPreviewRow(
+            rowIndex: i,
+            date: rows[i].date,
+            minor: rows[i].minor,
+            isIncome: rows[i].isIncome,
+            description: rows[i].description,
+            duplicate: existing.contains(
+              _dedupKey(rows[i].date, rows[i].minor, rows[i].isIncome),
+            ),
+          ),
+      ],
+      errors: const [],
+      currency: currency,
+    );
   }
 
   // ---- dedupe ---------------------------------------------------------------

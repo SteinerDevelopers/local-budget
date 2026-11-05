@@ -22,6 +22,46 @@ abstract interface class TextRenderer {
 /// (e2-capture.md §3; pinned by test — the review copy depends on it).
 const int kTextLayerMinChars = 20;
 
+/// Max pages rendered + OCR'd from one scanned PDF (e11 §2): a 40-page PDF
+/// must not hang the phone; the wizard discloses "first N pages" truncation.
+const int kRenderedPageCap = 10;
+
+/// Per-page view of a PDF text layer (e11 §2). The default groups
+/// [PdfText.readTextLayer]'s flat output at its stream-boundary markers —
+/// `SimplePdfText` already walks every content stream, so this is a real
+/// multi-page walk, and adapters inherit it with zero churn (Dart's
+/// `implements` ignores bodies declared on interface members, hence the
+/// extension).
+extension PdfTextPages on PdfText {
+  /// Lines grouped per page, page order; pages that yielded nothing vanish.
+  List<List<String>> readTextLayerPages(Uint8List pdf) {
+    final pages = <List<String>>[];
+    var cur = <String>[];
+    for (final l in readTextLayer(pdf)) {
+      if (l.isEmpty) {
+        if (cur.isNotEmpty) pages.add(cur);
+        cur = <String>[];
+      } else {
+        cur.add(l);
+      }
+    }
+    if (cur.isNotEmpty) pages.add(cur);
+    return pages;
+  }
+}
+
+/// Multi-page rendering (e11 §2). Default renders page 1 only; an adapter
+/// that truly renders several pages declares `renderPages` on its *concrete*
+/// class and is called through that type — extension members never dispatch
+/// virtually through the interface. Implementations must honor
+/// [kRenderedPageCap].
+extension TextRendererPages on TextRenderer {
+  /// Pages of [pdf] as PNG bytes, page order.
+  Future<List<Uint8List>> renderPages(Uint8List pdf) async => [
+        await renderPage1(pdf),
+      ];
+}
+
 /// True when the first page's text layer is rich enough to trust Tier 2.
 bool hasTextLayer(List<String> lines) {
   var chars = 0;

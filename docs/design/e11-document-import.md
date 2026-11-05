@@ -55,15 +55,23 @@ offers the two file formats (E5) or the capture FAB (receipts).
 ## 2. Getting text out of documents (capture package)
 
 - PDF with a text layer ≥ `kTextLayerMinChars`: **all pages** now feed the
-  parser. `PdfText` gains `List<String> readTextLayerPages(Uint8List)` with a
-  default implementation that delegates to the existing single-page
-  `readTextLayer` (no adapter churn); `SimplePdfText` implements the real
-  multi-page walk. Single-page documents are byte-identical in behavior.
+  parser. `PdfText` gains `List<List<String>> readTextLayerPages(Uint8List)`
+  (lines grouped per page, page order — a flat `List<String>` cannot carry
+  the grouping the plural implies). Dart's `implements` ignores bodies on
+  interface members, so the delegating default is an
+  `extension PdfTextPages on PdfText` that groups `readTextLayer`'s output at
+  its stream-boundary markers (no adapter churn). `SimplePdfText.readTextLayer`
+  already walks *every* content stream, so that grouping is its real
+  multi-page walk. `readTextLayer` itself is untouched: single-page documents
+  are byte-identical in behavior.
 - Scanned PDF / image: existing `TextRenderer` → render pages (new
-  `renderPages`, default = `renderPage1`) → `TextExtractor.extractText` per
-  page, concatenated in page order. ML Kit adapter keeps its own page budget
-  (cap 10) so a 40-page PDF cannot hang the phone; truncation is disclosed in
-  the Preview header ("first N pages").
+  `renderPages`, likewise an extension defaulting to `[renderPage1]`) →
+  `TextExtractor.extractText` per page, concatenated in page order. Shared
+  page budget `kRenderedPageCap = 10` (`pdf_text.dart`) — the ML Kit/pdfium
+  adapter and the wizard enforce it so a 40-page PDF cannot hang the phone;
+  truncation is disclosed in the Preview header ("first N pages"). An adapter
+  that truly renders several pages declares `renderPages` on its concrete
+  class (extension members never dispatch virtually).
 - Tier-3 structuring runs **only** on the bill route (merchant/date/total
   fill-only, exactly as E2 §6). Never on the statement route (§ principle 9).
 

@@ -59,6 +59,13 @@ class StubExtractor implements TextExtractor {
   Future<List<String>> extractText(Uint8List image) async => lines;
 }
 
+/// Implements only the original single-page API — what every existing
+/// adapter looks like; the E11 extensions must delegate onto it.
+class OnePageOnlyPdfText implements PdfText {
+  @override
+  List<String> readTextLayer(Uint8List pdf) => const ['A', '', 'B'];
+}
+
 void main() {
   const pdfText = SimplePdfText();
   final usd = Currency.resolve('USD');
@@ -120,6 +127,62 @@ void main() {
               utf8.encode('not-deflate') +
               utf8.encode('\nendstream\nendobj'));
       expect(pdfText.readTextLayer(bad), isEmpty);
+    });
+  });
+
+  group('readTextLayerPages / renderPages (E11 §2)', () {
+    test('two streams group into two pages; flat readTextLayer untouched', () {
+      final bytes = pdfFixture([
+        content(['PAGE ONE LINE', 'TOTAL 5.00']),
+        content(receiptLines),
+      ]);
+      expect(pdfText.readTextLayerPages(bytes), [
+        ['PAGE ONE LINE', 'TOTAL 5.00'],
+        receiptLines,
+      ]);
+      // The original single-page API keeps its '' boundary sentinel.
+      expect(pdfText.readTextLayer(bytes), contains(''));
+    });
+
+    test('single page: exactly one group, no empty edge pages', () {
+      expect(pdfText.readTextLayerPages(pdfFixture([content(receiptLines)])),
+          [receiptLines]);
+    });
+
+    test('Flate page counts as a page; silent streams vanish', () {
+      final bytes = pdfFixture(
+        [
+          content(['P1']),
+          '',
+          content(['P2'])
+        ],
+        flate: [false, false, true],
+      );
+      expect(pdfText.readTextLayerPages(bytes), [
+        ['P1'],
+        ['P2'],
+      ]);
+    });
+
+    test('extension delegates through any PdfText implementation', () {
+      expect(OnePageOnlyPdfText().readTextLayerPages(Uint8List(0)), [
+        ['A'],
+        ['B'],
+      ]);
+    });
+
+    test('renderPages defaults to page 1', () async {
+      final renderer = CountingRenderer();
+      final pages =
+          await renderer.renderPages(pdfFixture([content(receiptLines)]));
+      expect(pages, [
+        Uint8List.fromList([9, 9, 9])
+      ]);
+      expect(renderer.calls, 1);
+    });
+
+    test('kRenderedPageCap guards scanned-PDF page budgets', () {
+      expect(kRenderedPageCap, 10);
     });
   });
 
