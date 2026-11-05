@@ -114,13 +114,18 @@ const List<HelpArticle> kHelpArticles = [
     icon: Icons.savings_outlined,
     title: 'Budgets, bills & goals',
     paragraphs: [
-      'Open the Budgets sheet from the Expenses tile on the month '
-          'screen, or through Manage. A budget counts every expense in '
+      'The bar at the bottom of the app switches between the four '
+          'places: Receipts, Budgets, Bills and Goals. The Budgets '
+          'screen follows whichever month you are on in Receipts — '
+          'tapping the Expenses tile there walks you straight over. '
+          'Manage still opens everything in one sheet too. A budget '
+          'counts every expense in '
           'its period, across all your accounts, and its bar fills as '
           'you spend. Weekly and yearly budgets track their own week or '
           'year; you move between months the same way whichever budget '
           'you set.',
-      'Rollover is the switch at the bottom of the Budgets sheet. Here '
+      'Rollover is the switch at the bottom of the Budgets screen. '
+          'Here '
           'is exactly what it does. With it on, a month you did not '
           'spend out of passes the leftover along: a badge like +\$20 '
           'from Oct means last month’s leftover is part of this '
@@ -303,8 +308,16 @@ const List<HelpArticle> kHelpArticles = [
           'anything twice. Tick what you want, import, done.',
       'A bill becomes a head start on a reminder: the payee, the '
           'amount and the due date arrive typed in, and you still '
-          'choose when it repeats and tap Save. The document alone '
+          'choose when it repeats and tap Save. For a credit-card '
+          'statement the amount filled in is the minimum payment '
+          'due — the figure you actually pay each month — not the '
+          'balance sitting on the page. The document alone '
           'never writes to your ledger or your bills.',
+      'In a hurry, the Bills tab has its own Add from a document '
+          'button. It reads a bill the same way; if your photo turns '
+          'out to be a full statement instead, it says so and points '
+          'you at the import wizard, where you can review every '
+          'transaction before anything lands.',
       'When the app can’t make out either shape in your photo, it says '
           'so and points at CSV or OFX instead — it would rather hand '
           'you the honest no than guess at your money. Reading happens '

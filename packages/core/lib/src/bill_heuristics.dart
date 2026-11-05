@@ -22,8 +22,9 @@ enum BillFrequencyHint {
 /// be confirmed; nothing here persists).
 ///
 /// Payee and amount reuse [ReceiptHeuristics] under their DocType-aware
-/// anchors (utility/card sets prefer TOTAL / AMOUNT DUE over balances);
-/// due-date and frequency vocabulary is new.
+/// anchors, with one bill-route override: on a card statement the minimum
+/// payment due outranks every balance (see [_minPayRe]); due-date and
+/// frequency vocabulary is new.
 class BillDraft {
   BillDraft._({
     this.payee,
@@ -47,12 +48,35 @@ class BillDraft {
     final at = now ?? DateTime.now();
     final h = ReceiptHeuristics(currency: currency, now: at);
     final merchant = h.guessMerchant(lines);
-    final total = h.guessTotal(lines);
+    var total = h.guessTotal(lines);
     final due = guessDueDate(lines, now: at);
     final (freq, freqConfidence) = _guessFrequency(lines);
+    var payee = merchant?.name;
+    var payeeConfidence = merchant?.confidence ?? FieldConfidence.low;
+    // A card statement is a BILL about one number: the minimum payment
+    // due. The receipt route prefilling the NEW BALANCE (e2 §3) made
+    // Lance's photographed Citi statement look like $7,355 of spend
+    // instead of the $594.67 check actually due (tester bounce,
+    // 2026-11-05). The standalone payment box is its own evidence — no
+    // classification gate needed, and warning prose never reads as one.
+    final minDue = _minimumPayment(lines, currency);
+    if (minDue != null) total = minDue;
+    // A photo of a web page OCRs the browser chrome before any logo
+    // line, so a non-high merchant guess on a statement is usually
+    // chrome, not the card company; the issuer vocabulary then names the
+    // payee. A first-line hit (the printed/PDF statement) stays as-is —
+    // "Citi Strata" is the brand line the owner reads (2026-11-05).
+    if (h.classify(lines) == DocType.cardStatement &&
+        (payee == null || payeeConfidence != FieldConfidence.high)) {
+      final issuer = _issuerIn(lines);
+      if (issuer != null) {
+        payee = issuer;
+        payeeConfidence = FieldConfidence.medium;
+      }
+    }
     return BillDraft._(
-      payee: merchant?.name,
-      payeeConfidence: merchant?.confidence ?? FieldConfidence.low,
+      payee: payee,
+      payeeConfidence: payeeConfidence,
       amountDue: total?.amount,
       amountConfidence: total?.confidence ?? FieldConfidence.low,
       dueDate: due?.date,
@@ -79,6 +103,93 @@ class BillDraft {
   /// Nothing at all was recognised — the caller should show an empty editor
   /// rather than a draft full of amber nulls.
   bool get isEmpty => payee == null && amountDue == null && dueDate == null;
+
+  // --- card-statement overrides -------------------------------------------
+
+  /// A standalone minimum-payment line: `MINIMUM PAYMENT DUE`, `MINIMUM
+  /// PAYMENT`, `MINIMUM DUE` — alone or followed by its amount. Warning
+  /// prose (`Minimum Payment Warning: If you make only…`) is text *about*
+  /// the minimum, not the payment box, so anything else trailing the label
+  /// disqualifies the line (Lance's Citi statement carries both shapes).
+  static final RegExp _minPayRe = RegExp(
+    r'^MINIMUM(?:\s*(?:PAYMENT|PYMT|PMT))?(?:\s*DUE)?\s*[:\-]?\s*(.*)$',
+    caseSensitive: false,
+  );
+
+  /// A line that is nothing but a money value (`$594.67`) — the answer to
+  /// a label-only line when OCR splits the columns apart.
+  static final RegExp _pureAmountRe = RegExp(
+    r'^\(?\s*[-+]?\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?\s*\$?\s*\)?$',
+  );
+
+  static ({Money amount, FieldConfidence confidence})? _minimumPayment(
+    List<String> lines,
+    Currency currency,
+  ) {
+    // Bottom-up like guessTotal: the payment stub at the foot of a
+    // statement is the line the cardholder actually writes the check for.
+    for (var i = lines.length - 1; i >= 0; i--) {
+      final m = _minPayRe.firstMatch(lines[i].trim());
+      if (m == null) continue;
+      final rest = m.group(1)!.trim();
+      String? raw;
+      if (rest.isEmpty) {
+        // Label and value on separate lines (the real Citi PDF's shape).
+        for (var j = i + 1; j <= i + 2 && j < lines.length; j++) {
+          final nxt = lines[j].trim();
+          if (nxt.isEmpty) continue;
+          if (_pureAmountRe.hasMatch(nxt)) raw = nxt;
+          break; // a non-amount next line is prose — this label is not a box
+        }
+      } else if (_pureAmountRe.hasMatch(rest)) {
+        raw = rest;
+      }
+      if (raw == null) continue;
+      final minor = _toMinor(raw, currency);
+      if (minor == null || minor <= 0) continue;
+      return (
+        amount: Money(minor, currency),
+        confidence: FieldConfidence.high,
+      );
+    }
+    return null;
+  }
+
+  static int? _toMinor(String raw, Currency currency) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9.]'), '');
+    final v = double.tryParse(digits);
+    if (v == null) return null;
+    var scale = 1;
+    for (var i = 0; i < currency.minorUnits; i++) {
+      scale *= 10;
+    }
+    return (v * scale).round();
+  }
+
+  /// US card issuers by the words their statements actually print. Kept
+  /// deliberately small — it is a floor for photo-OCR misses (a phone
+  /// photo OCRs the browser URL bar before any logo line), not a brand
+  /// database: a statement whose header read cleanly names itself better.
+  static final List<(RegExp, String)> _issuers = [
+    (RegExp(r'CITI\s+CARDS|CITIBANK|CITICARD|\bCITI\b'), 'Citi'),
+    (RegExp(r'\bCHASE\b|JPMORGAN'), 'Chase'),
+    (RegExp(r'CAPITAL\s+ONE'), 'Capital One'),
+    (RegExp(r'\bDISCOVER\b'), 'Discover'),
+    (RegExp(r'AMERICAN\s+EXPRESS|\bAMEX\b'), 'American Express'),
+    (RegExp(r'BANK\s+OF\s+AMERICA'), 'Bank of America'),
+    (RegExp(r'WELLS\s+FARGO'), 'Wells Fargo'),
+    (RegExp(r'U\.?\s?S\.?\s+BANK'), 'U.S. Bank'),
+    (RegExp(r'\bUSAA\b'), 'USAA'),
+    (RegExp(r'NAVY\s+FEDERAL'), 'Navy Federal'),
+  ];
+
+  static String? _issuerIn(List<String> lines) {
+    final text = lines.take(40).join(' ').toUpperCase();
+    for (final (re, name) in _issuers) {
+      if (re.hasMatch(text)) return name;
+    }
+    return null;
+  }
 
   // --- due date ---------------------------------------------------------
 

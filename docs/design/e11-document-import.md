@@ -129,6 +129,25 @@ New pure-Dart module `packages/data/lib/src/statement_lines.dart`:
   - Tier-3 fill-only merge applies here with a sibling JSON contract
     (`{"payee","dueDate","amountCents","frequency"}`) — additive to
     `llm_json.dart`, never touching the receipt prompt.
+- **Owner/tester correction (2026-11-05, overturns E2 §3 vocabulary *for this
+  route only*):** a bill drafted from a **card statement** pre-fills the
+  **minimum payment due**, not the balance. Lance's Citi fixture read
+  $7,355.21 (NEW BALANCE) where the monthly check is $594.67 (MINIMUM
+  PAYMENT DUE) — the figure the bill engine must remind about. Implemented
+  in `BillDraft.draft`: a bottom-up `MINIMUM [PAYMENT|PYMT|PMT] [DUE]` box
+  (label alone ⇒ the next non-empty line must be a pure amount) overrides
+  `total`. It is **evidence-based, not classification-gated** — the Chase
+  test bill prints a minimum line and must still draft at 42.50, not the
+  1,200.00 balance. The receipt-scanner transaction route keeps E2 §3
+  unchanged: a minimum-payment line is still never a *transaction* total.
+  Issuer fallback: when a document *classifies* as `cardStatement` but
+  `guessMerchant` didn't reach high confidence, a brand regex
+  (`CITI CARDS|CITIBANK|CITICARD|CITI`, …) supplies a medium-confidence
+  payee; garbage first lines (URLs, boilerplate, PO-BOX address lines —
+  `BOX` now requires digits to reject "BOX 6062" as a merchant) no longer
+  mint junk names. A high-confidence brand name like `Citi Strata` is
+  **kept as read** — the owner wants the product name, not a normalized
+  issuer.
 - Save path: `showBillEditor(prefill: BillPrefill(name: payee, amountMinor:
   amountDue))` with start/next-due seeded from `dueDate` (editor grows one
   optional prefill field `dueDate` — one-line change in `BillPrefill`),
@@ -147,6 +166,25 @@ New pure-Dart module `packages/data/lib/src/statement_lines.dart`:
   *without* the screenshot row (reuse `showCaptureSourceSheet`; choices limited
   to camera/photos/PDF — the picker machinery in `CaptureIntake` is reused, no
   new platform channel).
+- **Bills-tab entry (2026-11-05 tester note):** there is no PDF/image
+  import *on* the Bills page, so document bills could only be reached via
+  the receipt scanner. The Bills tab (sheet *and* home panel) gains an
+  `bill-add-document` button: same source sheet (no screenshot row),
+  `DocumentRouter` verdict decides — bill → `showBillEditor(prefill)`,
+  statement → snackbar pointing at Manage → Import statement, unreadable
+  → honest no. `CaptureServices` is plumbed through `showBudgetsSheet` /
+  `BillsTab` (null hides the button; every entrance in `main.dart` hands
+  the same instance).
+- **Home IA pass (2026-11-05, owner):** a bottom `NavigationBar` on
+  `LedgerScreen` switches Receipts · Budgets · Bills · Goals (E1's "no
+  new bottom tab" overturned). Bills/Goals are embedded bodies
+  (`HomePanel`, keys `home-tab-*`, `home-*` header controls); the
+  transaction FABs belong to Receipts only; the Expenses stat now
+  *switches panels* instead of opening the sheet; `BudgetsSheet` lives
+  on for notification deep-links (`focusBillId`), widget routes and
+  Manage. `HomePanel` is a conditional body, not an `IndexedStack`: one
+  ValueKey survives Budgets↔Bills↔Goals so the shared month cursor
+  never re-inits mid-panel; returning to Receipts disposes it by design.
 - While the document is being read: existing wizard frame shows the E2
   spinner state; failure states mirror E2 review-sheet copy ("couldn't read
   text — try CSV or OFX instead" for `other`/refusals).

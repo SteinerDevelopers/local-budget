@@ -9,6 +9,7 @@ import '../bills/bill_detail_sheet.dart';
 import '../bills/bill_editor_sheet.dart';
 import '../bills/bills_service.dart';
 import '../bills/bills_tab.dart';
+import '../capture/capture_services.dart';
 import '../goals/goals_service.dart';
 import '../goals/goals_tab.dart';
 import '../help/help_screen.dart';
@@ -29,6 +30,7 @@ Future<void> showBudgetsSheet(
   required int monthIndex,
   Currency? currency,
   int? focusBillId,
+  CaptureServices? capture,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -41,6 +43,7 @@ Future<void> showBudgetsSheet(
     initialMonthIndex: monthIndex,
     currency: currency,
     focusBillId: focusBillId,
+    capture: capture,
   ),
 );
 
@@ -51,12 +54,17 @@ class BudgetsSheet extends StatefulWidget {
     required this.initialMonthIndex,
     this.currency,
     this.focusBillId,
+    this.capture,
   });
 
   final LedgerRepository repository;
   final int initialMonthIndex;
   final Currency? currency;
   final int? focusBillId;
+
+  /// Bills body's "Add from a document" (2026-11-05 tester note); null
+  /// hides the button, same contract as everywhere else.
+  final CaptureServices? capture;
 
   @override
   State<BudgetsSheet> createState() => _BudgetsSheetState();
@@ -281,6 +289,7 @@ class _BudgetsSheetState extends State<BudgetsSheet> {
                             currency: _billCurrency,
                             categories: _billCats,
                             onChanged: _loadBills,
+                            capture: widget.capture,
                           ),
                         ),
                 2 => KeyedSubtree(

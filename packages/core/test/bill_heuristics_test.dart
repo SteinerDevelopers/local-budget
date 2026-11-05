@@ -134,5 +134,125 @@ void main() {
       );
       expect(d.isEmpty, isTrue);
     });
+
+    // Real-world shape: a US card statement (redacted from a tester's
+    // October PDF, 2026-11-05). What the cardholder writes the check for
+    // is the MINIMUM PAYMENT DUE — prefilling the balance turned a $594
+    // bill into a $7,355 one. Warning prose and the payoff table talk
+    // about the minimum without being it; the stub at the foot repeats
+    // the box, bottom-up.
+    test('a card statement drafts the minimum due, not the balance', () {
+      final d = BillDraft.draft(
+        [
+          'Citi Strata',
+          'www.citicards.com',
+          'OCTOBER STATEMENT',
+          'Billing Period: 09/17/26-10/16/26',
+          'New balance as of 10/16/26:',
+          r'$7,355.21',
+          'Minimum payment due:',
+          r'$594.67',
+          'Payment due date:',
+          '11/14/26',
+          'Your Citi Flex Plan Payment Amount is included in your Minimum',
+          'Payment Due. For more details, see the Citi Flex Plan details',
+          'Late Payment Warning:',
+          'If we do not receive your Minimum Payment',
+          'by the date listed above, you may have to pay a late fee of up to \$41',
+          'Minimum Payment Warning:',
+          'If you make only the minimum payment each period,',
+          'Account Summary',
+          'Previous balance',
+          r'$7,342.77',
+          'New balance',
+          r'$7,355.21',
+          'Credit limit',
+          r'$7,300',
+          'Minimum payment due',
+          r'$594.67',
+          'New balance',
+          r'$7,355.21',
+          'Payment due date',
+          '11/14/26',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee, 'Citi Strata'); // brand line, first line — kept as read
+      expect(d.payeeConfidence, FieldConfidence.high);
+      expect(d.amountDue?.minorUnits, 59467); // the minimum, not 735521
+      expect(d.amountConfidence, FieldConfidence.high);
+      expect(d.dueDate, DateTime.utc(2026, 11, 14));
+      expect(d.frequency, BillFrequencyHint.monthly);
+    });
+
+    test('a same-line minimum label wins over a balance anchor', () {
+      final d = BillDraft.draft(
+        [
+          'CHASE FREEDOM CARD',
+          'MINIMUM PAYMENT DUE: \$42.50',
+          'BALANCE DUE \$1,200.00',
+          'DUE DATE 11/20/2026',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.amountDue?.minorUnits, 4250);
+      expect(d.amountConfidence, FieldConfidence.high);
+    });
+
+    test('warning prose about the minimum does not hijack the amount', () {
+      // Label-only lines whose next line is prose disqualify; the balance
+      // anchor remains the fallback for statements with no payment box.
+      final d = BillDraft.draft(
+        [
+          'CITI CARD ACCOUNT',
+          'Minimum Payment Warning: If you make only the minimum payment',
+          'you will pay more in interest and it will take you longer.',
+          'NEW BALANCE \$250.00',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.amountDue?.minorUnits, 25000);
+    });
+
+    test('a statement photo whose OCR lead is chrome drafts the issuer', () {
+      // Phone photo of the web statement: status bar and browser address
+      // bar OCR before the logo, and no clean merchant line survives the
+      // first six — the issuer vocabulary names the payee instead.
+      final d = BillDraft.draft(
+        [
+          '9:20',
+          'b.https://online.citicards.com/.../statements',
+          'BILLING INQUIRIES AND CUSTOMER SERVICE',
+          'BOX 6062 SIOUX FALLS, SD 57117',
+          '1-800-555-0100, (TTY: 711)',
+          'www.citicards.com',
+          'OCTOBER STATEMENT',
+          'Billing Period: 09/17/26-10/16/26',
+          'New balance as of 10/16/26:',
+          r'$7,355.21',
+          'Minimum payment due:',
+          r'$594.67',
+          'Payment due date:',
+          '11/14/26',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee, 'Citi');
+      expect(d.payeeConfidence, FieldConfidence.medium);
+      expect(d.amountDue?.minorUnits, 59467);
+    });
+
+    test('non-card bills keep the merchant heuristic untouched', () {
+      final d = BillDraft.draft(
+        ['CITY WATER & SEWER', 'DUE DATE 11/15/2026', 'TOTAL AMOUNT DUE 84.00'],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee?.toLowerCase(), contains('water'));
+    });
   });
 }

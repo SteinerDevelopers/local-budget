@@ -1,13 +1,17 @@
 // #35 — Bills tab (design e3 §2.3). Rules are the truth; the notification
 // is only a hint (§5). Rows sorted overdue → soonest (the repository's
 // nextDue order), overdue date in `error`, due-within-3-days bold.
-import 'package:core/core.dart' show Currency;
+import 'package:capture/capture.dart';
 // Full import: the repository API lives in `extension … on LedgerRepository`
 // declarations, which a `show` clause would hide.
+import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
+import '../capture/capture_intake.dart';
+import '../capture/capture_services.dart';
+import '../capture/capture_source_sheet.dart';
 import '../manage/icon_registry.dart';
 import 'bill_detail_sheet.dart';
 import 'bill_editor_sheet.dart';
@@ -23,6 +27,7 @@ class BillsTab extends StatelessWidget {
     required this.currency,
     required this.categories,
     required this.onChanged,
+    this.capture,
   });
 
   final LedgerRepository repository;
@@ -30,6 +35,14 @@ class BillsTab extends StatelessWidget {
   final Currency currency;
   final List<Category> categories;
   final Future<void> Function() onChanged;
+
+  /// E11 follow-up (tester note, 2026-11-05): bills arrive as photos and
+  /// PDFs, but the document entry lived only in the import wizard — a
+  /// scanned card statement went to the *receipt* scanner instead and came
+  /// back as an expense. Where capture exists the Bills tab offers
+  /// "Add from a document" directly; where it doesn't the button is
+  /// *hidden*, never a dead end.
+  final CaptureServices? capture;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +72,7 @@ class BillsTab extends StatelessWidget {
               label: const Text('Add bill'),
               onPressed: () => _add(context),
             ),
+            if (capture != null) _documentButton(compact: true),
           ],
         ),
       );
@@ -79,20 +93,47 @@ class BillsTab extends StatelessWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.all(Tokens.space2),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: const Key('bill-add'),
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text('Add bill'),
-                onPressed: () => _add(context),
-              ),
+            child: Row(
+              children: [
+                // Two actions share the bar; the halves are bounded and
+                // scale down rather than overflow on narrow phones.
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      key: const Key('bill-add'),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text('Add bill'),
+                      onPressed: () => _add(context),
+                    ),
+                  ),
+                ),
+                if (capture != null)
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: _documentButton(compact: true),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+
+  Widget _documentButton({required bool compact}) => _AddFromDocumentButton(
+    key: const Key('bill-add-document'),
+    capture: capture!,
+    repository: repository,
+    currency: currency,
+    categories: categories,
+    onChanged: onChanged,
+    compact: compact,
+  );
 
   Future<void> _add(BuildContext context) async {
     final changed = await showBillEditor(
@@ -133,6 +174,118 @@ class BillsTab extends StatelessWidget {
 
 /// Sentinel result telling the parent "detail closed on Edit rule".
 const String _openEditor = 'edit';
+
+/// Photo or PDF → [DocumentExtractor] → [BillDraft] → the E4 editor,
+/// prefilled and reviewable — the same pipeline the import wizard runs
+/// (E11 §5), shortened to the bill route: this tab's whole subject is
+/// bills, and a scanned statement is *routed to* the wizard, not
+/// silently mis-added. The bill is never written by the document alone.
+class _AddFromDocumentButton extends StatefulWidget {
+  const _AddFromDocumentButton({
+    super.key,
+    required this.capture,
+    required this.repository,
+    required this.currency,
+    required this.categories,
+    required this.onChanged,
+    required this.compact,
+  });
+
+  final CaptureServices capture;
+  final LedgerRepository repository;
+  final Currency currency;
+  final List<Category> categories;
+  final Future<void> Function() onChanged;
+  final bool compact;
+
+  @override
+  State<_AddFromDocumentButton> createState() => _AddFromDocumentButtonState();
+}
+
+class _AddFromDocumentButtonState extends State<_AddFromDocumentButton> {
+  bool _reading = false;
+
+  Future<void> _run() async {
+    final choice = await showCaptureSourceSheet(
+      context,
+      showScreenshotRow: false,
+      title: 'Add from a document',
+      subtitle:
+          'A bill or a bank statement — you review before anything is saved.',
+    );
+    if (choice == null || choice == CaptureChoice.screenshot || !mounted) {
+      return;
+    }
+    CapturePick? pick;
+    try {
+      pick = await widget.capture.intake.pick(choice);
+    } on Object {
+      return; // picker failures are silent-and-retryable (§2.1)
+    }
+    if (pick == null || !mounted) return;
+    setState(() => _reading = true);
+    DocumentRead? read;
+    try {
+      final reader = DocumentExtractor(
+        extractor: widget.capture.extractor,
+        renderer: widget.capture.renderer,
+        scannedPdfPages: widget.capture.scannedPdfPages,
+      );
+      read = pick.choice == CaptureChoice.pdf
+          ? await reader.fromPdf(pick.bytes)
+          : await reader.fromImage(pick.bytes);
+    } finally {
+      if (mounted) setState(() => _reading = false);
+    }
+    if (!mounted) return;
+    void snack(String msg) => ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+    if (read == null || read.isEmpty) {
+      snack('We couldn’t read any text from it — try a closer photo.');
+      return;
+    }
+    switch (DocumentRouter.route(read.lines, currency: widget.currency)) {
+      case DocRoute.bill:
+        final draft = BillDraft.draft(read.lines, currency: widget.currency);
+        final saved = await showBillEditor(
+          context,
+          repository: widget.repository,
+          currency: widget.currency,
+          categories: widget.categories,
+          prefill: BillPrefill(
+            name: draft.payee ?? '',
+            amountMinor: draft.amountDue?.minorUnits ?? 0,
+            dueDate: draft.dueDate,
+            fromDocument: true,
+          ),
+        );
+        if (saved == true) await widget.onChanged();
+      case DocRoute.statement:
+        snack(
+          'That reads like a statement — import it from Manage → Import '
+          'statement so you can review every transaction.',
+        );
+      case DocRoute.other:
+        snack('We couldn’t read a bill from it — try a closer photo.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      icon: _reading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.document_scanner_outlined, size: 20),
+      label: Text(_reading ? 'Reading your document…' : 'Add from a document'),
+      onPressed: _reading ? null : _run,
+    );
+  }
+}
 
 class _BillRow extends StatelessWidget {
   const _BillRow({required this.line, required this.onTap});

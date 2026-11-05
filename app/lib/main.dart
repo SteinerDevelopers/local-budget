@@ -86,6 +86,10 @@ Future<void> bootLocalBudget() async {
   }
   await _tips?.dispose();
   _tips = buildTipService(repository);
+  // Kept in a library variable too: widget-route and notification sheet
+  // entrances (_openWidgetRoute, _openBillRule) hand the same instance to
+  // the budgets sheet so its Bills tab matches the home screen's.
+  _capture = _androidCapture(dir);
   runApp(
     LocalBudgetApp(
       repository: repository,
@@ -93,7 +97,7 @@ Future<void> bootLocalBudget() async {
       fx: fx,
       integrity: integrity,
       docsDir: dir,
-      capture: _androidCapture(dir),
+      capture: _capture,
       navigatorKey: appNavigatorKey,
       restore: (backup) => restoreFromBackup(backup, docsDir: dir),
       tips: _tips,
@@ -243,6 +247,10 @@ Future<void> _takeWidgetRoute(LedgerRepository repository) async {
   if (route != null) _openWidgetRoute(repository, route);
 }
 
+/// The one Android capture instance (null elsewhere), shared by the widget
+/// tree and the top-level widget-route/notification entrances.
+CaptureServices? _capture;
+
 /// §4.1 route hand-off: each widget lands on its promised screen, using
 /// the same entry points the in-app buttons use — no second navigation
 /// stack. No context (teardown edge) simply drops the tap, like bills.
@@ -261,6 +269,7 @@ void _openWidgetRoute(LedgerRepository repository, String route) {
         context,
         repository: repository,
         monthIndex: monthIndexOf(DateTime.now()),
+        capture: _capture,
       );
     case 'capture':
       // The capture flow lives in LedgerScreen's state (it owns the
@@ -301,6 +310,7 @@ void _openBillRule(LedgerRepository repository, int ruleId) {
     repository: repository,
     monthIndex: monthIndexOf(DateTime.now()),
     focusBillId: ruleId,
+    capture: _capture,
   );
 }
 

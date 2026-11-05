@@ -7,6 +7,7 @@
 // Same drift rules as manage_test.dart: close the db INSIDE the test body.
 import 'dart:ffi' show DynamicLibrary;
 
+import 'package:capture/capture.dart' show TextExtractor;
 import 'package:core/core.dart' show Currency;
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:local_budget/design/theme.dart';
 import 'package:local_budget/features/bills/bills_service.dart';
 import 'package:local_budget/features/budgets/budgets_sheet.dart';
+import 'package:local_budget/features/capture/capture_intake.dart';
+import 'package:local_budget/features/capture/capture_services.dart';
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:local_budget/features/ledger/ledger_screen.dart'
     show monthIndexOf;
 import 'package:sqlite3/open.dart' as sqlite3_open;
@@ -73,6 +77,7 @@ void main() {
     WidgetTester tester,
     LedgerRepository repo, {
     int? focusBillId,
+    CaptureServices? capture,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -86,6 +91,7 @@ void main() {
                 monthIndex: thisMonth,
                 currency: usd,
                 focusBillId: focusBillId,
+                capture: capture,
               ),
               child: const Text('open'),
             ),
@@ -97,9 +103,18 @@ void main() {
     await settle(tester);
   }
 
-  Future<void> openBillsTab(WidgetTester tester, LedgerRepository repo) async {
-    await openSheet(tester, repo);
-    await tester.tap(find.text('Bills'));
+  Future<void> openBillsTab(
+    WidgetTester tester,
+    LedgerRepository repo, {
+    CaptureServices? capture,
+  }) async {
+    await openSheet(tester, repo, capture: capture);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SegmentedButton<int>),
+        matching: find.text('Bills'),
+      ),
+    );
     await settle(tester);
   }
 
@@ -321,6 +336,76 @@ void main() {
       },
     );
 
+    testWidgets('no capture services — no document button, no dead end', (
+      tester,
+    ) async {
+      final (:db, :repo) = freshRepo();
+      await openBillsTab(tester, repo);
+      expect(find.byKey(const Key('bill-add-empty')), findsOneWidget);
+      expect(find.text('Add from a document'), findsNothing);
+      await db.close();
+    });
+
+    testWidgets('a bill photo prefills the editor, saving writes the rule', (
+      tester,
+    ) async {
+      phoneScreen(tester);
+      final (:db, :repo) = freshRepo();
+      final food = await repo.addCategory('Food');
+      expect(food, isNonZero);
+      await openBillsTab(tester, repo, capture: docServices(lines: billLines));
+      expect(find.text('Add from a document'), findsOneWidget);
+      await tester.tap(find.text('Add from a document'));
+      await settle(tester);
+      await tester.tap(find.text('Photos'));
+      await settle(tester);
+      expect(find.byKey(const Key('bill-prefill-note')), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('bill-name')))
+            .controller!
+            .text,
+        'ACME ELECTRIC',
+      );
+      // The keypad seeds from minor units: frac 0 shows bare '84'.
+      expect(find.text('84'), findsWidgets);
+
+      // The document alone saves nothing; picking a category + Save does,
+      // and the tab reloads through onChanged.
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('bill-categories')),
+          matching: find.text('Food'),
+        ),
+      );
+      await tester.pump();
+      await tapKey(tester, const Key('bill-save'));
+      expect(find.text('ACME ELECTRIC'), findsOneWidget);
+      final r = (await repo.rules()).single;
+      expect(r.name, 'ACME ELECTRIC');
+      expect(r.amountMinor, 8400);
+      await db.close();
+    });
+
+    testWidgets('a statement photo sends you to the wizard, not a bill', (
+      tester,
+    ) async {
+      phoneScreen(tester);
+      final (:db, :repo) = freshRepo();
+      await openBillsTab(
+        tester,
+        repo,
+        capture: docServices(lines: statementLines),
+      );
+      await tester.tap(find.text('Add from a document'));
+      await settle(tester);
+      await tester.tap(find.text('Photos'));
+      await settle(tester);
+      expect(find.textContaining('reads like a statement'), findsOneWidget);
+      expect(await repo.rules(), isEmpty);
+      await db.close();
+    });
+
     testWidgets('pause archives a stale rule, nothing deleted', (tester) async {
       final (:db, :repo) = freshRepo();
       final stale = DateTime(now.year, now.month, now.day - 400);
@@ -340,3 +425,43 @@ void main() {
 }
 
 DateTime _addDays(DateTime d, int n) => DateTime(d.year, d.month, d.day + n);
+
+/// E11 seam copies from data_flows_test: opaque bytes in, canned OCR lines
+/// out — routing and drafting are the real path.
+class DocIntake implements CaptureIntake {
+  @override
+  bool get hasScreenshotRow => false;
+
+  @override
+  Future<CapturePick?> pick(CaptureChoice choice) async =>
+      CapturePick(bytes: Uint8List.fromList([0]), choice: choice);
+}
+
+class LinesExtractor implements TextExtractor {
+  LinesExtractor({this.lines = const []});
+  final List<String> lines;
+
+  @override
+  Future<List<String>> extractText(Uint8List image) async => lines;
+}
+
+CaptureServices docServices({List<String> lines = const []}) => CaptureServices(
+  intake: DocIntake(),
+  extractor: LinesExtractor(lines: lines),
+);
+
+/// Same fixtures the wizard tests use (ACME bill; a routed statement).
+const billLines = [
+  'ACME ELECTRIC',
+  'AMOUNT DUE 84.00',
+  'PAYMENT DUE DATE 01/15/2027',
+];
+
+/// ≥ kStatementMinRows date+amount lines, no bill signature — the router
+/// sends this to the statement preview, so the tab must route onward.
+const statementLines = [
+  '12/01/2026 CORNER MARKET 24.60 1,204.60',
+  '12/03/2026 SALARY CREDIT 2,400.00 3,604.60',
+  '12/05/2026 UTILITY AUTO PAY 84.00 3,520.60',
+  '12/08/2026 COFFEE HOUSE 4.75 3,515.85',
+];

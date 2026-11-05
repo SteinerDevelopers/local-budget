@@ -111,9 +111,12 @@ class ReceiptHeuristics {
   ];
 
   /// Anchors per document type — classification only *replaces* the list;
-  /// scanning stays bottom-up (e2-capture.md §3 v1.1). On a card statement
-  /// `STATEMENT/NEW/CURRENT BALANCE` is the amount a budgeting app should
-  /// pre-fill; a minimum-payment line is never it, whatever it is labeled.
+  /// scanning stays bottom-up (e2-capture.md §3 v1.1). On the receipt route
+  /// `STATEMENT/NEW/CURRENT BALANCE` is what a scanned statement "costs";
+  /// the minimum-payment line is never the receipt total there. The BILL
+  /// route inverts this deliberately: [BillDraft] pre-fills the minimum
+  /// payment due — the check a cardholder actually writes (tester bounce,
+  /// 2026-11-05).
   static List<({RegExp re, FieldConfidence confidence})> _anchorsFor(
           DocType type) =>
       switch (type) {
@@ -212,14 +215,22 @@ class ReceiptHeuristics {
       final letters = line.replaceAll(RegExp('[^A-Za-zÀ-ÿ]'), '').length;
       if (letters < 2) continue; // pure numbers/dates/punctuation
       if (RegExp(r'^\d').hasMatch(line)) continue; // starts with digit
-      if (RegExp(r'\b(ST|STREET|RD|ROAD|AVE|AVENUE|BLVD|SUITE|STE|INC|LLC|LTD)\b',
+      if (RegExp(r'\b(ST|STREET|RD|ROAD|AVE|AVENUE|BLVD|SUITE|STE|INC|LLC|LTD|BOX)\b',
                   caseSensitive: false)
               .hasMatch(line) &&
           RegExp(r'\d').hasMatch(line)) {
         continue; // address or legal tail
       }
+      if (RegExp(r'https?://|www\.|\.(?:COM|NET|ORG|INFO)\b',
+              caseSensitive: false)
+          .hasMatch(line)) {
+        continue; // URL or browser chrome — a photo of a webpage leads with
+        // the address bar, and that is not a merchant (bounce,
+        // 2026-11-05)
+      }
       if (RegExp(
-              r'^(THANK|THANKS|VISIT|SCAN|RECEIPT|INVOICE|TEL|PHONE|VAT\s+ID|TAX\s+ID)',
+              r'^(THANK|THANKS|VISIT|SCAN|RECEIPT|INVOICE|TEL|PHONE|VAT\s+ID|TAX\s+ID'
+              r'|BILLING|CUSTOMER\s+SERVICE|ACCOUNT\s+NUMBER|MEMBER\s+SINCE)',
               caseSensitive: false)
           .hasMatch(line)) {
         continue;

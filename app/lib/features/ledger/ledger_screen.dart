@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/tokens.dart';
 import '../../flavor.dart';
-import '../budgets/budgets_sheet.dart';
+import '../budgets/home_panel.dart';
 import '../capture/capture_intake.dart';
 import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
@@ -193,6 +193,10 @@ List<Object> _flattenDays(List<LedgerEntryData> rows) {
 class _LedgerScreenState extends State<LedgerScreen> {
   late final PageController _pages = PageController(initialPage: _index0);
   late int _index = _index0;
+
+  /// Bottom-nav destination (owner IA pass, 2026-11-05): 0 Receipts —
+  /// the month ledger; 1..3 Budgets/Bills/Goals — the embedded HomePanel.
+  int _dest = 0;
 
   /// Warm state the sheet gets next time it opens (§2.2 rule 5: "carried by
   /// the caller"): kind + chip of the last saved entry.
@@ -607,59 +611,106 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Owner IA pass, 2026-11-05: Receipts / Budgets / Bills / Goals switch
+    // from a bottom bar on the home screen — no more sheet buried behind a
+    // stat tap. Receipts is the month ledger itself; the other three are
+    // the budgets-sheet bodies, embedded (the sheet survives for
+    // notification deep-links, which own their focus target).
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            _MonthHeader(
-              title: monthTitle(_index),
-              onPrevious: () => _animate(_index - 1),
-              onNext: () => _animate(_index + 1),
-              onOpenReports: _openReports,
-              onOpenHelp: _openHelp,
-              onOpenManage: _openManage,
-            ),
-            Expanded(
-              child: PageView.builder(
-                controller: _pages,
-                itemCount: _monthCount,
-                onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, i) => _MonthPage(
-                  repository: widget.repository,
-                  index: i,
-                  currency: _currency,
-                  onDelete: _delete,
-                  onOpen: _openDetail,
-                ),
+        child: _dest == 0
+            ? Column(
+                children: [
+                  _MonthHeader(
+                    title: monthTitle(_index),
+                    onPrevious: () => _animate(_index - 1),
+                    onNext: () => _animate(_index + 1),
+                    onOpenReports: _openReports,
+                    onOpenHelp: _openHelp,
+                    onOpenManage: _openManage,
+                  ),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pages,
+                      itemCount: _monthCount,
+                      onPageChanged: (i) => setState(() => _index = i),
+                      itemBuilder: (context, i) => _MonthPage(
+                        repository: widget.repository,
+                        index: i,
+                        currency: _currency,
+                        onDelete: _delete,
+                        onOpen: _openDetail,
+                        onOpenBudgets: () => setState(() => _dest = 1),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : HomePanel(
+                // One element across Budgets/Bills/Goals: month and load
+                // state survive switching; the ledger's month follows.
+                key: const ValueKey('home-panel'),
+                repository: widget.repository,
+                tab: _dest - 1,
+                initialMonthIndex: _index,
+                currency: _currency,
+                capture: widget.capture,
               ),
-            ),
-          ],
-        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _dest,
+        onDestinationSelected: (i) => setState(() => _dest = i),
+        destinations: const [
+          NavigationDestination(
+            key: ValueKey('nav-receipts'),
+            icon: Icon(Icons.receipt_long_outlined),
+            label: 'Receipts',
+          ),
+          NavigationDestination(
+            key: ValueKey('nav-budgets'),
+            icon: Icon(Icons.pie_chart_outline),
+            label: 'Budgets',
+          ),
+          NavigationDestination(
+            key: ValueKey('nav-bills'),
+            icon: Icon(Icons.event_outlined),
+            label: 'Bills',
+          ),
+          NavigationDestination(
+            key: ValueKey('nav-goals'),
+            icon: Icon(Icons.flag_outlined),
+            label: 'Goals',
+          ),
+        ],
       ),
       // E2 §1: two FABs live here and nowhere else — capture is secondary,
       // 12 dp above the primary add. Keys keep test finders unambiguous
       // now that the slot holds two FloatingActionButton-derived widgets.
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.small(
-            key: const ValueKey('fab-capture'),
-            // The two FABs share one route, so only one may hold the
-            // default hero tag — the primary keeps E1's exact behavior.
-            heroTag: null,
-            onPressed: _openCapture,
-            tooltip: 'Add from receipt',
-            child: const Icon(Icons.document_scanner_outlined),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            key: const ValueKey('fab-quickadd'),
-            onPressed: _openQuickAdd,
-            tooltip: 'Add transaction',
-            child: const Icon(Icons.add),
-          ),
-        ],
-      ),
+      // They add *transactions*, so they belong to the Receipts panel only
+      // (each other panel carries its own add affordance).
+      floatingActionButton: _dest == 0
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.small(
+                  key: const ValueKey('fab-capture'),
+                  // The two FABs share one route, so only one may hold the
+                  // default hero tag — the primary keeps E1's exact behavior.
+                  heroTag: null,
+                  onPressed: _openCapture,
+                  tooltip: 'Add from receipt',
+                  child: const Icon(Icons.document_scanner_outlined),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton(
+                  key: const ValueKey('fab-quickadd'),
+                  onPressed: _openQuickAdd,
+                  tooltip: 'Add transaction',
+                  child: const Icon(Icons.add),
+                ),
+              ],
+            )
+          : null,
     );
   }
 }
@@ -764,6 +815,7 @@ class _MonthPage extends StatefulWidget {
     required this.currency,
     required this.onDelete,
     required this.onOpen,
+    required this.onOpenBudgets,
   });
 
   final LedgerRepository repository;
@@ -773,6 +825,11 @@ class _MonthPage extends StatefulWidget {
 
   /// E5 §6: row tap → read-only detail sheet (manual rate lives there).
   final void Function(LedgerEntryData row) onOpen;
+
+  /// Owner IA pass (2026-11-05): the Expenses stat used to open the
+  /// budgets sheet; the bottom nav made Budgets a first-class destination,
+  /// so the stat just switches panels.
+  final VoidCallback onOpenBudgets;
 
   @override
   State<_MonthPage> createState() => _MonthPageState();
@@ -796,12 +853,7 @@ class _MonthPageState extends State<_MonthPage> {
           children: [
             BalanceStrip(
               summary: summarizeMonth(rows, widget.currency),
-              onExpensesTap: () => showBudgetsSheet(
-                context,
-                repository: widget.repository,
-                monthIndex: widget.index,
-                currency: widget.currency,
-              ),
+              onExpensesTap: widget.onOpenBudgets,
             ),
             Expanded(
               // Empty month keeps header + strip (zeros) on screen (§2.1).

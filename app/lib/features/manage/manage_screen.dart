@@ -177,6 +177,7 @@ class _ManageScreenState extends State<ManageScreen> {
               context,
               repository: widget.repository,
               monthIndex: monthIndexOf(DateTime.now()),
+              capture: widget.capture,
             ),
           ),
           ListTile(
