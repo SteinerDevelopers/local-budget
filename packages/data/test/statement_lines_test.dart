@@ -1,0 +1,142 @@
+import 'package:core/core.dart' show Currency;
+import 'package:data/data.dart';
+import 'package:test/test.dart';
+
+/// E11 statement-route groundwork (e11-document-import.md §3): the
+/// right-to-left scan over photographed/PDF statement text. Pinned against
+/// a frozen clock; every inferred reading must come back amber.
+void main() {
+  final usd = Currency.known['USD']!;
+  final now = DateTime.utc(2026, 11, 4);
+
+  StatementParse? parse(List<String> lines) =>
+      StatementLines.tryParse(lines, currency: usd, now: now);
+
+  group('US-format rows', () {
+    test('plain lines become rows; signs and keywords decide direction', () {
+      final p = parse([
+        '10/01/2026 COFFEE SHOP 12.50',
+        '10/02/2026 PAYROLL DEPOSIT +1,200.00',
+        '10/03/2026 CARD PURCHASE 45.10-',
+      ]);
+      expect(p, isNotNull);
+      expect(p!.rows.length, 3);
+      expect(p.skippedLines, 0);
+
+      final r = p.rows[0];
+      expect(r.date, DateTime.utc(2026, 10, 1));
+      expect(r.minor, 1250);
+      expect(r.isIncome, isFalse); // unsigned default is expense
+      expect(r.description, 'COFFEE SHOP');
+      expect(r.ambiguous, isFalse);
+
+      expect(p.rows[1].isIncome, isTrue); // explicit `+`
+      expect(p.rows[1].minor, 120000);
+      expect(p.rows[2].minor, 4510); // trailing-minus bank notation
+    });
+
+    test('a running-balance column splits amount from balance', () {
+      final p = parse([
+        '10/01/2026 MARKET 25.00 1,025.00',
+        '10/02/2026 FUEL 40.00 985.00',
+      ]);
+      expect(p!.rows.map((r) => r.minor), [2500, 4000]);
+      expect(p.rows.every((r) => r.ambiguous), isTrue); // inferred column
+    });
+
+    test('OCR printing one column twice still yields one amount', () {
+      final p = parse([
+        '10/01/2026 MARKET 25.00 1,025.00',
+        '10/02/2026 BANK FEE 10.00 10.00',
+      ]);
+      final fee = p!.rows[1];
+      expect(fee.minor, 1000);
+      expect(fee.ambiguous, isTrue);
+    });
+
+    test('letters-only line under a row wraps its description', () {
+      final p = parse(['10/01/2026 GROCERY STORE 55.25', 'DOWNTOWN PLAZA']);
+      expect(p!.rows.length, 1);
+      expect(p.rows.single.description, 'GROCERY STORE DOWNTOWN PLAZA');
+      expect(p.skippedLines, 0);
+    });
+
+    test('reference left of the amount keeps the right-most money', () {
+      // Majority single-numeral rows: no balance column, so the two
+      // numerals on this line are reference noise + amount, not a split.
+      final p = parse([
+        '10/01/2026 COFFEE 12.50',
+        '10/02/2026 PARKING 8.00',
+        '10/03/2026 BOOKSTORE 25.00',
+        '10/06/2026 REF 998877 ONLINE PURCHASE 39.99',
+      ]);
+      expect(p!.rows.last.minor, 3999);
+      expect(p.rows.last.ambiguous, isTrue); // extra numeral: amber
+    });
+
+    test('a bare four-digit year is noise, not an amount', () {
+      final p = parse(['10/07/2026 SUBSCRIPTION 2026 15.00']);
+      expect(p!.rows.single.minor, 1500);
+      expect(p.rows.single.ambiguous, isFalse); // year skipped, one amount
+    });
+  });
+
+  group('amber discipline', () {
+    test('year-less dates carry the year and go amber', () {
+      final p = parse([
+        '12/28/2025 SALARY DEPOSIT 2,000.00',
+        '01/02 RENT PAYMENT MADE 900.00',
+      ]);
+      expect(p!.rows.length, 2);
+      expect(p.rows[0].ambiguous, isFalse); // on paper: full year
+      expect(p.rows[1].date, DateTime.utc(2026, 1, 2)); // Dec→Jan rolls on
+      expect(p.rows[1].ambiguous, isTrue); // carried year is an inference
+    });
+
+    test('a lone bare whole number reads as money but goes amber', () {
+      final p = parse(['10/05/2026 ATM WITHDRAW 100']);
+      expect(p!.rows.single.minor, 10000);
+      expect(p.rows.single.ambiguous, isTrue); // could be a reference
+    });
+
+    test('the same number with cents is plain money', () {
+      final p = parse(['10/05/2026 ATM WITHDRAW 100.00']);
+      expect(p!.rows.single.minor, 10000);
+      expect(p.rows.single.ambiguous, isFalse);
+    });
+  });
+
+  group('decimal style', () {
+    test('provable style contradiction refuses the document', () {
+      expect(
+        parse(['10/01/2026 CAFE 12.34', '10/02/2026 BAKERY 1.234,56']),
+        isNull,
+      );
+    });
+
+    test('dotted European dates do not fake a style contradiction', () {
+      final p = parse(['05.12.2026 GESELLSCHAFT 1.234,56']);
+      expect(p, isNotNull);
+      expect(p!.rows.single.minor, 123456);
+      expect(p.rows.single.date, DateTime.utc(2026, 5, 12));
+    });
+  });
+
+  group('refusals', () {
+    test('dates far outside the believable window are skipped', () {
+      final p = parse(['01/01/2019 OLDSCHOOL 5.00']);
+      expect(p!.rows, isEmpty);
+      expect(p.skippedLines, 1);
+    });
+
+    test('letter-only noise without a preceding row is skipped', () {
+      final p = parse(['CHECKING ACCOUNT ACTIVITY']);
+      expect(p!.rows, isEmpty);
+      expect(p.skippedLines, 1);
+    });
+
+    test('blank input parses to nothing', () {
+      expect(parse(['', '   ']), isNull);
+    });
+  });
+}

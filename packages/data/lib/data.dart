@@ -30,5 +30,6 @@ export 'src/integrity.dart';
 export 'src/ledger_repository.dart';
 export 'src/ofx_import.dart';
 export 'src/report_workbook.dart';
+export 'src/statement_lines.dart';
 export 'src/tables.dart';
 export 'src/xlsx.dart';

@@ -4,6 +4,7 @@
 /// tier 1, feasibility §6.1). No Flutter, no I/O.
 library;
 
+export 'src/bill_heuristics.dart';
 export 'src/currency.dart';
 export 'src/dedupe.dart';
 export 'src/heuristics.dart';
