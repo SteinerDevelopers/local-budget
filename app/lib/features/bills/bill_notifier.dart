@@ -6,6 +6,7 @@ import 'dart:async' show TimeoutException, unawaited;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -121,15 +122,28 @@ class BillNotifier {
     }
   }
 
-  static Future<void> _requestPermission() async {
+  static const _notifAskedKey = 'notif_asked_v1';
+
+  static Future<void> _requestPermission([
+    FlutterSecureStorage? storage,
+  ]) async {
     try {
-      // Android 13+ runtime permission; a denial changes nothing else —
-      // the in-app Due rows stay correct (§5).
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
+      // Device bug (SL219A, 2026-11-05): the ask rode on *every* bootstrap,
+      // so each cold start re-prompted an owner who had already answered.
+      // Ask at most once per install; a later grant from system settings is
+      // picked up silently, and a denial changes nothing else (§5).
+      final prefs = storage ?? const FlutterSecureStorage();
+      if (await prefs.read(key: _notifAskedKey) != null) return;
+      final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
+      if (android == null) return;
+      if (await android.areNotificationsEnabled() == true) {
+        await prefs.write(key: _notifAskedKey, value: 'granted');
+        return;
+      }
+      await android.requestNotificationsPermission();
+      await prefs.write(key: _notifAskedKey, value: 'asked');
     } catch (e) {
       debugPrint('BillNotifier permission request failed: $e');
     }
