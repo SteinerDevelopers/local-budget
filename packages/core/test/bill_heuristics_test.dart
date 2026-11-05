@@ -429,4 +429,40 @@ void main() {
       expect(d.payee?.toUpperCase(), 'NETFLIX');
     });
   });
+
+  group('public-domain sample statement (CFPB handout)', () {
+    // Verbatim lines from the CFPB "Building Blocks" sample credit card
+    // statement (US Government work, public domain) — the corpus lives in
+    // import-samples/ with provenance in its SOURCES.md.
+    test('minimum payment wins; sheet and watermark titles stay out', () {
+      final d = BillDraft.draft(
+        [
+          'BUILDING BLOCKS STUDENT HANDOUT',
+          'Sample credit card statement',
+          'Payment Information',
+          'Date: 12/30/XX',
+          'Payment Due Date: 1/23/XX',
+          'New Balance: \$1392.71',
+          'Minimum Payment: \$25',
+          'Account Summary',
+          'Previous Balance',
+          '\$482.42',
+          'Payment, Credits',
+          '-\$350.42',
+          'Minimum Payment Due',
+          '\$25',
+          'Annual Percentage Rate (APR)',
+          '19.80%',
+          'Name: Susan Doe',
+          'Address: 1234 Main Street, Anytown, USA',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.amountDue?.minorUnits, 2500); // not the \$1392.71 balance
+      expect(d.dueDate, isNull); // "1/23/XX" carries no machine year
+      expect((d.payee ?? '').toUpperCase(), isNot(contains('HANDOUT')));
+      expect((d.payee ?? '').toLowerCase(), isNot(startsWith('sample')));
+    });
+  });
 }

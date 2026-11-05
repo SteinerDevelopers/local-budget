@@ -64,7 +64,7 @@ class BillDraft {
       payee = remit;
       payeeConfidence = FieldConfidence.high;
     } else {
-      if (payee != null && _paperTitleRe.hasMatch(payee)) {
+      if (payee != null && _sheetTitle(payee)) {
         payee = null;
         payeeConfidence = FieldConfidence.low;
       }
@@ -264,7 +264,7 @@ class BillDraft {
       s.length <= 40 &&
       !s.contains(RegExp(r'\d')) &&
       (maxWords == null || s.split(RegExp(r'\s+')).length <= maxWords) &&
-      !_paperTitleRe.hasMatch(s);
+      !_sheetTitle(s);
 
   /// Professional-suffix tokens that END a provider name. The salvage
   /// below ships only a token run that stops on one, so merged address
@@ -317,9 +317,44 @@ class BillDraft {
   /// NOTICE` — are document titles, not payees.
   static final RegExp _paperTitleRe = RegExp(
     r"^[A-Z][A-Z0-9&'\-\s]*"
-    r"\b(?:STATEMENT|NOTICE|INVOICE|SUMMARY|REMINDER|SUMMONS)\b"
+    r"\b(?:STATEMENT|NOTICE|INVOICE|SUMMARY|REMINDER|SUMMONS"
+    r"|HANDOUT|WORKSHEET)\b"
     r"[A-Z0-9&'\-\s]*$",
   );
+
+  /// Demo-paper watermarks ("Sample credit card statement", CFPB handout) —
+  /// mixed case, invisible to the all-caps sheet-title check above, but no
+  /// real payee starts with a watermark word.
+  static final RegExp _titlePrefixRe = RegExp(
+    r'^(?:SAMPLE|SPECIMEN|EXAMPLE|DUMMY|TEST(?:ING)?)\b',
+    caseSensitive: false,
+  );
+
+  /// Statement boilerplate section headings (`Payment Information`,
+  /// `Account Summary`, `Transaction History`…). Printed two or three
+  /// times per page, they out-vote real names, yet no payee reads like a
+  /// section of someone else's paper.
+  static final RegExp _sectionHeadingRe = RegExp(
+    r'^\s*(?:IMPORTANT DATES|MESSAGE CENTER|INTEREST CALCULATION'
+    r'|(?:PAYMENT|ACCOUNT|CUSTOMER|CONTACT|BILLING|ACTIVITY|TRANSACTION)'
+    r'\s+(?:INFORMATION|INQUIRIES|DETAILS|HISTORY|SUMMARY))\s*$',
+    caseSensitive: false,
+  );
+
+  /// Edition/issue banners printed above the document proper
+  /// (`Summer 2022`, `Issue 4`, `Vol 11`): top-of-page, alone, and no
+  /// payee's legal name is a bare season with a year.
+  static final RegExp _editionBannerRe = RegExp(
+    r'^\s*(?:SPRING|SUMMER|FALL|AUTUMN|WINTER|TERM|QUARTER|Q[1-4]'
+    r'|VOL(?:UME)?|ISSUE|EDITION|SERIES|PAGE)\s*[.:]?\s*\d{1,4}\s*$',
+    caseSensitive: false,
+  );
+
+  static bool _sheetTitle(String s) =>
+      _paperTitleRe.hasMatch(s) ||
+      _titlePrefixRe.hasMatch(s) ||
+      _sectionHeadingRe.hasMatch(s) ||
+      _editionBannerRe.hasMatch(s);
 
   static String? _payeeAfterRemit(List<String> lines) {
     for (var i = 0; i < lines.length; i++) {
