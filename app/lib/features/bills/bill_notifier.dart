@@ -45,10 +45,15 @@ class BillNotifier {
 
   static const _window = Duration(minutes: 60);
 
-  /// Hard cap on the channel-bound bootstrap, armed only here, at the one
-  /// shell call site: a wedged platform channel must never leave the
-  /// notifier half-ready. If the orphaned inner future still completes,
-  /// [active] flips on for later schedules.
+  /// Escalating caps on the channel-bound bootstrap, armed only here, at
+  /// the one shell call site: a wedged platform channel must never leave
+  /// the notifier half-ready. One cap was tuned on sane hardware and lied
+  /// about ours — field test (SL219A, 2026-11-05): a slow cold boot starves
+  /// the channel past 5 s and the session kept inert reminders on the one
+  /// class of device that needs them. So the cap retries instead of
+  /// surrendering; schedules ride the in-flight future and fire once any
+  /// attempt lands. If the orphaned inner future still completes, [active]
+  /// flips on for later schedules.
   ///
   /// The Android 13+ permission prompt deliberately rides *outside* the
   /// cap's await (field test, Coosea SL219A / Android 14: a budget phone
@@ -62,13 +67,33 @@ class BillNotifier {
 
   static Future<void>? _inFlight;
 
+  /// Attempt budgets: the first covers any healthy boot; the tail exists
+  /// for phones whose first frames hog the isolate for tens of seconds.
+  /// Ascending, and short enough that even the full ladder finishes well
+  /// inside a cold start the user would notice.
+  static const bootBudgets = [
+    Duration(seconds: 5),
+    Duration(seconds: 15),
+    Duration(seconds: 40),
+  ];
+
   static Future<void> _cappedBootstrap() async {
     try {
-      await _bootstrapCore().timeout(const Duration(seconds: 5));
-    } on TimeoutException {
-      debugPrint('BillNotifier bootstrap timed out; staying inert');
-      // Never force active=false here: the orphaned core may complete
-      // after the cap and flip it on — that late success is real.
+      for (var attempt = 0; attempt < bootBudgets.length; attempt++) {
+        try {
+          await _bootstrapCore().timeout(bootBudgets[attempt]);
+          return;
+        } on TimeoutException {
+          debugPrint(
+            'BillNotifier bootstrap over budget '
+            '(${bootBudgets[attempt].inSeconds}s, attempt '
+            '${attempt + 1}/${bootBudgets.length})',
+          );
+          // Never force active=false here: the orphaned core may complete
+          // after the cap and flip it on — that late success is real.
+        }
+      }
+      debugPrint('BillNotifier bootstrap exhausted budgets; staying inert');
     } finally {
       _inFlight = null;
     }
@@ -124,9 +149,16 @@ class BillNotifier {
 
   static const _notifAskedKey = 'notif_asked_v1';
 
+  /// The retry ladder can leave an orphaned core racing its replacement;
+  /// a second success must not open a second permission dialog. The
+  /// secure-storage marker alone does not cover the read-then-write window.
+  static bool _permissionStarted = false;
+
   static Future<void> _requestPermission([
     FlutterSecureStorage? storage,
   ]) async {
+    if (_permissionStarted) return;
+    _permissionStarted = true;
     try {
       // Device bug (SL219A, 2026-11-05): the ask rode on *every* bootstrap,
       // so each cold start re-prompted an owner who had already answered.
@@ -134,9 +166,10 @@ class BillNotifier {
       // picked up silently, and a denial changes nothing else (§5).
       final prefs = storage ?? const FlutterSecureStorage();
       if (await prefs.read(key: _notifAskedKey) != null) return;
-      final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (android == null) return;
       if (await android.areNotificationsEnabled() == true) {
         await prefs.write(key: _notifAskedKey, value: 'granted');
