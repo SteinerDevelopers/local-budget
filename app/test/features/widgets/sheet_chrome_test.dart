@@ -13,15 +13,20 @@ import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_budget/design/theme.dart';
+import 'package:local_budget/features/bills/bill_detail_sheet.dart';
 import 'package:local_budget/features/bills/bill_editor_sheet.dart';
+import 'package:local_budget/features/bills/bills_service.dart';
 import 'package:local_budget/features/budgets/budgets_sheet.dart';
 import 'package:local_budget/features/budgets/budgets_service.dart';
 import 'package:local_budget/features/budgets/budgets_tab.dart' show BudgetsTab;
 import 'package:local_budget/features/budgets/limit_editor_sheet.dart';
+import 'package:local_budget/features/goals/goal_detail_sheet.dart';
 import 'package:local_budget/features/goals/goal_editor_sheet.dart';
+import 'package:local_budget/features/goals/goals_service.dart';
 import 'package:local_budget/features/ledger/ledger_screen.dart'
     show monthIndexOf;
 import 'package:local_budget/features/manage/category_edit_sheet.dart';
+import 'package:local_budget/features/manage/passphrase_sheet.dart';
 import 'package:sqlite3/open.dart' as sqlite3_open;
 
 void main() {
@@ -277,6 +282,104 @@ void main() {
         );
         expect(tester.takeException(), isNull);
         expectClearsNavBar(tester, find.widgetWithText(FilledButton, 'Add'));
+      } finally {
+        await r.db.close();
+      }
+    });
+  });
+
+  // Wave 2 of the same device report ("Some other screens with similar
+  // issue", 2026-11-04 pm, passphrase screenshot): flow and detail
+  // sheets that padded by viewInsets alone sit flush with the physical
+  // bottom whenever no keyboard is up, so their last row — the action
+  // row — lands in the 3-button strip. Same gate as the add sheets.
+  group('flow & detail sheet chrome (device feedback 2026-11-04 pm)', () {
+    testWidgets('passphrase sheet: Continue clears the nav bar', (
+      tester,
+    ) async {
+      phoneView(tester, nav: navBar);
+      await open(
+        tester,
+        (context) => showPassphraseSheet(
+          context,
+          title: 'Choose a passphrase for this backup',
+          withConfirm: true,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expectClearsNavBar(tester, find.byKey(const Key('passphrase-next')));
+    });
+
+    testWidgets('goal keypad: Confirm clears the nav bar', (tester) async {
+      phoneView(tester, nav: navBar);
+      await open(
+        tester,
+        (context) => showAmountSheet(
+          context,
+          currency: usd,
+          title: 'Add to goal',
+          cta: 'Add',
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expectClearsNavBar(tester, find.byKey(const Key('goal-amount-confirm')));
+    });
+
+    testWidgets('goal detail: Withdraw and Deposit clear the nav bar', (
+      tester,
+    ) async {
+      phoneView(tester, nav: navBar);
+      final r = freshRepo();
+      try {
+        await r.repo.addGoal(
+          name: 'Emergency fund',
+          currencyCode: 'USD',
+          targetMinor: 500000,
+        );
+        final goals = await loadGoalLines(r.repo);
+        await open(
+          tester,
+          (context) =>
+              showGoalDetail(context, repository: r.repo, line: goals.single),
+        );
+        expect(tester.takeException(), isNull);
+        expectClearsNavBar(tester, find.byKey(const Key('goal-withdraw')));
+        expectClearsNavBar(tester, find.byKey(const Key('goal-deposit')));
+      } finally {
+        await r.db.close();
+      }
+    });
+
+    testWidgets('bill detail: Delete rule clears the nav bar', (tester) async {
+      phoneView(tester, nav: navBar);
+      final r = freshRepo();
+      try {
+        await r.repo.addRule(
+          name: 'Rent',
+          amountMinor: 90000,
+          currencyCode: 'USD',
+          frequency: 'monthly',
+          start: DateTime(2026, 1, 15),
+          nextDue: DateTime(2026, 11, 15),
+          dayOfMonth: 15,
+          notify: false,
+        );
+        final lines = await loadBillLines(
+          r.repo,
+          now: DateTime(2026, 11, 4, 12),
+        );
+        await open(
+          tester,
+          (context) => showBillDetail(
+            context,
+            repository: r.repo,
+            line: lines.single,
+            categories: const [],
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        // Delete rule is the last thing this sheet paints.
+        expectClearsNavBar(tester, find.byKey(const Key('bill-delete')));
       } finally {
         await r.db.close();
       }

@@ -495,45 +495,53 @@ class _MonthView extends StatelessWidget {
       useSafeArea: true,
       builder: (sheetContext) => SizedBox(
         height: MediaQuery.sizeOf(sheetContext).height * 0.72,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(Tokens.space4),
-              child: Row(
-                children: [
-                  Icon(
-                    ManageIcons.of(null, name),
-                    size: 24,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: Tokens.space3),
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: Tokens.body(context),
-                      overflow: TextOverflow.ellipsis,
+        child: Padding(
+          // The drill list is the last thing this sheet paints; the
+          // scroll-controlled modal never insets the nav-bar strip
+          // (2026-11-04 pm second wave; Tokens.sheetBottomInset).
+          padding: EdgeInsets.only(
+            bottom: Tokens.sheetBottomInset(sheetContext),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(Tokens.space4),
+                child: Row(
+                  children: [
+                    Icon(
+                      ManageIcons.of(null, name),
+                      size: 24,
+                      color: scheme.onSurfaceVariant,
                     ),
-                  ),
-                  Text(
-                    // Amount and share together — the sheet explains the slice.
-                    '${Money(cat.spentMinor, report.currency).format()}'
-                    ' · ${(cat.shareBp / 100).round()}%',
-                    key: Key('drill-total-${cat.categoryId}'),
-                    style: Tokens.amount(context),
-                  ),
-                ],
+                    const SizedBox(width: Tokens.space3),
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: Tokens.body(context),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      // Amount and share together — the sheet explains the slice.
+                      '${Money(cat.spentMinor, report.currency).format()}'
+                      ' · ${(cat.shareBp / 100).round()}%',
+                      key: Key('drill-total-${cat.categoryId}'),
+                      style: Tokens.amount(context),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: _DrillList(
-                repository: repository,
-                yearMonth: report.yearMonth,
-                categoryId: cat.categoryId,
-                baseCode: report.currency.code,
+              const Divider(height: 1),
+              Expanded(
+                child: _DrillList(
+                  repository: repository,
+                  yearMonth: report.yearMonth,
+                  categoryId: cat.categoryId,
+                  baseCode: report.currency.code,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

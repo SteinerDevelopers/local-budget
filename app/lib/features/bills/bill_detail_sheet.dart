@@ -56,11 +56,14 @@ class _BillDetailSheet extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final cat = line.category;
     return Padding(
+      // The sheet's Delete row is the last thing it paints — it must
+      // clear the nav bar strip (Tokens.sheetBottomInset; device
+      // feedback 2026-11-04 pm second wave).
       padding: EdgeInsets.fromLTRB(
         Tokens.space4,
         Tokens.space2,
         Tokens.space4,
-        Tokens.space4 + MediaQuery.viewInsetsOf(context).bottom,
+        Tokens.space4 + Tokens.sheetBottomInset(context),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

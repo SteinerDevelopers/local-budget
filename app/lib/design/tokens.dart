@@ -59,4 +59,22 @@ abstract final class Tokens {
     fontSize: monthLabelSize,
     color: Theme.of(context).colorScheme.onSurface,
   );
+
+  /// The strip a content-sized modal bottom sheet must pad itself by.
+  /// `isScrollControlled` sheets sit flush with the physical bottom of
+  /// the screen — modal useSafeArea deliberately never insets it there
+  /// — so the 3-button navigation bar (`viewPadding.bottom`) is the
+  /// sheet's own problem. A sheet that holds text fields must take the
+  /// TALLER of bar and keyboard (`viewInsets.bottom`, which already
+  /// contains the bar when the keyboard is up): padding by the keyboard
+  /// alone leaves the action row painted under the bar whenever no
+  /// keyboard is up (device feedback 2026-11-04 pm, second screenshot:
+  /// the backup passphrase sheet's Continue button). Fixed-height
+  /// keypad sheets keep the other grammar — keyboard lift outside the
+  /// height box, `viewPadding` inside (see bill_editor_sheet).
+  static double sheetBottomInset(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final bar = MediaQuery.viewPaddingOf(context).bottom;
+    return keyboard > bar ? keyboard : bar;
+  }
 }

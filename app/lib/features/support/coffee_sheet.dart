@@ -135,7 +135,15 @@ class _CoffeeSheetState extends State<CoffeeSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      // The tip/Close row is the last thing this sheet paints — the
+      // scroll-controlled modal never insets the nav-bar strip itself
+      // (Tokens.sheetBottomInset; 2026-11-04 pm second wave).
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        32 + Tokens.sheetBottomInset(context),
+      ),
       child: switch (_phase) {
         _Phase.loading => const Center(
           child: Padding(

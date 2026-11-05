@@ -90,11 +90,13 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
     return SizedBox(
       height: math.max(520.0, MediaQuery.sizeOf(context).height * 0.72),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
+        // Deposit/Withdraw are the sheet's last row — clear the nav bar
+        // strip (Tokens.sheetBottomInset; 2026-11-04 pm second wave).
+        padding: EdgeInsets.fromLTRB(
           Tokens.space4,
           Tokens.space2,
           Tokens.space4,
-          Tokens.space3,
+          Tokens.space3 + Tokens.sheetBottomInset(context),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -335,11 +337,16 @@ class _AmountSheetState extends State<_AmountSheet> {
       child: SizedBox(
         height: math.max(440.0, MediaQuery.sizeOf(context).height * 0.5),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+          // Fixed-height box under a keyboard-lift: nav-bar clearance
+          // belongs INSIDE the box (bill_editor grammar). The keypad
+          // never raises a keyboard, so the lift above stays at zero —
+          // the Confirm row still owed the 3-button bar (2026-11-04 pm
+          // second wave).
+          padding: EdgeInsets.fromLTRB(
             Tokens.space4,
             Tokens.space2,
             Tokens.space4,
-            Tokens.space4,
+            Tokens.space4 + MediaQuery.viewPaddingOf(context).bottom,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

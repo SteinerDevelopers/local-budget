@@ -77,11 +77,15 @@ class _PassphraseSheetState extends State<_PassphraseSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
+      // Keyboard OR nav bar — whichever is taller (Tokens.sheetBottom-
+      // Inset). The 2026-11-04 pm screenshot: with the keyboard shut,
+      // "Continue" painted half-under the 3-button bar; viewInsets
+      // alone never carries the bar.
       padding: EdgeInsets.fromLTRB(
         Tokens.space4,
         Tokens.space4,
         Tokens.space4,
-        Tokens.space4 + MediaQuery.viewInsetsOf(context).bottom,
+        Tokens.space4 + Tokens.sheetBottomInset(context),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

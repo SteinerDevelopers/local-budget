@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
+import '../../design/tokens.dart';
 import '../../version.dart';
 import '../manage/passphrase_sheet.dart';
 import 'auto_backup.dart' show kAutoFailBadgeAfter;
@@ -608,11 +609,14 @@ class _DestinationEditorState extends State<_DestinationEditor> {
   @override
   Widget build(BuildContext context) {
     return Padding(
+      // Keyboard OR nav bar, whichever is taller: with no keyboard up,
+      // the Save row sat in the 3-button strip (2026-11-04 pm second
+      // wave; Tokens.sheetBottomInset).
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
         top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        bottom: Tokens.sheetBottomInset(context) + 16,
       ),
       // Bounded + scrollable: with the keyboard up, the Save button must
       // stay reachable (and off-screen semantics must not leak into a11y).
