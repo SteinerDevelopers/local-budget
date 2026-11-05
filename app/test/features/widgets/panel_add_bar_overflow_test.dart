@@ -64,7 +64,7 @@ void main() {
   }
 
   for (final scale in const [1.0, 1.3]) {
-    testWidgets('Receipts add bar survives 320 dp at ${scale}× text', (
+    testWidgets('Receipts add bar survives 320 dp at $scale× text', (
       tester,
     ) async {
       tinyViewport(tester, scale);
@@ -83,7 +83,7 @@ void main() {
       }
     });
 
-    testWidgets('Bills add bar survives 320 dp at ${scale}× text', (
+    testWidgets('Bills add bar survives 320 dp at $scale× text', (
       tester,
     ) async {
       tinyViewport(tester, scale);
@@ -103,7 +103,7 @@ void main() {
       }
     });
 
-    testWidgets('PanelAddBar with BOTH halves fits 320 dp at ${scale}× text', (
+    testWidgets('PanelAddBar with BOTH halves fits 320 dp at $scale× text', (
       tester,
     ) async {
       // The real app only renders two halves once capture is wired; drive
