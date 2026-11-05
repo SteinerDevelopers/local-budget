@@ -1,5 +1,8 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 import 'package:capture/capture.dart' show TextExtractor;
 import 'package:core/core.dart' show OcrLineAssembly, OcrWord;
@@ -18,6 +21,19 @@ class MlKitTextExtractor implements TextExtractor {
   /// One recognizer per app run: creating it is not free on device and the
   /// flow is strictly one document at a time (decision 5).
   TextRecognizer? _recognizer;
+
+  /// Debug-build trace of the assembled lines the heuristics will read.
+  /// Field reports ("the payee came out wrong") become reproducible from
+  /// `adb logcat -s ocr-lines` instead of guesswork. Never compiled into
+  /// behavior outside debug builds — document text stays on-device and
+  /// off the logs in release, per the Tier-1 privacy story.
+  void _dump(List<String> lines) {
+    if (!kDebugMode) return;
+    developer.log('assemble → ${lines.length} lines', name: 'ocr-lines');
+    for (var i = 0; i < lines.length; i++) {
+      developer.log('[$i] ${lines[i]}', name: 'ocr-lines');
+    }
+  }
 
   @override
   Future<List<String>> extractText(Uint8List bytes) async {
@@ -46,15 +62,19 @@ class MlKitTextExtractor implements TextExtractor {
                 height: element.boundingBox.height,
               ),
       ];
+      List<String> lines;
       if (words.isEmpty) {
         // No boxes at all (unexpected engine output): keep the old
         // block→line order rather than return nothing.
-        return [
+        lines = [
           for (final block in result.blocks)
             for (final line in block.lines) line.text,
         ];
+      } else {
+        lines = OcrLineAssembly.assemble(words);
       }
-      return OcrLineAssembly.assemble(words);
+      _dump(lines);
+      return lines;
     } catch (_) {
       return const [];
     } finally {
