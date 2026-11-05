@@ -20,8 +20,8 @@ void main(List<String> args) {
             path.contains('201702')
         ? 'EUR'
         : 'USD';
-    final d = BillDraft.draft(lines,
-        currency: Currency.resolve(code), now: now);
+    final d =
+        BillDraft.draft(lines, currency: Currency.resolve(code), now: now);
     print('== ${path.split('/').last}');
     print('   payee=${d.payee} (${d.payeeConfidence.name})'
         ' amount=${d.amountDue?.format()} (${d.amountConfidence.name})'
