@@ -141,10 +141,12 @@ New pure-Dart module `packages/data/lib/src/statement_lines.dart`:
 ## 5. UI wiring (app)
 
 - `ImportWizardScreen`: `_isOfx` bool → `enum ImportFormat { csv, ofx, document }`.
-  Source panel gains row `import-pick-document` — *"Photo or PDF — bill or
-  bank statement"*. Tapping opens the E2 source sheet *without* the screenshot
-  row (reuse `showCaptureSourceSheet`; choices limited to camera/photos/PDF —
-  the picker machinery in `CaptureIntake` is reused, no new platform channel).
+  Source panel gains row `import-pick-document` — label *"Photo or PDF"*,
+  subtitle *"Bill or bank statement — read on device"* (label/subtitle split
+  matches the sibling rows; shipped M3). Tapping opens the E2 source sheet
+  *without* the screenshot row (reuse `showCaptureSourceSheet`; choices limited
+  to camera/photos/PDF — the picker machinery in `CaptureIntake` is reused, no
+  new platform channel).
 - While the document is being read: existing wizard frame shows the E2
   spinner state; failure states mirror E2 review-sheet copy ("couldn't read
   text — try CSV or OFX instead" for `other`/refusals).
@@ -152,8 +154,12 @@ New pure-Dart module `packages/data/lib/src/statement_lines.dart`:
   panel (not Done — a bill is not an N-row import); after save the wizard pops
   to Done with `n = 1` wording *"Bill saved."*
 - Share/open-with keeps E2's meaning (receipt → review). Sharing a statement
-  PDF lands in the same router with an explicit note: *"Looks like a statement
-  — open it in Manage → Import?"* (sheet → wizard hand-off, one tap).
+  PDF gets a cheap sniff (text layer, else page 1 only — never the 10-page
+  OCR) and a one-tap hand-off dialog: *"Looks like a statement — Import it to
+  review the rows before anything is saved."* with **Open Import** (pushes the
+  wizard) and **Read as receipt** (today's behavior). Any ambiguous or failed
+  sniff lands on receipt Review unchanged — a false negative stays honest and
+  never blocks.
 
 ## 6. Privacy, copy-truthfulness, budget
 
