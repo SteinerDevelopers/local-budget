@@ -132,8 +132,17 @@ class StatementLines {
   /// read `05.12.2026` as a dot-decimal amount. Year-less pairs are only
   /// masked when both sides are plausible day/month values — `12.34` and
   /// `25.00` are money until proven otherwise; `05.12` is a date.
+  /// A match glued to other numerals is *inside* an amount (`1,706.15`
+  /// contains a date-looking `06.15`), so it stays untouched — masking it
+  /// would fake a comma-decimal and refuse the whole US statement.
   static String _maskDates(String line) => line.replaceAllMapped(_dateRe, (m) {
     final t = m.group(0)!;
+    bool numChar(int r) =>
+        r == 0x2C || r == 0x2E || (r >= 0x30 && r <= 0x39); // , . 0-9
+    final glued =
+        (m.start > 0 && numChar(line.codeUnitAt(m.start - 1))) ||
+        (m.end < line.length && numChar(line.codeUnitAt(m.end)));
+    if (glued) return t;
     final p = RegExp(r'^(\d{1,2})[/.](\d{1,2})$').firstMatch(t);
     if (p != null) {
       final a = int.parse(p.group(1)!), b = int.parse(p.group(2)!);
