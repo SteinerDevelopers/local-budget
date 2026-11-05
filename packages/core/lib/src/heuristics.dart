@@ -108,6 +108,14 @@ class ReceiptHeuristics {
     // a lone "account number" line is too generic to count (spec §3 v1.1).
     RegExp(r'ACCOUNT\s*(NUMBER|NO\.?|#)'),
     RegExp(r'\bBILL\b'),
+    // Provider statements from medical practices (Lance's radiology stub,
+    // 2026-11-05) print no meter and no service period, and photo OCR
+    // variance sheds the `PAY BY`/phone rows often enough that the bill
+    // signature must not hinge on them: the service-statement heading and
+    // the payment stub survive on every scan of the paper.
+    RegExp(
+        r'STATEMENT OF SERVICE|MEDICAL STATEMENT|PATIENT (?:ACCOUNT|NAME|ID)'),
+    RegExp(r'MAKE CHECK PAYABLE|REMIT(?:TANCE)? TO'),
   ];
 
   /// Anchors per document type — classification only *replaces* the list;

@@ -148,6 +148,22 @@ New pure-Dart module `packages/data/lib/src/statement_lines.dart`:
   mint junk names. A high-confidence brand name like `Citi Strata` is
   **kept as read** — the owner wants the product name, not a normalized
   issuer.
+- **Tester correction (2026-11-05): medical provider statements.** A
+  radiology payment stub photo "scanned okay sometimes and garbled
+  others": photo-OCR variance shed the `PAY BY PHONE` row or merged the
+  stub table, dropping the page below two utility signatures (→ receipt
+  pointer), and the all-caps heading `MEDICAL STATEMENT OF SERVICE`
+  outranked the provider as payee. Two rules, both in the tier-2
+  heuristics: `_utilitySignatures` gains the vocabulary every scan of
+  the paper keeps (`STATEMENT OF SERVICE|MEDICAL STATEMENT|PATIENT …`,
+  `MAKE CHECK PAYABLE|REMIT TO`), and `BillDraft` reads the payee from
+  the **printed remit block** — the text after `MAKE CHECK PAYABLE
+  (AND) REMIT TO:` on the same line or the next one, name-ish only
+  (short, no digits, never the PO Box). A remit block outranks even a
+  high first-line guess (logos like `MRA` win that guess on photos);
+  with no remit block, an all-caps paper heading is never shipped as
+  the payee — the field stays honestly empty. Card statements print no
+  remit line, so the `Citi Strata` rule above is untouched.
 - Save path: `showBillEditor(prefill: BillPrefill(name: payee, amountMinor:
   amountDue))` with start/next-due seeded from `dueDate` (editor grows one
   optional prefill field `dueDate` — one-line change in `BillPrefill`),

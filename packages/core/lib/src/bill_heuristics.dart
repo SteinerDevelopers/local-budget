@@ -53,6 +53,20 @@ class BillDraft {
     final (freq, freqConfidence) = _guessFrequency(lines);
     var payee = merchant?.name;
     var payeeConfidence = merchant?.confidence ?? FieldConfidence.low;
+    // A printed remit block names the payee outright — it outranks even a
+    // high first-line guess, because on a provider statement that guess is
+    // usually the logo ("MRA") and the line below it the paper's heading
+    // ("MEDICAL STATEMENT OF SERVICE"), neither of which is who you pay
+    // (Lance's radiology stub, 2026-11-05). With no remit block a heading
+    // still never ships as the payee: the field stays honestly empty.
+    final remit = _payeeAfterRemit(lines);
+    if (remit != null) {
+      payee = remit;
+      payeeConfidence = FieldConfidence.high;
+    } else if (payee != null && _paperTitleRe.hasMatch(payee)) {
+      payee = null;
+      payeeConfidence = FieldConfidence.low;
+    }
     // A card statement is a BILL about one number: the minimum payment
     // due. The receipt route prefilling the NEW BALANCE (e2 §3) made
     // Lance's photographed Citi statement look like $7,355 of spend
@@ -187,6 +201,54 @@ class BillDraft {
     final text = lines.take(40).join(' ').toUpperCase();
     for (final (re, name) in _issuers) {
       if (re.hasMatch(text)) return name;
+    }
+    return null;
+  }
+
+  // --- payee --------------------------------------------------------------
+
+  /// `MAKE CHECK PAYABLE (AND) REMIT TO:` — the payment stub's own label.
+  /// Whatever follows it (same line, or the next printed line when OCR
+  /// split the box) is the provider naming who to pay.
+  static final RegExp _remitRe = RegExp(
+    r'MAKE\s+CHECK\s+PAYABLE|\bREMIT(?:TANCE)?\s+TO\b',
+    caseSensitive: false,
+  );
+
+  /// All-caps paper headings — `MEDICAL STATEMENT OF SERVICE`, `FINAL
+  /// NOTICE` — are document titles, not payees.
+  static final RegExp _paperTitleRe = RegExp(
+    r"^[A-Z][A-Z0-9&'\-\s]*"
+    r"\b(?:STATEMENT|NOTICE|INVOICE|SUMMARY|REMINDER|SUMMONS)\b"
+    r"[A-Z0-9&'\-\s]*$",
+  );
+
+  static String? _payeeAfterRemit(List<String> lines) {
+    for (var i = 0; i < lines.length; i++) {
+      // Last label match on the line: `MAKE CHECK PAYABLE AND REMIT TO: X`
+      // keeps everything after the *final* label.
+      RegExpMatch? m;
+      for (final cand in _remitRe.allMatches(lines[i])) {
+        m = cand;
+      }
+      if (m == null) continue;
+      var tail =
+          lines[i].substring(m.end).replaceFirst(RegExp(r'^[:\s]+'), '').trim();
+      if (tail.isEmpty) {
+        for (var j = i + 1; j <= i + 2 && j < lines.length; j++) {
+          final nxt = lines[j].trim();
+          if (nxt.isEmpty) continue;
+          tail = nxt;
+          break;
+        }
+      }
+      // Name-ish: short and without digits — never the PO Box or address.
+      if (tail.length >= 3 &&
+          tail.length <= 40 &&
+          !tail.contains(RegExp(r'\d')) &&
+          !_paperTitleRe.hasMatch(tail)) {
+        return tail;
+      }
     }
     return null;
   }

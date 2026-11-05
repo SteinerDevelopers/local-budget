@@ -61,6 +61,45 @@ void main() {
       expect(route(bankStatement), DocRoute.statement);
     });
 
+    // Provider statements from medical practices (tester bounce,
+    // 2026-11-05: a radiology payment stub "scans okay sometimes and
+    // garbled others"). Photo OCR variance sheds the phone row, merges
+    // the stub table, or loses the heading — the paper must still route
+    // to the bill editor, never to the receipt pointer. Synthetic
+    // names/numbers, photo line shapes.
+    test('medical statement stub → bill across every OCR variant', () {
+      const medical = [
+        'MEDICAL STATEMENT OF SERVICE',
+        'Riverbend Imaging Associates PA',
+        'PO Box 830525 Dept #SF128',
+        'Pay By Phone (800) 841-4236',
+        'Statement Date Account # AMOUNT DUE',
+        '10/16/26 647760 \$36.00',
+        'MAKE CHECK PAYABLE AND REMIT TO:',
+        'Riverbend Imaging Associates PA',
+      ];
+      const noPhoneRow = [
+        'MEDICAL STATEMENT OF SERVICE',
+        'Riverbend Imaging Associates PA',
+        'Code ID: MSN00001 Access#: 19803282-1-6282',
+        'Statement Date Account # AMOUNT DUE 10/16/26 647760 \$36.00',
+        '111300006477600000003600 JANE Q PUBLIC 647760',
+        'MAKE CHECK PAYABLE AND REMIT TO:',
+        'Riverbend Imaging Associates PA',
+      ];
+      const noHeading = [
+        'MRA',
+        'Riverbend Imaging Associates PA PO Box 830525 Dept #SF128',
+        'Pay Online cPavitOnline com Code ID MSN00001',
+        'Statemcnt Date Account # AMOUNT DUE',
+        '10/16/26 647760 \$36.00',
+        'MAKE CHECK PAYABLE AND REMIT TO: Riverbend Imaging Associates PA',
+      ];
+      expect(route(medical), DocRoute.bill);
+      expect(route(noPhoneRow), DocRoute.bill);
+      expect(route(noHeading), DocRoute.bill);
+    });
+
     test('two row-like lines stay under the density bar → other', () {
       expect(
         route([

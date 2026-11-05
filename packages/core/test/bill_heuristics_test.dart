@@ -255,4 +255,70 @@ void main() {
       expect(d.payee?.toLowerCase(), contains('water'));
     });
   });
+
+  // Medical provider statements (tester bounce, 2026-11-05: a radiology
+  // payment stub scanned "okay sometimes and garbled others" — depending
+  // on which rows photo OCR survived, the all-caps paper heading won the
+  // payee or the whole page missed classification). Names, numbers and
+  // addresses below are synthetic; the line shapes are the photo's.
+  group('medical statement stub', () {
+    const stub = <String>[
+      'MEDICAL STATEMENT OF SERVICE',
+      'MRI MONTGOMERY RADIOLCGY',
+      'Riverbend Imaging Associates PA',
+      'PO Box 830525 Dept #SF128',
+      'Birmingham AL 35283-0525',
+      'Pay Online www.cPayitOnline.com',
+      'Code ID: MSN00001',
+      'Pay By Phone (800) 841-4236',
+      'Statement Date Account # AMOUNT DUE',
+      '10/16/26 647760 \$36.00',
+      '111300006477600000003600',
+      'JANE Q PUBLIC 647760',
+      '12 Main St',
+      'Honoraville AL 36042-5304',
+      'MAKE CHECK PAYABLE AND REMIT TO:',
+      'Riverbend Imaging Associates PA',
+      'PO Box 830525 Dept #SF128',
+    ];
+    const shedRows = <String>[
+      'MEDICAL STATEMENT OF SERVICE',
+      'Riverbend Imaging Associates PA',
+      'PO Box 830525 Dept SF128',
+      'Enter Complete URL www.cPavit0nline.com',
+      'Code ID: MSN00001 Access#: 19803282-1-6282',
+      'Statement Date Account # AMOUNT DUE 10/16/26 647760 \$36.00',
+      '111300006477600000003600 JANE Q PUBLIC 647760',
+      'MAKE CHECK PAYABLE AND REMIT TO:',
+      'Riverbend Imaging Associates PA',
+    ];
+
+    test('the payee is the printed remit block, not the paper heading', () {
+      final d = BillDraft.draft(stub, currency: usd, now: now);
+      expect(d.payee, 'Riverbend Imaging Associates PA');
+      expect(d.payeeConfidence, FieldConfidence.high);
+      expect(d.amountDue?.minorUnits, 3600);
+      // A statement date is not a due date: no vocabulary, no date.
+      expect(d.dueDate, isNull);
+    });
+
+    test('OCR shedding the phone row and merging the stub table still drafts',
+        () {
+      final d = BillDraft.draft(shedRows, currency: usd, now: now);
+      expect(d.payee, 'Riverbend Imaging Associates PA');
+      expect(d.amountDue?.minorUnits, 3600);
+      final h = ReceiptHeuristics(currency: usd, now: now);
+      expect(h.classify(shedRows), DocType.utilityBill);
+    });
+
+    test('a paper heading with no remit block leaves the payee empty', () {
+      final d = BillDraft.draft(
+        ['MEDICAL STATEMENT OF SERVICE', 'AMOUNT DUE \$36.00'],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee, isNull);
+      expect(d.amountDue?.minorUnits, 3600);
+    });
+  });
 }
