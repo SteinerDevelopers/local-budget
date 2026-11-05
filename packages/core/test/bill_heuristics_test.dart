@@ -363,6 +363,25 @@ void main() {
       expect(d.payee, isNot('GELMASTER'));
     });
 
+    test('the OCR connector and doubled glyph after PAYABLE are trimmed', () {
+      // CFPB card-statement raster on the ZFlip6 (2026-11-05): the remit
+      // sentence shipped as `to CITI CARDSs.` — the lowercase particle is
+      // label prose, and ML Kit doubled the final glyph onto the dot.
+      final d = BillDraft.draft(
+        [
+          'CITI CARDS',
+          'PAYMENT DUE DATE 01/26/XX',
+          'MINIMUM PAYMENT \$594.67',
+          'MAKE ALL CHECKS PAYABLE TO CITI CARDSs.',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee, 'CITI CARDS');
+      expect(d.payeeConfidence, FieldConfidence.high);
+      expect(d.amountDue?.minorUnits, 59467);
+    });
+
     test('a corroborated name keeps its place behind an interleaved address',
         () {
       // ML Kit merges same-height columns: the stub's remitter block sits

@@ -373,6 +373,19 @@ class BillDraft {
       if (m == null) continue;
       var tail =
           line.substring(m.end).replaceFirst(RegExp(r'^[:\s]+'), '').trim();
+      // OCR lowercases the small connector after the label ("payable to
+      // CITI CARDSs", CFPB raster device pass 2026-11); a payee never
+      // begins with a lowercase English particle.
+      tail = tail.replaceFirst(
+        RegExp(r'^(?:to|the|of|a|an|in|at|onto|unto)\s+', caseSensitive: false),
+        '',
+      );
+      // ML Kit can double the final glyph and keep the sentence dot
+      // ("CITI CARDSs."); undo the doubling, then any trailing dot.
+      tail = tail
+          .replaceFirst(RegExp(r'(\w)\1\.+$', caseSensitive: false), r'$1')
+          .replaceFirst(RegExp(r'\.+$'), '')
+          .trim();
       if (!_nameish(tail)) tail = _mergedProviderPrefix(tail) ?? '';
       if (tail.isEmpty) {
         // OCR splits the stub box, and same-height columns interleave rows
