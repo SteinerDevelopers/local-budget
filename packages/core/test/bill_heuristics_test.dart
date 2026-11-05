@@ -321,4 +321,83 @@ void main() {
       expect(d.amountDue?.minorUnits, 3600);
     });
   });
+
+  // Out-of-document clutter (second tester bounce, 2026-11-05: the same
+  // radiology stub photographed on a desk — the frame's top held a pen
+  // printed "ENERGEL", photo OCR read that line BEFORE the page, the small
+  // blue remit label survived garbled, and the pen brand shipped as the
+  // payee). Synthetic brand word, real line shapes.
+  group('desk clutter above the frame', () {
+    const provider = 'Montgomery Radiology Associates PA';
+    const penStub = <String>[
+      'GELMASTER', // pen brand, above the page edge
+      'MRA MONTGOMERY RADIOLOGY',
+      provider,
+      'PO Box 830525 Dept #SF128',
+      'Birmingham AL 35283-0525',
+      'Toll Free: (800) 841-4236',
+      'Statement Date 10/16/26',
+      'AMOUNT DUE \$36.00',
+      'NAKE CHECK PAYABLE AND REMIT T0:', // the small blue label, garbled
+      provider,
+      'PO Box 830525 Dept #SF128',
+      'Birmingham AL 35283-0525',
+    ];
+
+    test('a garbled label still wins: PAYABLE alone names the remit block', () {
+      final d = BillDraft.draft(penStub, currency: usd, now: now);
+      expect(d.payee, provider);
+      expect(d.payeeConfidence, FieldConfidence.high);
+      expect(d.payee, isNot('GELMASTER'));
+      expect(d.amountDue?.minorUnits, 3600);
+      expect(d.dueDate, isNull);
+    });
+
+    test('with no label at all the letterhead outranks the pen brand', () {
+      final noLabel = [
+        for (final l in penStub)
+          if (!l.startsWith('NAKE')) l,
+      ];
+      final d = BillDraft.draft(noLabel, currency: usd, now: now);
+      expect(d.payee, provider);
+      expect(d.payee, isNot('GELMASTER'));
+    });
+
+    test('a corroborated name keeps its place behind an interleaved address',
+        () {
+      // ML Kit merges same-height columns: the stub's remitter block sits
+      // level with the remit box, so junk lines land between label and name.
+      final d = BillDraft.draft(
+        [
+          'GELMASTER',
+          'JANE Q PUBLIC 647760',
+          '12 Main St',
+          'MAKE CHECK PAYABLE AND REMIT TO:',
+          'Honoraville AL 36042-5304',
+          provider,
+          'AMOUNT DUE \$36.00',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee, provider);
+      expect(d.amountDue?.minorUnits, 3600);
+    });
+
+    test('uncorroborated single-word billers survive the clutter guard', () {
+      // A one-brand PDF has exactly one occurrence and no address line —
+      // with no better candidate the guard must keep the honest guess.
+      final d = BillDraft.draft(
+        [
+          'NETFLIX',
+          'Your monthly membership',
+          'AMOUNT DUE \$15.99',
+          'DUE DATE 11/20/2026',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee?.toUpperCase(), 'NETFLIX');
+    });
+  });
 }

@@ -63,9 +63,27 @@ class BillDraft {
     if (remit != null) {
       payee = remit;
       payeeConfidence = FieldConfidence.high;
-    } else if (payee != null && _paperTitleRe.hasMatch(payee)) {
-      payee = null;
-      payeeConfidence = FieldConfidence.low;
+    } else {
+      if (payee != null && _paperTitleRe.hasMatch(payee)) {
+        payee = null;
+        payeeConfidence = FieldConfidence.low;
+      }
+      // Desk clutter (second tester bounce, 2026-11-05): a pen printed
+      // with a brand name lay above the page's top edge, photo OCR read
+      // that line before any document text, and the pen brand shipped as
+      // the payee. A real provider is named more than once on the paper
+      // (letterhead plus remit block) or owns an address block directly
+      // under it; a lone uncorroborated line is replaced only when the
+      // paper itself offers a corroborated name elsewhere. With no better
+      // candidate the first guess stands — single-brand billers (one
+      // logo line, no address) would otherwise lose their only name.
+      if (payee != null && !_providerCorroborated(payee, lines)) {
+        final alt = _firstCorroboratedName(lines);
+        if (alt != null) {
+          payee = alt;
+          payeeConfidence = FieldConfidence.medium;
+        }
+      }
     }
     // A card statement is a BILL about one number: the minimum payment
     // due. The receipt route prefilling the NEW BALANCE (e2 §3) made
@@ -215,6 +233,39 @@ class BillDraft {
     caseSensitive: false,
   );
 
+  /// The stub label photographed small prints as a garble the full phrase
+  /// misses (`NAKE CHECK PAYABLE AND REMIT T0:`); an all-caps PAYABLE on an
+  /// all-caps line is still the remittance word. Lowercase "payable to the
+  /// issuer" prose on a card coupon is deliberately NOT a label — the
+  /// issuer vocabulary owns that route (2026-11-05 owner decision).
+  static final RegExp _remitCapsRe = RegExp(r'\bPAYABLE\b');
+
+  /// Address-shaped lines: `PO Box 830525 …`, `Birmingham AL 35283-0525`,
+  /// `5908 Steiner Store Rd # R`.
+  static final RegExp _addressishRe = RegExp(
+    r'\b(?:PO\.?\s*BOX|BOX|STE|SUITE)\s*#?\d'
+    r'|\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b'
+    r'|\b\d+\s+[A-Z0-9][A-Z0-9\s.#-]*\b(?:ST|STREET|RD|ROAD|AVE|AVENUE|BLVD'
+    r'|DR|DRIVE|LN|LANE|WAY|PKWY|HWY)\b',
+    caseSensitive: false,
+  );
+
+  /// Browser chrome / URL lines never name a provider.
+  static final RegExp _chromeRe = RegExp(
+    r'https?://|www\.|\.(?:COM|NET|ORG|INFO)\b',
+    caseSensitive: false,
+  );
+
+  /// Name-ish: short, digit-free (never the PO Box or account row), not a
+  /// paper heading. Deeper picks in a window carry a word cap so warning
+  /// prose cannot read as a payee.
+  static bool _nameish(String s, {int? maxWords}) =>
+      s.length >= 3 &&
+      s.length <= 40 &&
+      !s.contains(RegExp(r'\d')) &&
+      (maxWords == null || s.split(RegExp(r'\s+')).length <= maxWords) &&
+      !_paperTitleRe.hasMatch(s);
+
   /// All-caps paper headings — `MEDICAL STATEMENT OF SERVICE`, `FINAL
   /// NOTICE` — are document titles, not payees.
   static final RegExp _paperTitleRe = RegExp(
@@ -225,30 +276,68 @@ class BillDraft {
 
   static String? _payeeAfterRemit(List<String> lines) {
     for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
       // Last label match on the line: `MAKE CHECK PAYABLE AND REMIT TO: X`
       // keeps everything after the *final* label.
       RegExpMatch? m;
-      for (final cand in _remitRe.allMatches(lines[i])) {
+      for (final cand in _remitRe.allMatches(line)) {
         m = cand;
+      }
+      if (m == null && line == line.toUpperCase()) {
+        for (final cand in _remitCapsRe.allMatches(line)) {
+          m = cand;
+        }
       }
       if (m == null) continue;
       var tail =
-          lines[i].substring(m.end).replaceFirst(RegExp(r'^[:\s]+'), '').trim();
-      if (tail.isEmpty) {
-        for (var j = i + 1; j <= i + 2 && j < lines.length; j++) {
+          line.substring(m.end).replaceFirst(RegExp(r'^[:\s]+'), '').trim();
+      if (!_nameish(tail)) {
+        // OCR splits the stub box, and same-height columns interleave rows
+        // (the remitter address block sits level with the remit box): take
+        // the first name-ish line within four, skipping digit-bearing
+        // address junk. Only the immediate next line prints unbounded —
+        // deeper picks must look like a short name.
+        tail = '';
+        for (var j = i + 1; j <= i + 4 && j < lines.length; j++) {
           final nxt = lines[j].trim();
           if (nxt.isEmpty) continue;
-          tail = nxt;
-          break;
+          if (_nameish(nxt, maxWords: j > i + 1 ? 4 : null)) {
+            tail = nxt;
+            break;
+          }
         }
       }
-      // Name-ish: short and without digits — never the PO Box or address.
-      if (tail.length >= 3 &&
-          tail.length <= 40 &&
-          !tail.contains(RegExp(r'\d')) &&
-          !_paperTitleRe.hasMatch(tail)) {
-        return tail;
+      if (tail.isNotEmpty) return tail;
+    }
+    return null;
+  }
+
+  /// A printed provider is corroborated by its own paper: named at least
+  /// twice (letterhead + remit block), or owning an address block directly
+  /// beneath it. Anything else may be desk clutter photographed with the
+  /// document — a pen brand, a bag print, a bottle label.
+  static bool _providerCorroborated(String name, List<String> lines) {
+    final up = name.toUpperCase();
+    var seen = 0;
+    for (var i = 0; i < lines.length; i++) {
+      if (!lines[i].toUpperCase().contains(up)) continue;
+      seen++;
+      for (var j = i + 1; j <= i + 2 && j < lines.length; j++) {
+        final nxt = lines[j].trim();
+        if (nxt.isEmpty) continue;
+        if (_addressishRe.hasMatch(nxt)) return true;
+        break; // an unrelated line follows: no address block under this one
       }
+    }
+    return seen >= 2;
+  }
+
+  /// The first name-ish line in the page's top region the paper corroborates.
+  static String? _firstCorroboratedName(List<String> lines) {
+    for (final raw in lines.take(12)) {
+      final line = raw.trim();
+      if (!_nameish(line) || _chromeRe.hasMatch(line)) continue;
+      if (_providerCorroborated(line, lines)) return line;
     }
     return null;
   }
