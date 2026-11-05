@@ -63,7 +63,7 @@ void main() {
   }
 
   Future<void> openQuickAdd(WidgetTester tester) async {
-    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+    await tester.tap(find.byKey(const ValueKey('receipt-add')));
     await tester.pumpAndSettle();
   }
 
@@ -223,46 +223,47 @@ void main() {
       }
     });
 
-    testWidgets('FAB, section headers and drag handles announce themselves', (
-      tester,
-    ) async {
-      final r = freshRepo();
-      try {
-        final handle = tester.ensureSemantics();
-        await r.repo.ensureDefaults();
-        await pumpApp(tester, r.repo);
+    testWidgets(
+      'the add bar, section headers and drag handles announce themselves',
+      (tester) async {
+        final r = freshRepo();
+        try {
+          final handle = tester.ensureSemantics();
+          await r.repo.ensureDefaults();
+          await pumpApp(tester, r.repo);
 
-        // This SDK exposes Tooltip as a `tooltip:` semantics property on the
-        // FAB node — TalkBack reads it exactly.
-        expect(
-          tester.getSemantics(find.byKey(const ValueKey('fab-quickadd'))),
-          isSemantics(tooltip: 'Add transaction'),
-        );
+          // The standardized add bar replaced the E2 FABs (2026-11-05):
+          // TextButtons announce their own labels — no tooltip needed.
+          expect(
+            tester.getSemantics(find.byKey(const ValueKey('receipt-add'))),
+            isSemantics(label: 'Add receipt'),
+          );
 
-        await openManage(tester);
-        await tester.tap(find.text('Categories'));
-        await tester.pumpAndSettle();
+          await openManage(tester);
+          await tester.tap(find.text('Categories'));
+          await tester.pumpAndSettle();
 
-        // EXPENSE / INCOME are section headers (§5).
-        expect(
-          tester.getSemantics(find.text('EXPENSE')),
-          isSemantics(label: 'EXPENSE', isHeader: true),
-        );
-        expect(
-          tester.getSemantics(find.text('INCOME')),
-          isSemantics(label: 'INCOME', isHeader: true),
-        );
-        // The drag handle's semanticLabel merges into the tile node with
-        // the row label; ReorderableListView adds Move actions on top.
-        expect(
-          tester.getSemantics(find.byIcon(Icons.drag_handle).first),
-          isSemantics(label: 'Food\nReorder EXPENSE category'),
-        );
-        handle.dispose();
-      } finally {
-        await r.db.close();
-      }
-    });
+          // EXPENSE / INCOME are section headers (§5).
+          expect(
+            tester.getSemantics(find.text('EXPENSE')),
+            isSemantics(label: 'EXPENSE', isHeader: true),
+          );
+          expect(
+            tester.getSemantics(find.text('INCOME')),
+            isSemantics(label: 'INCOME', isHeader: true),
+          );
+          // The drag handle's semanticLabel merges into the tile node with
+          // the row label; ReorderableListView adds Move actions on top.
+          expect(
+            tester.getSemantics(find.byIcon(Icons.drag_handle).first),
+            isSemantics(label: 'Food\nReorder EXPENSE category'),
+          );
+          handle.dispose();
+        } finally {
+          await r.db.close();
+        }
+      },
+    );
 
     testWidgets('QuickAdd hero is one node; selected chip says selected', (
       tester,

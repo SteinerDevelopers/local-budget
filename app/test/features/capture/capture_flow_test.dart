@@ -116,7 +116,7 @@ void main() {
   }
 
   Future<void> openSourceSheet(WidgetTester tester) async {
-    await tester.tap(find.byKey(const ValueKey('fab-capture')));
+    await tester.tap(find.byKey(const ValueKey('receipt-add-document')));
     await tester.pumpAndSettle();
   }
 

@@ -38,7 +38,7 @@ void main() {
     // the AVD's nav bar (pipeline 146: that inset pushed the keypad's last
     // row under the clip edge and a raw tap fell through to the ledger),
     // so the driver scrolls before each tap — as a thumb does.
-    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+    await tester.tap(find.byKey(const ValueKey('receipt-add')));
     await settle(tester);
     for (final key in [
       'keypad-2',

@@ -8,6 +8,7 @@ import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
+import '../../design/panel_add_bar.dart';
 import '../../design/tokens.dart';
 import '../../flavor.dart';
 import '../budgets/home_panel.dart';
@@ -611,7 +612,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Owner IA pass, 2026-11-05: Receipts / Budgets / Bills / Goals switch
+    // Owner IA pass, 2026-11-05: Receipts / Bills / Budgets / Goals switch
     // from a bottom bar on the home screen — no more sheet buried behind a
     // stat tap. Receipts is the month ledger itself; the other three are
     // the budgets-sheet bodies, embedded (the sheet survives for
@@ -640,9 +641,32 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         currency: _currency,
                         onDelete: _delete,
                         onOpen: _openDetail,
-                        onOpenBudgets: () => setState(() => _dest = 1),
+                        onOpenBudgets: () => setState(() => _dest = 2),
                       ),
                     ),
+                  ),
+                  // Owner standardization, 2026-11-05: Receipts adds through
+                  // the same bar the Bills panel uses — the E2 FABs are
+                  // retired. The scanner button follows the Bills rule:
+                  // present where capture exists, hidden where it doesn't.
+                  PanelAddBar(
+                    primary: TextButton.icon(
+                      key: const ValueKey('receipt-add'),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text('Add receipt'),
+                      onPressed: _openQuickAdd,
+                    ),
+                    secondary: widget.capture == null
+                        ? null
+                        : TextButton.icon(
+                            key: const ValueKey('receipt-add-document'),
+                            icon: const Icon(
+                              Icons.document_scanner_outlined,
+                              size: 20,
+                            ),
+                            label: const Text('Add from a document'),
+                            onPressed: _openCapture,
+                          ),
                   ),
                 ],
               )
@@ -667,14 +691,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
             label: 'Receipts',
           ),
           NavigationDestination(
-            key: ValueKey('nav-budgets'),
-            icon: Icon(Icons.pie_chart_outline),
-            label: 'Budgets',
-          ),
-          NavigationDestination(
             key: ValueKey('nav-bills'),
             icon: Icon(Icons.event_outlined),
             label: 'Bills',
+          ),
+          NavigationDestination(
+            key: ValueKey('nav-budgets'),
+            icon: Icon(Icons.pie_chart_outline),
+            label: 'Budgets',
           ),
           NavigationDestination(
             key: ValueKey('nav-goals'),
@@ -683,34 +707,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ),
         ],
       ),
-      // E2 §1: two FABs live here and nowhere else — capture is secondary,
-      // 12 dp above the primary add. Keys keep test finders unambiguous
-      // now that the slot holds two FloatingActionButton-derived widgets.
-      // They add *transactions*, so they belong to the Receipts panel only
-      // (each other panel carries its own add affordance).
-      floatingActionButton: _dest == 0
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton.small(
-                  key: const ValueKey('fab-capture'),
-                  // The two FABs share one route, so only one may hold the
-                  // default hero tag — the primary keeps E1's exact behavior.
-                  heroTag: null,
-                  onPressed: _openCapture,
-                  tooltip: 'Add from receipt',
-                  child: const Icon(Icons.document_scanner_outlined),
-                ),
-                const SizedBox(height: 12),
-                FloatingActionButton(
-                  key: const ValueKey('fab-quickadd'),
-                  onPressed: _openQuickAdd,
-                  tooltip: 'Add transaction',
-                  child: const Icon(Icons.add),
-                ),
-              ],
-            )
-          : null,
     );
   }
 }

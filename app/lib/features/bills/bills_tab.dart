@@ -8,6 +8,7 @@ import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
+import '../../design/panel_add_bar.dart';
 import '../../design/tokens.dart';
 import '../capture/capture_intake.dart';
 import '../capture/capture_services.dart';
@@ -89,37 +90,16 @@ class BillsTab extends StatelessWidget {
                 _BillRow(line: bills[i], onTap: () => _open(context, bills[i])),
           ),
         ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(Tokens.space2),
-            child: Row(
-              children: [
-                // Two actions share the bar; the halves are bounded and
-                // scale down rather than overflow on narrow phones.
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      key: const Key('bill-add'),
-                      icon: const Icon(Icons.add, size: 20),
-                      label: const Text('Add bill'),
-                      onPressed: () => _add(context),
-                    ),
-                  ),
-                ),
-                if (capture != null)
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: _documentButton(compact: true),
-                    ),
-                  ),
-              ],
-            ),
+        // Owner standardization, 2026-11-05: the bar moved into the shared
+        // PanelAddBar widget — Receipts now wears the exact same affordance.
+        PanelAddBar(
+          primary: TextButton.icon(
+            key: const Key('bill-add'),
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text('Add bill'),
+            onPressed: () => _add(context),
           ),
+          secondary: capture == null ? null : _documentButton(compact: true),
         ),
       ],
     );

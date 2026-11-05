@@ -221,7 +221,7 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+          await tester.tap(find.byKey(const ValueKey('receipt-add')));
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(BottomSheet),
@@ -239,7 +239,7 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+          await tester.tap(find.byKey(const ValueKey('receipt-add')));
           await tester.pumpAndSettle();
           for (final key in ['1', '2', 'dot', '4', '0']) {
             await tester.tap(find.byKey(Key('keypad-$key')));
@@ -311,7 +311,7 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo, capture: cap(highConf));
-          await tester.tap(find.byKey(const ValueKey('fab-capture')));
+          await tester.tap(find.byKey(const ValueKey('receipt-add-document')));
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(BottomSheet),
@@ -333,7 +333,7 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo, capture: cap(lines));
-          await tester.tap(find.byKey(const ValueKey('fab-capture')));
+          await tester.tap(find.byKey(const ValueKey('receipt-add-document')));
           await tester.pumpAndSettle();
           await tester.tap(find.byKey(const Key('capture-camera')));
           await tester.pumpAndSettle();

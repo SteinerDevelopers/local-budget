@@ -339,7 +339,7 @@ void main() {
       final (:db, :repo) = freshRepo();
       await tester.pumpWidget(LocalBudgetApp(repository: repo));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+      await tester.tap(find.byKey(const ValueKey('receipt-add')));
       await tester.pumpAndSettle();
       await tester.dragUntilVisible(
         find.text('Manage'),

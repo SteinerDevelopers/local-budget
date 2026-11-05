@@ -50,7 +50,7 @@ void main() {
     String keys,
     String chip,
   ) async {
-    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+    await tester.tap(find.byKey(const ValueKey('receipt-add')));
     await tester.pumpAndSettle(); // categories() lands synchronously
     await pressKeys(tester, keys);
     // The landscape split keeps chip row and Save inside the left pane's
@@ -112,7 +112,7 @@ void main() {
       expect(find.text('\u2212\$12.40'), findsNWidgets(2));
 
       // Warm reopen: same kind, same chip preselected (§2.2 rule 5).
-      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+      await tester.tap(find.byKey(const ValueKey('receipt-add')));
       await tester.pumpAndSettle();
       expect(
         tester

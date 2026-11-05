@@ -1,7 +1,8 @@
-// Owner IA pass, 2026-11-05: Receipts / Budgets / Bills / Goals switch from
+// Owner IA pass, 2026-11-05: Receipts / Bills / Budgets / Goals switch from
 // a bottom bar on the home screen. These tests pin the contract the sheet
-// tests can't see: the nav drives the embedded panel, the transaction FABs
-// belong to Receipts only, and the Expenses stat is a panel switch now.
+// tests can't see: the nav drives the embedded panel, the add bar belongs
+// to Receipts only (it wears the same PanelAddBar the Bills panel uses),
+// and the Expenses stat is a panel switch now.
 import 'dart:ffi' show DynamicLibrary;
 
 import 'package:data/data.dart';
@@ -47,19 +48,29 @@ void main() {
     await settle(tester);
   }
 
-  testWidgets('the bottom nav carries the four destinations', (tester) async {
+  testWidgets('the bottom nav carries the four destinations, in order', (
+    tester,
+  ) async {
     final (:db, :repo) = freshRepo();
     await openHome(tester, repo);
-    for (final label in ['Receipts', 'Budgets', 'Bills', 'Goals']) {
-      expect(find.text(label), findsOneWidget, reason: label);
-    }
-    // Receipts is the ledger: the month rows and both add FABs are live.
-    expect(find.byKey(const ValueKey('fab-quickadd')), findsOneWidget);
-    expect(find.byKey(const ValueKey('fab-capture')), findsOneWidget);
+    // The owner set the order 2026-11-05: Receipts · Bills · Budgets ·
+    // Goals. Left-to-right geometry pins it — a rename can't sneak past.
+    final byX =
+        ['Receipts', 'Bills', 'Budgets', 'Goals']
+            .map((label) => (label, tester.getCenter(find.text(label)).dx))
+            .toList()
+          ..sort((a, b) => a.$2.compareTo(b.$2));
+    expect(byX.map((e) => e.$1), ['Receipts', 'Bills', 'Budgets', 'Goals']);
+    // Receipts is the ledger, and it adds through the shared bar. Without
+    // capture services the scanner half is *hidden*, never a dead end.
+    expect(find.byKey(const ValueKey('receipt-add')), findsOneWidget);
+    expect(find.byKey(const ValueKey('receipt-add-document')), findsNothing);
     await db.close();
   });
 
-  testWidgets('nav switches panels; FABs stay on Receipts', (tester) async {
+  testWidgets('nav switches panels; the add bar stays on Receipts', (
+    tester,
+  ) async {
     final (:db, :repo) = freshRepo();
     await openHome(tester, repo);
 
@@ -67,7 +78,8 @@ void main() {
     await settle(tester);
     expect(find.text('No bills yet'), findsOneWidget);
     expect(find.byKey(const Key('home-tab-bills')), findsOneWidget);
-    expect(find.byKey(const ValueKey('fab-quickadd')), findsNothing);
+    expect(find.byKey(const ValueKey('receipt-add')), findsNothing);
+    expect(find.byKey(const Key('bill-add-empty')), findsOneWidget);
 
     await tester.tap(find.text('Goals'));
     await settle(tester);
@@ -86,7 +98,7 @@ void main() {
 
     await tester.tap(find.text('Receipts'));
     await settle(tester);
-    expect(find.byKey(const ValueKey('fab-quickadd')), findsOneWidget);
+    expect(find.byKey(const ValueKey('receipt-add')), findsOneWidget);
     expect(find.byKey(const Key('home-budget-prev')), findsNothing);
     await db.close();
   });

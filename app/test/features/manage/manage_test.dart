@@ -71,7 +71,7 @@ void main() {
       await pumpApp(tester, r.repo);
       // Chip path kept verbatim here: the chip is the last child of a
       // row that can overflow, so scroll it into view first.
-      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+      await tester.tap(find.byKey(const ValueKey('receipt-add')));
       await tester.pumpAndSettle();
       await tester.dragUntilVisible(
         find.text('Manage'),
@@ -107,7 +107,7 @@ void main() {
       // The ledger stays underneath; back returns to it.
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('fab-quickadd')), findsOneWidget);
+      expect(find.byKey(const ValueKey('receipt-add')), findsOneWidget);
     } finally {
       await r.db.close();
     }
@@ -173,7 +173,7 @@ void main() {
       await tester.pageBack(); // Ledger
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+      await tester.tap(find.byKey(const ValueKey('receipt-add')));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(FilterChip, 'Coffee'), findsOneWidget);
     } finally {
@@ -285,7 +285,7 @@ void main() {
       await pumpApp(tester, r.repo);
 
       // One Food entry first…
-      await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+      await tester.tap(find.byKey(const ValueKey('receipt-add')));
       await tester.pumpAndSettle();
       for (final k in ['1', '2']) {
         await tester.tap(find.byKey(Key('keypad-$k')));

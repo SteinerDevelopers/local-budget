@@ -50,7 +50,7 @@ still routes on structure, and a keyword-hit utility bill still routes on
 signature. Precedence: **bill signature beats line-density** when a parseable
 due-date + amount-due pair exists (a one-page card bill is dense but a bill);
 statement wins otherwise. `other` is not an error: the sheet explains and
-offers the two file formats (E5) or the capture FAB (receipts).
+offers the two file formats (E5) or the Receipts add bar's scanner button (E2).
 
 ## 2. Getting text out of documents (capture package)
 
@@ -176,15 +176,25 @@ New pure-Dart module `packages/data/lib/src/statement_lines.dart`:
   `BillsTab` (null hides the button; every entrance in `main.dart` hands
   the same instance).
 - **Home IA pass (2026-11-05, owner):** a bottom `NavigationBar` on
-  `LedgerScreen` switches Receipts · Budgets · Bills · Goals (E1's "no
-  new bottom tab" overturned). Bills/Goals are embedded bodies
-  (`HomePanel`, keys `home-tab-*`, `home-*` header controls); the
-  transaction FABs belong to Receipts only; the Expenses stat now
-  *switches panels* instead of opening the sheet; `BudgetsSheet` lives
-  on for notification deep-links (`focusBillId`), widget routes and
-  Manage. `HomePanel` is a conditional body, not an `IndexedStack`: one
-  ValueKey survives Budgets↔Bills↔Goals so the shared month cursor
-  never re-inits mid-panel; returning to Receipts disposes it by design.
+  `LedgerScreen` switches Receipts · Bills · Budgets · Goals (E1's "no
+  new bottom tab" overturned; the middle pair was re-ordered the same day
+  at the owner's request — Bills belongs beside Receipts). Bills/Goals are
+  embedded bodies (`HomePanel`, keys `home-tab-*`, `home-*` header
+  controls); the Expenses stat now *switches panels* instead of opening
+  the sheet; `BudgetsSheet` lives on for notification deep-links
+  (`focusBillId`), widget routes and Manage. `HomePanel` is a conditional
+  body, not an `IndexedStack`: one ValueKey survives Budgets↔Bills↔Goals
+  so the shared month cursor never re-inits mid-panel; returning to
+  Receipts disposes it by design.
+- **Add-bar standardization (2026-11-05, owner):** Receipts and Bills add
+  through the same affordance — `PanelAddBar` (`design/panel_add_bar.dart`)
+  sits under the list: primary text-icon button left, document scanner
+  right, halves bounded and scaled so 320 dp never overflows. The E2
+  transaction FABs are retired: `receipt-add` (quick add) and
+  `receipt-add-document` (the E2 capture flow, unchanged behavior) replace
+  `fab-quickadd`/`fab-capture`; Bills keeps `bill-add`/`bill-add-document`
+  inside the same widget. The scanner half follows the no-dead-end rule:
+  rendered only when `CaptureServices` exists.
 - While the document is being read: existing wizard frame shows the E2
   spinner state; failure states mirror E2 review-sheet copy ("couldn't read
   text — try CSV or OFX instead" for `other`/refusals).

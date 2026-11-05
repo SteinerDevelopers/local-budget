@@ -27,8 +27,9 @@ import 'budgets_service.dart';
 import 'budgets_tab.dart';
 import 'limit_editor_sheet.dart';
 
-/// Which embedded body the bottom nav is showing (0 Budgets · 1 Bills ·
-/// 2 Goals — the nav's own index minus its Receipts destination).
+/// Which embedded body the bottom nav is showing (0 Bills · 1 Budgets ·
+/// 2 Goals — the nav's own index minus its Receipts destination, i.e. the
+/// owner's 2026-11-05 order Receipts · Bills · Budgets · Goals).
 class HomePanel extends StatefulWidget {
   const HomePanel({
     super.key,
@@ -199,7 +200,7 @@ class _HomePanelState extends State<HomePanel> {
         ),
         Expanded(
           child: switch (_tab) {
-            1 =>
+            0 =>
               !_billsLoaded
                   ? const KeyedSubtree(
                       key: Key('home-tab-bills'),

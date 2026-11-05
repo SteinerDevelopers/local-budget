@@ -312,7 +312,7 @@ void main() {
   Future<void> openManage(WidgetTester tester, Widget app) async {
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('fab-quickadd')));
+    await tester.tap(find.byKey(const ValueKey('receipt-add')));
     await tester.pumpAndSettle();
     await tester.dragUntilVisible(
       find.text('Manage'),
