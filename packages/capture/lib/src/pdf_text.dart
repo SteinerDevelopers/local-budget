@@ -95,21 +95,33 @@ class SimplePdfText implements PdfText {
     for (final m in _streamRe.allMatches(raw)) {
       final dict = raw.substring(lastEnd, m.start);
       lastEnd = m.end;
-      if (!dict.contains('/FlateDecode')) {
-        out.addAll(_contentText(m.group(1)!, firstStream: first));
-      } else {
-        List<int> inflated;
-        try {
-          inflated = ZLibCodec().decode(_bytesOf(m.group(1)!));
-        } on Object {
-          continue; // undecodable stream: skip, never throw
-        }
-        out.addAll(
-            _contentText(String.fromCharCodes(inflated), firstStream: first));
+      final flate = dict.contains('/FlateDecode');
+      final text = flate ? _inflate(m.group(1)!) : m.group(1)!;
+      // Font programs, ToUnicode CMaps and metadata payloads ride the
+      // same `stream…endstream` envelope as page content and can contain
+      // bytes shaped like text operators; decoding them turns the CMap
+      // itself into "text" (field probe on a real statement PDF, 2026-11).
+      if (_looksLikeContent(text)) {
+        out.addAll(_contentText(text, firstStream: first));
       }
       first = false;
     }
     return out;
+  }
+
+  /// A decompressed stream is page content only if it opens text blocks and
+  /// shows/positions text; junk streams rarely carry both markers, and one
+  /// that slips through still lacks any date+amount shape downstream.
+  static bool _looksLikeContent(String s) =>
+      s.contains('BT') &&
+      RegExp(r'\bTj\b|\bTJ\b|\bTd\b|\bTD\b|\bT\*\b').hasMatch(s);
+
+  static String _inflate(String body) {
+    try {
+      return String.fromCharCodes(ZLibCodec().decode(_bytesOf(body)));
+    } on Object {
+      return ''; // undecodable stream: skip, never throw
+    }
   }
 
   static Uint8List _bytesOf(String s) =>

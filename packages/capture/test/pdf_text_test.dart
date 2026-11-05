@@ -110,6 +110,21 @@ void main() {
       expect(hasTextLayer(pdfText.readTextLayer(bytes)), isFalse);
     });
 
+    test('font/CMap junk that mimics operators yields no text', () {
+      // Field-probe regression (2026-11): a ToUnicode-CMap-shaped Flate
+      // stream carries operator-shaped bytes; decoding it poured binary
+      // residue into the router's input on a real statement PDF.
+      final cmap = '10 dict begin begincmap <0003> <0020> endbfchar '
+          '(CMAP-JUNK-marker) Tj \u0080\u00FF AdobeUCS endcmap';
+      final bytes = pdfFixture(
+        [cmap, content(receiptLines)],
+        flate: [true, false],
+      );
+      final lines = pdfText.readTextLayer(bytes);
+      expect(lines.where((l) => l.contains('CMAP-JUNK')), isEmpty);
+      expect(lines, contains('GREEN GROCERS'));
+    });
+
     test('page boundary: sentinel between streams; page 1 decides', () {
       final bytes = pdfFixture([
         content(['OK']), // tiny page 1
