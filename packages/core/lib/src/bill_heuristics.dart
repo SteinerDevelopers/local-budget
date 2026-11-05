@@ -266,6 +266,53 @@ class BillDraft {
       (maxWords == null || s.split(RegExp(r'\s+')).length <= maxWords) &&
       !_paperTitleRe.hasMatch(s);
 
+  /// Professional-suffix tokens that END a provider name. The salvage
+  /// below ships only a token run that stops on one, so merged address
+  /// debris can never extend a name — and a bare "Birmingham AL" or a
+  /// `City ST 20815` line can never impersonate a provider.
+  static final RegExp _corpSuffixRe = RegExp(
+    r'^(?:P\.?A|P\.?C|L\.?L\.?C|L\.?L\.?P|I\.?N\.?C|PLLC|MD|M\.D\.|DO|DDS|DPM)$',
+  );
+
+  /// Tokens that stop a name run dead: address words, URL chrome, '#'.
+  static final RegExp _mergeStopRe = RegExp(
+    r'^(?:PO|P\.O|BOX|DEPT|STE|SUITE|APT|WWW|HTTP|HTTPS)$'
+    r'|\.(?:COM|NET|ORG|INFO)$',
+    caseSensitive: false,
+  );
+
+  /// The provider name riding at the head of a column-merged row: leading
+  /// tokens up to and including a professional suffix, stopping at any
+  /// digit-bearing, `#`-bearing or address/URL token (the Coosea capture,
+  /// 2026-11-05: tilt merged every band of the two-column stub, so the
+  /// row under the remit label read `Montgomery Radiology Associates PA
+  /// PO Box 830525 Dept #SF128` — no digit-free line existed and the pen
+  /// brand shipped). Deliberately narrow: a suffix must be reached, two
+  /// words at least, and the token after it must not be digit-shaped —
+  /// `Chevy Chase MD 20815` is a mailing line, not a provider.
+  static String? _mergedProviderPrefix(String line) {
+    final toks = line.trim().split(RegExp(r'\s+'));
+    final out = <String>[];
+    for (var i = 0; i < toks.length; i++) {
+      final t = toks[i];
+      if (t.contains(RegExp(r'\d')) ||
+          t.contains('#') ||
+          _mergeStopRe.hasMatch(t)) {
+        return null;
+      }
+      final bare = t.replaceAll(RegExp(r'[.,;:]+$'), '');
+      out.add(t);
+      if (_corpSuffixRe.hasMatch(bare)) {
+        if (out.length < 2) return null;
+        if (i + 1 < toks.length && toks[i + 1].contains(RegExp(r'\d'))) {
+          return null; // `City MD 20815`: a state abbreviation, not PA.
+        }
+        return out.join(' ');
+      }
+    }
+    return null;
+  }
+
   /// All-caps paper headings — `MEDICAL STATEMENT OF SERVICE`, `FINAL
   /// NOTICE` — are document titles, not payees.
   static final RegExp _paperTitleRe = RegExp(
@@ -291,18 +338,25 @@ class BillDraft {
       if (m == null) continue;
       var tail =
           line.substring(m.end).replaceFirst(RegExp(r'^[:\s]+'), '').trim();
-      if (!_nameish(tail)) {
+      if (!_nameish(tail)) tail = _mergedProviderPrefix(tail) ?? '';
+      if (tail.isEmpty) {
         // OCR splits the stub box, and same-height columns interleave rows
         // (the remitter address block sits level with the remit box): take
         // the first name-ish line within four, skipping digit-bearing
         // address junk. Only the immediate next line prints unbounded —
-        // deeper picks must look like a short name.
-        tail = '';
+        // deeper picks must look like a short name. A row too merged for
+        // `_nameish` still yields its provider via the suffix salvage.
         for (var j = i + 1; j <= i + 4 && j < lines.length; j++) {
           final nxt = lines[j].trim();
           if (nxt.isEmpty) continue;
-          if (_nameish(nxt, maxWords: j > i + 1 ? 4 : null)) {
+          final int? maxWords = j > i + 1 ? 4 : null;
+          if (_nameish(nxt, maxWords: maxWords)) {
             tail = nxt;
+            break;
+          }
+          final pre = _mergedProviderPrefix(nxt);
+          if (pre != null && _nameish(pre, maxWords: maxWords)) {
+            tail = pre;
             break;
           }
         }

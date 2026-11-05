@@ -384,6 +384,35 @@ void main() {
       expect(d.amountDue?.minorUnits, 3600);
     });
 
+    test('a tilted photo merging BOTH columns still names the provider', () {
+      // Third tester bounce (2026-11-05), the real Coosea capture: the
+      // stub prints two side-by-side columns, and tilt merged every band
+      // left-to-right — the label row picked up the remitter's name row,
+      // the provider row its own address, so no line under the label was
+      // digit-free and `_nameish` refused them all: the pen brand shipped.
+      // Line shapes frozen from a full-page transcription of the photo.
+      final tiltMerged = <String>[
+        'ENERGEL', // pen brand, above the page edge
+        'MEDICAL STATEMENT OF SERVICE',
+        'MRA MONTGOMERY RADIOLOGY ASSOCIATES',
+        'Montgomery Radiology Associates PA Pay Online',
+        'PO Box 830525 Dept #SF128 Enter Complete URL',
+        'Birmingham AL 35283-0525 www.ePayitOnline.com',
+        'Toll Free: (800) 841-4236 Code ID: MSN00001',
+        'Statement Date 10/16/26 Account # 647760 AMOUNT DUE \$36.00',
+        '1113000064776000000036001',
+        'JACLYN A HARE 647760 MAKE CHECK PAYABLE AND REMIT TO:',
+        'Montgomery Radiology Associates PA PO Box 830525 Dept #SF128',
+        'Birmingham AL 35283-0525',
+      ];
+      final d = BillDraft.draft(tiltMerged, currency: usd, now: now);
+      expect(d.payee, isNot('ENERGEL'));
+      expect(d.payee, provider);
+      expect(d.payeeConfidence, FieldConfidence.high);
+      expect(d.amountDue?.minorUnits, 3600);
+      expect(d.dueDate, isNull);
+    });
+
     test('uncorroborated single-word billers survive the clutter guard', () {
       // A one-brand PDF has exactly one occurrence and no address line —
       // with no better candidate the guard must keep the honest guess.
