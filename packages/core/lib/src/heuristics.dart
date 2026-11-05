@@ -238,10 +238,18 @@ class ReceiptHeuristics {
       }
       if (RegExp(
               r'^(THANK|THANKS|VISIT|SCAN|RECEIPT|INVOICE|TEL|PHONE|VAT\s+ID|TAX\s+ID'
-              r'|BILLING|CUSTOMER\s+SERVICE|ACCOUNT\s+NUMBER|MEMBER\s+SINCE)',
+              r'|BILLING|CUSTOMER\s+SERVICE|ACCOUNT\s+NUMBER|MEMBER\s+SINCE'
+              // Device trace 2026-11-05 (SL219A, CFPB raster): labelled field
+              // lines of a template statement led the page and minted a junk
+              // payee — labelled data is never a merchant name.
+              r'|NAME|ADDRESS|ACCOUNT|DATE|PAYMENT)',
               caseSensitive: false)
           .hasMatch(line)) {
         continue;
+      }
+      if (RegExp(r'\b(SAMPLE|SPECIMEN|HANDOUT)\b', caseSensitive: false)
+          .hasMatch(line)) {
+        continue; // template/sample watermark text, not a merchant
       }
       return (
         name: line,

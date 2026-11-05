@@ -119,6 +119,24 @@ void main() {
     test('all-noise returns null (review sheet will ask)', () {
       expect(heur().guessMerchant(['123 456', '***', '05/05/2026']), isNull);
     });
+
+    test('template-statement boilerplate never mints a payee (device trace)', () {
+      // Real ML Kit lines off the SL219A, CFPB "Building Blocks" raster
+      // (US Government work, public domain), captured 2026-11-05. The page
+      // header + labelled field rows used to mint "E BUILDING BLOCKS STUDENT
+      // HANDOUT" as the merchant; the issuer is absent, so abstain is right.
+      expect(
+        heur().guessMerchant([
+          'E BUILDING BLOCKS STUDENT HANDOUT',
+          'Sample credit card statement',
+          'Name: Susan Doe For Lost or Stolen Card, Call:',
+          'Address: 1234 Main Street, Anytown, USA 1-800-XXX-XXXX',
+          'Account Number: 12345-67-8907',
+          'Payment Information',
+        ]),
+        isNull,
+      );
+    });
   });
 
   group('E2 spec alignment (e2-capture.md §3)', () {
