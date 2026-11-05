@@ -27,3 +27,10 @@ app/pubspec.lock
 packages/capture/corpus/
 packages/capture/tool/corpus/
 packages/data/tool/corpus/
+
+# fastlane (E9 groundwork): credentials + generated reports never commit
+fastlane/credentials/
+fastlane/report.xml
+fastlane/report.html
+fastlane/Preview.html
+fastlane/screenshots/

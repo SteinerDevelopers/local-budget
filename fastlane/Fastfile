@@ -1,0 +1,45 @@
+// fastlane scaffold — E9 release groundwork (2026-11-05)
+//
+// STATUS: scaffold, NOT yet runnable — needs the owner's Play Console
+// service account JSON (fastlane/credentials/play.json, git-ignored)
+// and the release keystore + key.properties. Until both exist, only
+// the `test` lane does anything. Metadata under metadata/android/en-US
+// is real copy from docs/store/listing.md and is what `supply` will
+// push; keep the two in sync (listing.md stays the prose master).
+//
+// Version discipline: see docs/release/versioning.md — never build a
+// release without an explicit VERSION_CODE.
+
+default_platform(:android)
+
+platform :android do
+  desc "Full test suite (packages + app) — mirrors CI app-test"
+  lane :test do
+    sh("flutter test")
+    %w[core data capture].each do |pkg|
+      Dir.chdir("../packages/#{pkg}") { sh("flutter test") }
+    end
+  end
+
+  desc "Release AAB, free flavor. Requires VERSION_CODE env (see versioning.md)."
+  lane :release_bundle do
+    code = ENV["VERSION_CODE"]
+    UI.user_error!("VERSION_CODE unset — see docs/release/versioning.md rule 2") if code.nil? || code.empty?
+    # flutter owns versionCode (flutter.versionCode in build.gradle.kts);
+    # --build-number is the only sanctioned injection point.
+    sh("flutter build appbundle --release --flavor free " \
+       "--dart-define=APP_FLAVOR=free --build-number #{code}")
+    # TODO(E9 signing): key.properties + upload keystore must exist first.
+  end
+
+  desc "Push store metadata + screenshot dir (dry-run until credentials land)"
+  lane :metadata do
+    supply(
+      package_name: "dev.steiner.local_budget",
+      # track: "internal",           # enable once first upload exists
+      # json_key: "credentials/play.json",
+      skip_upload_images: true,       # screenshot checklist in docs/store/listing.md
+      skip_upload_screenshots: true
+    )
+  end
+end

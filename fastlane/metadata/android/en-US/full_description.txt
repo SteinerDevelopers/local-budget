@@ -1,0 +1,23 @@
+Most budgeting apps want your bank login, your cloud, or your attention. Local Budget wants nothing. You type what you spent — or photograph the receipt and tap the numbers it found — and it all stays on your phone. No account. No analytics. No ads. Uninstalling removes every byte.
+
+Capture that respects your time
+· Quick-add a coffee in four taps, keypad first like a calculator
+· Photograph or scan a receipt: the app highlights the words it actually read, and you approve. No silent guesses.
+· PDFs, screenshots, shared images — the same review screen, always offline. Attachments live with the entry, so "what was this?" has a picture as an answer.
+· Import a bank statement (CSV or OFX) when you want to catch up on a month. Re-importing the same file never doubles your ledger.
+· No file, just paper? Photograph a bill or a statement — Import reads it into the same reviewed preview, or drafts the bill reminder with the amounts and date for you to approve.
+
+A month you can actually read
+· Spent, income, and per-category limits against real spending
+· Budget vs actual, trends, and month-by-month reports — on-device
+· Multi-currency with a rate for every entry, so a holiday doesn't warp your totals
+· Bills and savings goals that roll into the month view
+
+Built to be left alone
+· Every screen works on a plane. The only network calls are ones you start: optional currency rates and your own encrypted backups.
+· Pro is a one-time unlock, not a subscription: detailed insights, PDF reports, home-screen widgets, encrypted backup to your own cloud, and cloud sync of your ledger to a WebDAV server you run.
+· Paid only ever adds. Nothing free becomes paid — the free app budgets a whole household forever. Buying Pro can't move, hide or gate anything that was already there.
+
+One tap on "?" opens offline Help with an article for every screen — it even searches without internet.
+
+Local Budget is made by one person who answers email. Feature requests shape it more than dashboards do, because there are no dashboards.
