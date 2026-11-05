@@ -194,7 +194,7 @@ Readings: **$500/mo needs ~150–200k MAU** under this exact configuration; one 
 6. Budgets: monthly category budgets, overall monthly target, progress indicators.
 7. Reports: month view, category breakdown, merchant autocomplete stats, simple charts.
 8. Data management: CSV export, encrypted local backup & restore via Files/SAF/share sheet.
-9. **Bank-statement import (added to v1 per decisions):** CSV with a user-guided column-mapping step (date/description/amount columns vary per bank; saved per-bank profiles) and **OFX** (standardized XML — direct parse). Import preview, conservative duplicate detection (same account/date/amount), bulk commit into a chosen account.
+9. **Bank-statement import (added to v1 per decisions):** CSV with a user-guided column-mapping step (date/description/amount columns vary per bank; saved per-bank profiles) and **OFX** (standardized XML — direct parse). Import preview, conservative duplicate detection (same account/date/amount), bulk commit into a chosen account. **Photo/PDF documents (E11, decision 13):** a third source row runs on-device OCR through the E2 `DocType` heuristics — statements become rows on the same reviewed preview (shared dedupe, `statementImport` source), bills/invoices prefill the bill editor for explicit review; nothing is written without the owner tapping Save (spec `docs/design/e11-document-import.md`).
 10. Help section: searchable offline articles covering every screen and the scan pipeline, FAQ, scan-quality tips, statement-import guide.
 11. Settings: currency & locale, categories editor, backup/restore (+ paid own-cloud backup destination), paid unlock & restore-purchases, support/tip link, privacy policy.
 

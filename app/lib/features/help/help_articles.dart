@@ -285,6 +285,32 @@ const List<HelpArticle> kHelpArticles = [
     ],
   ),
   HelpArticle(
+    icon: Icons.document_scanner_outlined,
+    title: 'Import a bill or statement from a photo/PDF',
+    paragraphs: [
+      'Some paperwork is a photo or a scan rather than a file from your '
+          'bank’s website. Manage → Import statement has a third row, '
+          'Add from a document: photograph (or pick) a bill or a '
+          'statement — a PDF works too — and the app reads the text '
+          'off it on your phone.',
+      'A statement comes back as rows: the app finds the date, the '
+          'description and the amount on each line and opens them in '
+          'the same preview as a CSV or OFX import. Rows it has seen '
+          'before are marked “already imported” and stay out of the '
+          'count, so re-importing last month’s statement never counts '
+          'anything twice. Tick what you want, import, done.',
+      'A bill becomes a head start on a reminder: the payee, the '
+          'amount and the due date arrive typed in, and you still '
+          'choose when it repeats and tap Save. The document alone '
+          'never writes to your ledger or your bills.',
+      'When the app can’t make out either shape in your photo, it says '
+          'so and points at CSV or OFX instead — it would rather hand '
+          'you the honest no than guess at your money. Reading happens '
+          'on your phone: no upload, and nothing is saved until you '
+          'say so.',
+    ],
+  ),
+  HelpArticle(
     icon: Icons.backup_outlined,
     title: 'Backup and restore',
     paragraphs: [

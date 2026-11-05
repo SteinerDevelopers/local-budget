@@ -35,6 +35,9 @@ manual capture with proof attached, and literal local-only storage.)
 >   a picture as an answer.
 > · Import a bank statement (CSV or OFX) when you want to catch up on
 >   a month. Re-importing the same file never doubles your ledger.
+> · No file, just paper? Photograph a bill or a statement — Import
+>   reads it into the same reviewed preview, or drafts the bill
+>   reminder with the amounts and date for you to approve.
 >
 > **A month you can actually read**
 > · Spent, income, and per-category limits against real spending

@@ -56,9 +56,15 @@ void main() {
     expect(searchHelpArticles('highlight').map(_title).toList(), [
       'Why is a field highlighted?',
     ]);
+    // E11 added a photo/PDF import article whose title carries the
+    // exact token; the E2 receipt-PDF article must still be right there.
     expect(
       searchHelpArticles('PDF').first.title,
-      'Importing PDFs & screenshots',
+      'Import a bill or statement from a photo/PDF',
+    );
+    expect(
+      searchHelpArticles('PDF').map(_title),
+      contains('Importing PDFs & screenshots'),
     );
     expect(searchHelpArticles('total').first.title, 'Scanning receipts');
   });
@@ -81,6 +87,7 @@ void main() {
         'Categories that fit your life',
         'Your data stays yours',
         'Pro extras: cloud, widgets & insights',
+        'Import a bill or statement from a photo/PDF',
       ]),
     );
   });
