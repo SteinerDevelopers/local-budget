@@ -396,7 +396,11 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.text('EXPENSES'));
+          // The 2026-11-05 IA pass moved the sheet behind Manage: the
+          // Expenses stat now switches the home panel in place.
+          await tester.tap(find.byKey(const Key('manage-open')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Budgets & bills'));
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(BottomSheet),
@@ -466,7 +470,9 @@ void main() {
             categoryId: rent,
           );
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.text('EXPENSES'));
+          await tester.tap(find.byKey(const Key('manage-open')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Budgets & bills'));
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(BottomSheet),
@@ -513,9 +519,17 @@ void main() {
             nextDue: DateTime(2027, 6, 30),
           );
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.text('EXPENSES'));
+          await tester.tap(find.byKey(const Key('manage-open')));
           await tester.pumpAndSettle();
-          await tester.tap(find.text('Bills'));
+          await tester.tap(find.text('Budgets & bills'));
+          await tester.pumpAndSettle();
+          // Scoped: the home bar behind the barrier also says 'Bills'.
+          await tester.tap(
+            find.descendant(
+              of: find.byType(BottomSheet),
+              matching: find.text('Bills'),
+            ),
+          );
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(BottomSheet),
