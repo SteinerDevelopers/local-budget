@@ -424,12 +424,27 @@ class BillDraft {
   /// The first name-ish line in the page's top region the paper corroborates.
   static String? _firstCorroboratedName(List<String> lines) {
     for (final raw in lines.take(12)) {
-      final line = raw.trim();
+      var line = raw.trim();
+      // Device trace 2026-11-05 (SL219A, photographed ENERGEL radiology
+      // stub): the provider prints on one OCR line with its Access# field
+      // (`Montgomery Radiology Associates PA Access#: 19803282-1-6282`), so
+      // the digit guard killed an otherwise corroborated name and the
+      // uncorroborated network logo shipped as the payee. The name is
+      // everything before the labelled field.
+      final label = _trailingFieldRe.firstMatch(line);
+      if (label != null) line = line.substring(0, label.start).trim();
       if (!_nameish(line) || _chromeRe.hasMatch(line)) continue;
       if (_providerCorroborated(line, lines)) return line;
     }
     return null;
   }
+
+  /// A labelled data field mid-line: `Access#: …`, `Account No: …`,
+  /// `Ref # …`. Its prefix may be a name; the line as a whole never is.
+  static final RegExp _trailingFieldRe = RegExp(
+    r'\b(?:ACCESS|ACCT|ACCOUNT|REF|POLICY|GROUP)\s*(?:NO\.?|NUMBER|#)?\s*[:#]',
+    caseSensitive: false,
+  );
 
   // --- due date ---------------------------------------------------------
 

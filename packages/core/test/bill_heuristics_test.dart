@@ -465,4 +465,37 @@ void main() {
       expect((d.payee ?? '').toLowerCase(), isNot(startsWith('sample')));
     });
   });
+
+  group('device trace — photographed ENERGEL radiology stub (SL219A)', () {
+    // Verbatim [ocr-lines] dump of 2026-11-05: a tilted desk photo of a
+    // pay-by-phone remittance stub. The first line is the payment-network
+    // logo; the provider shares its line with an Access# field and repeats
+    // in the remit columns below it.
+    final stub = [
+      'ENERGEL',
+      'MCUIUAL OAIEMENI OSEKVIGE',
+      'Enter Complete URL',
+      'www.ePayitOnline.com',
+      'MRA Pay Online 05915',
+      'Code ID: MSNOO001',
+      'Montgomery Radiology Associates PA Access#: 19803282-1-6282',
+      'PO Box 830525 Dept #SF128',
+      'Birmingham AL 35283-0525 UPay By Phone (800) 841-4236',
+      'Statement Date Account # AMOUNT DUE',
+      '10/16/26 647760 \$36.00',
+      'Toll Free: (800) 841-4236',
+      '11130DD0647760000D0036001',
+      'MAKE CHECK PAYABLE AND REMIT TO:',
+      'D5995 Inuulur"plpla||lrlilury',
+      'JACLYNA HARE 647760 Montgomery Radiology Associates PA',
+      '5908 Steiner Store Rd #R PO Box 830325 Dept #SF128',
+      'Honoraville AL 36042-5304 Bimingham AL 35283-0525',
+    ];
+
+    test('the corroborated provider outranks the lone network logo', () {
+      final d = BillDraft.draft(stub, currency: usd, now: now);
+      expect(d.payee, 'Montgomery Radiology Associates PA');
+      expect(d.amountDue?.minorUnits, 3600);
+    });
+  });
 }
