@@ -66,8 +66,12 @@ Future<void> bootLocalBudget() async {
   final integrity = ValueNotifier<IntegrityReport?>(null);
   // First launch seeds the Cash account + default categories; idempotent.
   await repository.ensureDefaults();
-  // Bill reminders: time zone + channel init (inert where unavailable, §5).
-  await BillNotifier.bootstrap();
+  // Bill reminders: boot OFF the first-frame path (inert where unavailable,
+  // §5). Field test (Coosea SL219A): awaiting it here cost the full 5 s cap
+  // on a budget phone — its notification dialog outran any boot-time cap —
+  // and a cold-launch notification tap still hands off, because assigning
+  // [BillNotifier.onOpen] below drains a pending tap in either order.
+  unawaited(BillNotifier.bootstrap());
   // E7b §3.3: the daily auto-backup schedule is a paid-pack feature; the
   // free flavor never initialises WorkManager at all.
   if (FeatureFlags.proTrio) await initCloudAutoBackups(dir);
@@ -117,14 +121,12 @@ Future<void> bootLocalBudget() async {
   if (observer != null) WidgetsBinding.instance.removeObserver(observer);
   _observer = _BillMaterializeObserver(repository);
   WidgetsBinding.instance.addObserver(_observer!);
-  BillNotifier.onOpen = (ruleId) => _openBillRule(repository, ruleId);
-  final pending = BillNotifier.pendingOpenRuleId;
-  if (pending != null) {
-    BillNotifier.pendingOpenRuleId = null;
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _openBillRule(repository, pending),
-    );
-  }
+  // Installing the handler drains a cold-launch tap in either order (the
+  // setter checks [BillNotifier.pendingOpenRuleId]); the open rides the
+  // next frame so the navigator's overlay exists, exactly as the old
+  // manual drain did.
+  BillNotifier.onOpen = (ruleId) => WidgetsBinding.instance
+      .addPostFrameCallback((_) => _openBillRule(repository, ruleId));
   // E7c §4.2 — the widget pipeline is Paid-pack: only pro feeds the
   // home-screen trio or resolves its taps; the free flavor has no
   // receivers, so there is nothing to publish to or navigate from.

@@ -2,7 +2,7 @@
 // the Bills list is the truth. We schedule the NEXT occurrence at 09:00
 // local in an inexact ±60-min window and never ask for exact-alarm
 // permission — the Doze caveat ships as help text, not as a workaround.
-import 'dart:async' show TimeoutException;
+import 'dart:async' show TimeoutException, unawaited;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -23,30 +23,65 @@ class BillNotifier {
   static bool active = false;
 
   /// Set by the app shell: notification taps carry the rule id payload.
-  static void Function(int ruleId)? onOpen;
+  /// Assigning it also drains a cold-launch tap that arrived first
+  /// ([pendingOpenRuleId]), so the handoff is safe in either order —
+  /// which is what lets [bootstrap] leave the boot critical path.
+  static void Function(int ruleId)? get onOpen => _onOpen;
+  static set onOpen(void Function(int ruleId)? cb) {
+    _onOpen = cb;
+    final pending = pendingOpenRuleId;
+    if (cb != null && pending != null) {
+      pendingOpenRuleId = null;
+      cb(pending);
+    }
+  }
+
+  static void Function(int ruleId)? _onOpen;
 
   /// A cold-launch tap that arrived before the shell installed [onOpen];
-  /// the shell drains this after its first frame.
+  /// installing [onOpen] drains this.
   static int? pendingOpenRuleId;
 
   static const _window = Duration(minutes: 60);
 
-  /// Hard cap on the whole bootstrap: a wedged platform channel or an
-  /// untappable runtime-permission dialog (headless emulators, background
-  /// launches) must never hold `main()` before the first frame — the hint
-  /// stays optional, the Due rows stay the truth (§5). If the orphaned
-  /// inner future still completes, [active] flips on for later schedules.
-  static Future<void> bootstrap() async {
-    if (active) return;
+  /// Hard cap on the channel-bound bootstrap, armed only here, at the one
+  /// shell call site: a wedged platform channel must never leave the
+  /// notifier half-ready. If the orphaned inner future still completes,
+  /// [active] flips on for later schedules.
+  ///
+  /// The Android 13+ permission prompt deliberately rides *outside* the
+  /// cap's await (field test, Coosea SL219A / Android 14: a budget phone
+  /// renders the dialog slower than any sane cap, and a user still reading
+  /// it is not a reason to kill reminders for the session). A denial
+  /// changes nothing else — §5 again.
+  static Future<void> bootstrap() {
+    if (active) return Future.value();
+    return _inFlight ??= _cappedBootstrap();
+  }
+
+  static Future<void>? _inFlight;
+
+  static Future<void> _cappedBootstrap() async {
     try {
-      await _bootstrap().timeout(const Duration(seconds: 5));
+      await _bootstrapCore().timeout(const Duration(seconds: 5));
     } on TimeoutException {
       debugPrint('BillNotifier bootstrap timed out; staying inert');
-      active = false;
+      // Never force active=false here: the orphaned core may complete
+      // after the cap and flip it on — that late success is real.
+    } finally {
+      _inFlight = null;
     }
   }
 
-  static Future<void> _bootstrap() async {
+  /// Wait for an *already started* bootstrap; never starts one. This is
+  /// the whole schedule/cancel guard: the shell owns bootstrap, so widget
+  /// tests — which never boot the shell — still never touch a method
+  /// channel (their schedules stay no-ops, §5), while a bill saved during
+  /// the first frames rides the in-flight future instead of losing its
+  /// reminder.
+  static Future<void> _ensureReady() => _inFlight ?? Future.value();
+
+  static Future<void> _bootstrapCore() async {
     if (active) return;
     try {
       tzdata.initializeTimeZones();
@@ -68,16 +103,14 @@ class BillNotifier {
         settings: settings,
         onDidReceiveNotificationResponse: _handle,
       );
-      // Android 13+ runtime permission; a denial changes nothing else —
-      // the in-app Due rows stay correct (§5).
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
-      active = true;
       final launch = await _plugin.getNotificationAppLaunchDetails();
       final payload = launch?.notificationResponse?.payload;
+      // Flip on only once the tz + channel are genuinely usable — schedule
+      // computes its fire time against tz.local.
+      active = true;
+      // The permission prompt rides outside every await in here: it can
+      // sit on screen for as long as the user likes.
+      unawaited(_requestPermission());
       if ((launch?.didNotificationLaunchApp ?? false) && payload != null) {
         _openPayload(payload);
       }
@@ -85,6 +118,20 @@ class BillNotifier {
       // Missing plugin implementation (tests, desktop): stay inert.
       debugPrint('BillNotifier disabled: $e\n$s');
       active = false;
+    }
+  }
+
+  static Future<void> _requestPermission() async {
+    try {
+      // Android 13+ runtime permission; a denial changes nothing else —
+      // the in-app Due rows stay correct (§5).
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.requestNotificationsPermission();
+    } catch (e) {
+      debugPrint('BillNotifier permission request failed: $e');
     }
   }
 
@@ -108,7 +155,11 @@ class BillNotifier {
     required String name,
     required DateTime due,
   }) async {
-    if (!active) return;
+    // A boot now races the first frame (see bootstrap): a bill added in
+    // that window must not silently lose its reminder. Rides the
+    // in-flight bootstrap if one is running; never starts one itself.
+    await _ensureReady();
+    if (!active) return; // genuinely unavailable — the hint stays optional
     try {
       final fire = tz.TZDateTime(
         tz.local,
@@ -142,6 +193,9 @@ class BillNotifier {
   }
 
   static Future<void> cancel(int ruleId) async {
+    // Same boot race as schedule: dropping a cancel would leave a stale
+    // alarm scheduled that the user already deleted.
+    await _ensureReady();
     if (!active) return;
     try {
       await _plugin.cancel(id: ruleId);
