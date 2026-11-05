@@ -22,14 +22,27 @@ import '../quickadd/quick_add_sheet.dart' show CategoryOption;
 import 'bill_notifier.dart';
 import 'bills_service.dart';
 
-/// Add-mode head start from an E7 Insights suggestion (§2.2): the merchant
-/// and its average amount arrive filled; the owner still taps Save —
-/// suggestions are never applied without a tap.
+/// Add-mode head start: an E7 Insights suggestion (§2.2) or an E11 bill
+/// document. The merchant and amount arrive filled; the owner still taps
+/// Save — prefills are never applied without a tap. [dueDate] seeds the
+/// start month and day-of-month cursor (e11 §4); [fromDocument] only
+/// changes the header note, never the save path.
 final class BillPrefill {
-  const BillPrefill({required this.name, required this.amountMinor});
+  const BillPrefill({
+    required this.name,
+    required this.amountMinor,
+    this.dueDate,
+    this.fromDocument = false,
+  });
 
   final String name;
   final int amountMinor;
+
+  /// Parsed due date (e11) — the first-due cursor for the new rule.
+  final DateTime? dueDate;
+
+  /// True only for the document route: the editor says where it came from.
+  final bool fromDocument;
 }
 
 /// [line] non-null = edit mode; add mode starts today with sensible days.
@@ -86,15 +99,23 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
   late BillFrequency _freq = widget.line == null
       ? BillFrequency.monthly
       : BillFrequency.fromStorage(widget.line!.rule.frequency);
-  late int _dom = widget.line?.rule.dayOfMonth ?? DateTime.now().day;
-  late int _dow = widget.line?.rule.dayOfWeek ?? DateTime.now().weekday;
+  // E11 §4: a document's due date seeds the cursor — start month and day
+  // come from it, so the first occurrence lands exactly where the bill says.
+  late int _dom =
+      widget.line?.rule.dayOfMonth ??
+      widget.prefill?.dueDate?.day ??
+      DateTime.now().day;
+  late int _dow =
+      widget.line?.rule.dayOfWeek ??
+      widget.prefill?.dueDate?.weekday ??
+      DateTime.now().weekday;
   late int? _categoryId = widget.line?.rule.categoryId;
   late bool _notify = widget.line?.rule.notify ?? true;
-  late int _startIdx = widget.line == null
-      ? monthIndexOf(DateTime.now())
-      : monthIndexOf(
+  late int _startIdx = widget.line != null
+      ? monthIndexOf(
           DateTime.fromMillisecondsSinceEpoch(widget.line!.rule.startMs),
-        );
+        )
+      : monthIndexOf(widget.prefill?.dueDate ?? DateTime.now());
 
   bool get _isAdd => widget.line == null;
 
@@ -210,6 +231,18 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
             children: [
               const SizedBox(height: Tokens.space2),
               _dragBar(context),
+              if (_isAdd && widget.prefill?.fromDocument == true)
+                // e11 §4 — provenance under the header, before any field.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: Text(
+                    'We read this from your document — check it before saving.',
+                    key: const Key('bill-prefill-note'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
               _startRow(),
               Expanded(
                 child: size.width > size.height ? _landscape() : _portrait(),

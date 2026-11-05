@@ -40,6 +40,8 @@ import java.util.concurrent.Executors
  *  - `renderPdfFirstPage`: page 1 rasterized to PNG by the platform
  *    PdfRenderer — no pdfium to bundle, no native asset to compile, parsing
  *    stays on device (decision 8).
+ *  - `renderPdfPages`: the same rasterizer over the first N pages (E11 §2,
+ *    scanned statements); the Dart caller passes the page cap.
  *  - `nanoStatus` / `nanoPrompt`: feature detection and fill-only inference
  *    for Gemini Nano via ML Kit GenAI (issue #29) — see the nano section
  *    below for why this is a platform channel and never a download.
@@ -106,6 +108,19 @@ class MainActivity : FlutterActivity() {
                             result.error("bad_args", "pdf bytes required", null)
                         } else {
                             result.success(renderPdfFirstPage(pdf))
+                        }
+                    }
+
+                    // E11 §2 — every page up to the caller's cap, page order;
+                    // an unrenderable PDF answers with an empty list, never a
+                    // half-painted page.
+                    "renderPdfPages" -> {
+                        val pdf = call.argument<ByteArray>("pdf")
+                        val max = call.argument<Int>("maxPages") ?: 1
+                        if (pdf == null) {
+                            result.error("bad_args", "pdf bytes required", null)
+                        } else {
+                            result.success(renderPdfPages(pdf, max))
                         }
                     }
 
@@ -233,6 +248,72 @@ class MainActivity : FlutterActivity() {
                 page?.close()
             } catch (_: Exception) {
             }
+            try {
+                renderer?.close()
+            } catch (_: Exception) {
+            }
+            try {
+                pfd?.close()
+            } catch (_: Exception) {
+            }
+            tmp.delete()
+        }
+    }
+
+    /**
+     * Up to [maxPages] pages as PNG for the E11 document wizard (§2): a
+     * scanned statement's pages all go through the same OCR, but a hundred-
+     * page PDF must not — the Dart side passes kRenderedPageCap and the
+     * wizard discloses the cut. An empty list means "nothing renderable",
+     * the same honest contract as a null first page.
+     */
+    private fun renderPdfPages(pdf: ByteArray, maxPages: Int): List<ByteArray> {
+        val tmp = File.createTempFile("render", ".pdf", cacheDir)
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
+        return try {
+            tmp.writeBytes(pdf)
+            pfd = ParcelFileDescriptor.open(
+                tmp,
+                ParcelFileDescriptor.MODE_READ_ONLY,
+            )
+            val r = PdfRenderer(pfd)
+            renderer = r
+            val out = ArrayList<ByteArray>()
+            val last = minOf(r.pageCount, maxOf(maxPages, 1))
+            for (i in 0 until last) {
+                val pg = r.openPage(i)
+                try {
+                    val scale = (1200.0 / pg.width).coerceIn(0.25, 4.0)
+                    val width = (pg.width * scale).toInt().coerceAtLeast(1)
+                    val height = (pg.height * scale).toInt().coerceAtLeast(1)
+                    val bitmap = Bitmap.createBitmap(
+                        width,
+                        height,
+                        Bitmap.Config.ARGB_8888,
+                    )
+                    bitmap.eraseColor(Color.WHITE) // transparent-paper pages
+                    pg.render(
+                        bitmap,
+                        null,
+                        null,
+                        PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY,
+                    )
+                    val bytes = java.io.ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes)
+                    bitmap.recycle()
+                    out.add(bytes.toByteArray())
+                } finally {
+                    try {
+                        pg.close()
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+            out
+        } catch (e: Exception) {
+            emptyList()
+        } finally {
             try {
                 renderer?.close()
             } catch (_: Exception) {

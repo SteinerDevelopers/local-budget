@@ -312,10 +312,14 @@ void _openBillRule(LedgerRepository repository, int ruleId) {
 /// capture FAB then explains instead of dead-ending (§2.1).
 CaptureServices? _androidCapture(Directory docsDir) {
   if (!Platform.isAndroid) return null;
+  final renderer = ChannelPdfTextRenderer();
   return CaptureServices(
     intake: AndroidCaptureIntake(),
     extractor: MlKitTextExtractor(),
-    renderer: ChannelPdfTextRenderer(),
+    renderer: renderer,
+    // E11 §2 — the multi-page rasterizer as a concrete tear-off; the
+    // TextRenderer interface alone can only ever offer page 1.
+    scannedPdfPages: renderer.renderPages,
     store: AttachmentStore(docsDir),
     shares: PluginShareIngest(),
     // Tier 3 (issue #29): one fire-and-forget availability probe at startup;

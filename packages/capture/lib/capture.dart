@@ -6,6 +6,7 @@
 library;
 
 export 'src/capture_pipeline.dart';
+export 'src/document_extract.dart';
 export 'src/document_router.dart';
 export 'src/interfaces.dart';
 export 'src/llm_json.dart';

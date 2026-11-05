@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:io' show Directory;
 
 import 'package:billing/billing.dart' show TipService;
-import 'package:capture/capture.dart' show CapturePipeline;
+import 'package:capture/capture.dart'
+    show CapturePipeline, DocumentExtractor, DocumentRouter, DocRoute;
 import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import '../capture/capture_source_sheet.dart';
 import '../capture/review_sheet.dart';
 import 'package:local_budget/features/cloud/cloud_hub.dart';
 import '../help/help_screen.dart';
+import '../import/import_wizard_screen.dart';
 import '../manage/icon_registry.dart';
 import '../manage/io.dart';
 import '../manage/manage_screen.dart';
@@ -255,7 +257,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ),
       );
     }
-    _reviewPick(picks.first);
+    _reviewPick(picks.first, fromShare: true);
   }
 
   @override
@@ -370,9 +372,58 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The Review half of every capture entry point — source-sheet picks and
   /// external shares converge here (decision 5: one document → one review →
   /// at most one write, whoever initiated it).
-  Future<void> _reviewPick(CapturePick pick) async {
+  Future<void> _reviewPick(CapturePick pick, {bool fromShare = false}) async {
     final services = widget.capture;
     if (services == null || !mounted) return;
+    // E11 §5 — a shared *statement* is the one thing Review is wrong for.
+    // A cheap sniff (text layer, or page 1 only — never a 10-page OCR)
+    // offers the wizard hand-off; declining or any ambiguity keeps today's
+    // receipt-first Review exactly as it was.
+    if (fromShare &&
+        pick.choice == CaptureChoice.pdf &&
+        widget.db != null &&
+        widget.io != null) {
+      final looksLikeStatement = await _sniffStatement(services, pick);
+      if (!mounted) return;
+      if (looksLikeStatement) {
+        final go = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Looks like a statement'),
+            content: const Text(
+              'Import it to review the rows before anything is saved.',
+            ),
+            actions: [
+              TextButton(
+                key: const Key('share-read-receipt'),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Read as receipt'),
+              ),
+              FilledButton(
+                key: const Key('share-open-import'),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Open Import'),
+              ),
+            ],
+          ),
+        );
+        if (go == true && mounted) {
+          final db = widget.db!, io = widget.io!;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ImportWizardScreen(
+                repository: widget.repository,
+                db: db,
+                io: io,
+                capture: services,
+              ),
+            ),
+          );
+          return;
+        }
+        if (!mounted) return;
+      }
+    }
     final cats = await widget.repository.categories();
     if (!mounted) return;
     final captured = await showCaptureReview(
@@ -396,6 +447,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     if (captured == null || !mounted) return;
     await _saveCaptured(captured, fileExtension: pick.choice.fileExtension);
+  }
+
+  /// Cheap statement sniff for the share hand-off (E11 §5): trust the text
+  /// layer when there is one, else OCR page 1 only — deliberately without
+  /// the wizard's `scannedPdfPages` cap. A shared receipt must never pay
+  /// ten OCR passes for a dialog it will not show; a false negative just
+  /// means the owner gets Review, which is what shares always did.
+  Future<bool> _sniffStatement(
+    CaptureServices services,
+    CapturePick pick,
+  ) async {
+    try {
+      final read = await DocumentExtractor(
+        extractor: services.extractor,
+        renderer: services.renderer,
+      ).fromPdf(pick.bytes);
+      if (read == null || read.isEmpty) return false;
+      return DocumentRouter.route(read.lines, currency: _currency) ==
+          DocRoute.statement;
+    } on Object {
+      return false;
+    }
   }
 
   /// The one write (decision 5): original saved first so the row can carry
@@ -457,6 +530,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           db: widget.db,
           docsDir: widget.docsDir,
           io: widget.io ?? const RealIo(),
+          capture: widget.capture,
           restore: widget.restore,
           tips: widget.tips,
           transfer: widget.transfer,

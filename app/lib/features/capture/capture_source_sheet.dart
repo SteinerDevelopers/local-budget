@@ -7,21 +7,36 @@ import 'capture_intake.dart';
 
 /// E2 §2.1 — the capture source sheet. Same 48 % frame rules as QuickAdd;
 /// four full-width rows, one row per tap, sheet closes as the picker opens.
+/// E11 §5 reuses it without the screenshot row and with document wording.
 Future<CaptureChoice?> showCaptureSourceSheet(
   BuildContext context, {
   required bool showScreenshotRow,
+  String title = 'Add from receipt',
+  String subtitle =
+      'One receipt at a time — you review before it\u2019s saved.',
 }) => showModalBottomSheet<CaptureChoice>(
   context: context,
   isScrollControlled: true,
   useSafeArea: true,
-  builder: (sheetContext) =>
-      CaptureSourceSheet(showScreenshotRow: showScreenshotRow),
+  builder: (sheetContext) => CaptureSourceSheet(
+    showScreenshotRow: showScreenshotRow,
+    title: title,
+    subtitle: subtitle,
+  ),
 );
 
 class CaptureSourceSheet extends StatelessWidget {
-  const CaptureSourceSheet({super.key, required this.showScreenshotRow});
+  const CaptureSourceSheet({
+    super.key,
+    required this.showScreenshotRow,
+    this.title = 'Add from receipt',
+    this.subtitle =
+        'One receipt at a time — you review before it\u2019s saved.',
+  });
 
   final bool showScreenshotRow;
+  final String title;
+  final String subtitle;
 
   static const _icons = <CaptureChoice, IconData>{
     CaptureChoice.camera: Icons.photo_camera_outlined,
@@ -50,7 +65,7 @@ class CaptureSourceSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add from receipt',
+              title,
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w500),
@@ -58,7 +73,7 @@ class CaptureSourceSheet extends StatelessWidget {
             const SizedBox(height: Tokens.space1),
             // Decision 5, made audible at the front door.
             Text(
-              'One receipt at a time — you review before it\u2019s saved.',
+              subtitle,
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),

@@ -10,6 +10,7 @@ import '../../design/tokens.dart';
 import '../../flavor.dart';
 import '../../version.dart';
 import '../budgets/budgets_sheet.dart';
+import '../capture/capture_services.dart';
 import 'package:local_budget/features/cloud/cloud_backup_screen.dart';
 import 'package:local_budget/features/cloud/cloud_hub.dart';
 import '../help/help_screen.dart';
@@ -36,6 +37,7 @@ class ManageScreen extends StatefulWidget {
     this.db,
     this.docsDir,
     this.io = const RealIo(),
+    this.capture,
     this.restore,
     this.tips,
     this.transfer,
@@ -59,6 +61,10 @@ class ManageScreen extends StatefulWidget {
 
   /// File boundary (§3): picked/shared bytes. Injectable for tests.
   final Io io;
+
+  /// E11 §5 — capture services for the wizard's document row; null hides
+  /// the row (the wizard still imports CSV/OFX exactly as before).
+  final CaptureServices? capture;
 
   /// Cold-restart restore (main.dart owns the db + widget tree; the sheet
   /// may not touch context once this future starts).
@@ -526,6 +532,7 @@ class _ManageScreenState extends State<ManageScreen> {
           repository: widget.repository,
           db: db,
           io: widget.io,
+          capture: widget.capture,
         ),
       ),
     );

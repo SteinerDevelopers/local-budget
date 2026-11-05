@@ -1,29 +1,45 @@
 import 'dart:convert';
 
+import 'package:capture/capture.dart';
 import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/money_display.dart';
 import '../../design/tokens.dart';
+import '../bills/bill_editor_sheet.dart';
+import '../capture/capture_intake.dart';
+import '../capture/capture_services.dart';
+import '../capture/capture_source_sheet.dart';
 import '../manage/io.dart';
+
+/// What the wizard is importing (E5 §4; E11 §5 adds documents). The three
+/// formats share one Preview and one Done — only how lines get *in* differs.
+enum ImportFormat { csv, ofx, document }
 
 /// E5 §4/§5 — the full-screen import wizard (spec: "no new tab"). One route,
 /// four visual steps that are really three states + a done panel:
-/// Source → Map (CSV only; OFX carries its own mapping) → Preview → Done.
-/// Preview is the single shared screen for both formats, which is why the
-/// data layer reuses [CsvPreview] for OFX.
+/// Source → Map (CSV only; OFX and documents carry their own mapping) →
+/// Preview → Done. Preview is the single shared screen for all formats,
+/// which is why the data layer reuses [CsvPreview] for OFX — and, since
+/// E11, for statement-routed documents, whose rows commit through
+/// [CsvImport.commit] unchanged so the duplicate tuple stays one thing.
 class ImportWizardScreen extends StatefulWidget {
   const ImportWizardScreen({
     super.key,
     required this.repository,
     required this.db,
     required this.io,
+    this.capture,
   });
 
   final LedgerRepository repository;
   final AppDatabase db;
   final Io io;
+
+  /// E11 §5 — camera/photo/PDF intake + OCR for the document row. Null on
+  /// hosts without capture services: the row is *hidden*, never a dead end.
+  final CaptureServices? capture;
 
   @override
   State<ImportWizardScreen> createState() => _ImportWizardScreenState();
@@ -41,9 +57,15 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
 
   CsvPreview? _preview;
   Set<int> _checked = {};
-  bool _isOfx = false;
+  ImportFormat _format = ImportFormat.csv;
   int? _done;
+  String? _doneLabel;
   bool _busy = false;
+  // E11 — the document route reads OCR off the main thread while the
+  // source panel wears a spinner; a scanned-PDF page-cap is disclosed in
+  // the preview via [_docNote].
+  bool _reading = false;
+  String? _docNote;
   final _profileName = TextEditingController();
   bool _profileSaved = false;
 
@@ -120,9 +142,11 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
     final mapping = profile?.mapping ?? csv.autoMap(file);
     setState(() {
       _file = file;
-      _isOfx = false;
+      _format = ImportFormat.csv;
       _preview = null;
       _done = null;
+      _doneLabel = null;
+      _docNote = null;
       _roles = mapping.roles;
       _dateFormat = mapping.dateFormat ?? csvDateFormats.first;
       _debitExpense = mapping.debitMeansExpense;
@@ -137,10 +161,12 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
       ).buildPreview(xmlText: text, accountId: accountId);
       if (!mounted) return;
       setState(() {
-        _isOfx = true;
+        _format = ImportFormat.ofx;
         _file = null;
         _preview = preview;
         _done = null;
+        _doneLabel = null;
+        _docNote = null;
         _checked = {
           for (final r in preview.rows)
             if (!r.duplicate) r.rowIndex,
@@ -150,6 +176,143 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
       _snack(e.message);
     }
   }
+
+  // ---- document route (E11 §5) ------------------------------------------------
+
+  /// Photo or PDF → [DocumentExtractor] → [DocumentRouter] → statement
+  /// preview, bill editor, or the honest "couldn't read" pointer. Routing
+  /// happens here in the app layer — capture stays independent of data,
+  /// so the router's verdict is glued to the parsers by whoever owns both.
+  Future<void> _pickDocument() async {
+    final capture = widget.capture;
+    if (capture == null) return;
+    final choice = await showCaptureSourceSheet(
+      context,
+      showScreenshotRow: false,
+      title: 'Add from a document',
+      subtitle:
+          'A bill or a bank statement — you review before anything is saved.',
+    );
+    if (choice == null || choice == CaptureChoice.screenshot || !mounted) {
+      return;
+    }
+    CapturePick? pick;
+    try {
+      pick = await capture.intake.pick(choice);
+    } on Object {
+      // The picker's own failure states are silent-and-retryable, same
+      // contract as the receipt flow (§2.1): back at the source panel.
+      return;
+    }
+    if (pick == null || !mounted) return;
+    setState(() => _reading = true);
+    DocumentRead? read;
+    try {
+      final reader = DocumentExtractor(
+        extractor: capture.extractor,
+        renderer: capture.renderer,
+        scannedPdfPages: capture.scannedPdfPages,
+      );
+      read = pick.choice == CaptureChoice.pdf
+          ? await reader.fromPdf(pick.bytes)
+          : await reader.fromImage(pick.bytes);
+    } finally {
+      if (mounted) setState(() => _reading = false);
+    }
+    if (!mounted) return;
+    if (read == null || read.isEmpty) {
+      _snack('We couldn’t read any text from it — try CSV or OFX instead.');
+      return;
+    }
+    switch (DocumentRouter.route(read.lines, currency: _currency)) {
+      case DocRoute.statement:
+        await _previewDocument(read);
+      case DocRoute.bill:
+        await _billFromDocument(read);
+      case DocRoute.other:
+        _snack(
+          'We couldn’t read a bill or a statement from it — '
+          'try CSV or OFX instead.',
+        );
+    }
+  }
+
+  /// Statement-routed lines become [StatementRow]s and ride the *same*
+  /// Preview and commit path as CSV/OFX (E11 §5) — the duplicate tuple
+  /// is shared, nothing about this route bypasses review.
+  Future<void> _previewDocument(DocumentRead read) async {
+    final accountId = _accountId;
+    if (accountId == null || _busy) return;
+    final parsed = StatementLines.tryParse(read.lines, currency: _currency);
+    final rows = parsed?.rows ?? const <StatementRow>[];
+    if (rows.isEmpty) {
+      _snack(
+        'We couldn’t read reliable dates and amounts from it — '
+        'try CSV or OFX instead.',
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final preview = await CsvImport(
+        widget.db,
+      ).previewStatement(accountId: accountId, currency: _currency, rows: rows);
+      if (!mounted) return;
+      setState(() {
+        _format = ImportFormat.document;
+        _file = null;
+        _preview = preview;
+        _done = null;
+        _doneLabel = null;
+        _docNote = read.truncated
+            ? 'We read the first ${read.pagesRead} pages of the PDF — '
+                  'later pages are not included.'
+            : null;
+        _checked = {
+          for (final r in preview.rows)
+            if (!r.duplicate) r.rowIndex,
+        };
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Bill-routed lines seed the E4 editor head start (E11 §4): payee,
+  /// amount and due date arrive filled, the owner taps Save or backs out —
+  /// the bill is never written by the document alone.
+  Future<void> _billFromDocument(DocumentRead read) async {
+    final draft = BillDraft.draft(read.lines, currency: _currency);
+    final cats = await widget.repository.categories();
+    if (!mounted) return;
+    final saved = await showBillEditor(
+      context,
+      repository: widget.repository,
+      currency: _currency,
+      categories: cats,
+      prefill: BillPrefill(
+        name: draft.payee ?? '',
+        amountMinor: draft.amountDue?.minorUnits ?? 0,
+        dueDate: draft.dueDate,
+        fromDocument: true,
+      ),
+    );
+    if (!mounted) return;
+    if (saved == true) {
+      setState(() {
+        _file = null;
+        _preview = null;
+        _done = 1;
+        _doneLabel = 'Bill saved.';
+      });
+    }
+    // Backing out leaves the source panel exactly as it was — a document
+    // that was refused is not half-imported anything.
+  }
+
+  /// Documents carry no currency declaration (§3): they take the target
+  /// account's, same as the CSV route.
+  Currency get _currency => Currency.resolve(_account.currencyCode);
 
   // ---- map → preview ----------------------------------------------------------
 
@@ -201,7 +364,9 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
     }
     setState(() => _busy = true);
     try {
-      final n = _isOfx
+      // Statement-routed documents commit through the CSV branch — same
+      // rows, same dedupe tuple, same source stamp (E11 §5).
+      final n = _format == ImportFormat.ofx
           ? await OfxImport(widget.db).commit(
               accountId: accountId,
               currency: preview.currency,
@@ -243,7 +408,11 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
           (_, _, final int n) => _donePanel(n),
           (_, final CsvPreview preview, null) => _previewPanel(preview),
           (final CsvFileData file?, _, null) => _mapPanel(file),
-          (null, null, null) => _sourcePanel(),
+          // The document route reaches Preview only after the read is
+          // done; until then the source panel wears the spinner (E2's
+          // busy grammar, spec §5 "existing wizard frame").
+          (null, null, null) =>
+            _reading || _busy ? _readingPanel() : _sourcePanel(),
         },
       ),
     );
@@ -290,7 +459,32 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
         subtitle: const Text('Bank-format statement (1.x, XML)'),
         onTap: () => _pick(ofx: true),
       ),
+      // E11 §5 — the third source row, hidden (never dead-ended) when
+      // this build has no capture services at all.
+      if (widget.capture != null)
+        ListTile(
+          key: const Key('import-pick-document'),
+          leading: const Icon(Icons.document_scanner_outlined, size: 32),
+          title: const Text('Photo or PDF'),
+          subtitle: const Text('Bill or bank statement — read on device'),
+          onTap: _pickDocument,
+        ),
     ],
+  );
+
+  Widget _readingPanel() => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const CircularProgressIndicator(key: Key('import-reading')),
+        const SizedBox(height: Tokens.space4),
+        Text(
+          'Reading your document…',
+          key: const Key('import-reading-label'),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ],
+    ),
   );
 
   Widget _mapPanel(CsvFileData file) {
@@ -408,7 +602,9 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
   }
 
   Widget _previewPanel(CsvPreview preview) {
-    final mismatch = _isOfx && preview.currency.code != _account.currencyCode;
+    final mismatch =
+        _format == ImportFormat.ofx &&
+        preview.currency.code != _account.currencyCode;
     return Column(
       children: [
         Padding(
@@ -449,6 +645,21 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: Tokens.warning),
+            ),
+          ),
+        // E11 §5 — a scanned preview says what was read and how it is
+        // matched; truncation is disclosed here, not hidden in a log.
+        if (_format == ImportFormat.document)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Text(
+              'Scanned rows are checked against what is already in '
+              'the account.'
+              '${_docNote == null ? '' : ' $_docNote'}',
+              key: const Key('import-document-note'),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         Expanded(
@@ -506,12 +717,13 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
         ),
         const SizedBox(height: Tokens.space3),
         Text(
-          'Imported $n ${n == 1 ? 'transaction' : 'transactions'}',
+          _doneLabel ??
+              'Imported $n ${n == 1 ? 'transaction' : 'transactions'}',
           key: const Key('import-done'),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        if (!_isOfx && !_profileSaved && _file != null) ...[
+        if (_format == ImportFormat.csv && !_profileSaved && _file != null) ...[
           const SizedBox(height: Tokens.space5),
           TextField(
             key: const Key('profile-name-field'),

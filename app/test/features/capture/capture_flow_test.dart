@@ -7,7 +7,7 @@ import 'dart:ffi' show DynamicLibrary;
 import 'dart:io';
 import 'dart:typed_data' show Uint8List;
 
-import 'package:capture/capture.dart' show TextExtractor;
+import 'package:capture/capture.dart' show TextExtractor, TextRenderer;
 import 'package:core/core.dart' show Currency, Money, TransactionSource;
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:local_budget/features/capture/capture_intake.dart';
 import 'package:local_budget/features/capture/capture_services.dart';
 import 'package:local_budget/features/capture/review_sheet.dart';
+import 'package:local_budget/features/import/import_wizard_screen.dart';
 import 'package:local_budget/features/ledger/transaction_row.dart';
+import 'package:local_budget/features/manage/io.dart' show Io, PickedFile;
 import 'package:local_budget/main.dart';
 import 'package:sqlite3/open.dart' as sqlite3_open;
 
@@ -42,6 +44,33 @@ class _FakeIntake implements CaptureIntake {
   @override
   Future<CapturePick?> pick(CaptureChoice choice) async =>
       cancel ? null : CapturePick(bytes: kPng, choice: choice);
+}
+
+// E11 §5 share hand-off: page 1 rasterizes to the same 1×1 PNG; the fake
+// extractor decides what the document "says", so the router verdict is the
+// production code's, driven entirely by canned lines.
+class _FakeRenderer implements TextRenderer {
+  @override
+  Future<Uint8List> renderPage1(Uint8List pdf) async => kPng;
+}
+
+class _FakeShares implements ShareIngest {
+  _FakeShares(this.picks);
+  final List<CapturePick> picks;
+  @override
+  Future<List<CapturePick>> initial() async => picks;
+  @override
+  Stream<List<CapturePick>> get stream => const Stream.empty();
+}
+
+class _NoIo implements Io {
+  @override
+  Future<PickedFile?> pickFile({List<String>? extensions}) async => null;
+  @override
+  Future<void> shareFile({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {}
 }
 
 void main() {
@@ -388,5 +417,109 @@ void main() {
     } finally {
       await ctx.db.close();
     }
+  });
+
+  // E11 §5 — a shared PDF that reads like a statement is the one share
+  // Review gets wrong; the cheap sniff offers the Import wizard instead.
+  // db + io must be present or the wizard could not open, so this harness
+  // passes both — unlike pumpCapture above.
+  group('shared statement hand-off (E11 §5)', () {
+    const statementLines = [
+      '12/01/2026 CORNER MARKET 24.60 1,204.60',
+      '12/03/2026 SALARY CREDIT 2,400.00 3,604.60',
+      '12/05/2026 UTILITY AUTO PAY 84.00 3,520.60',
+    ];
+
+    CaptureServices shared(List<String> lines, CaptureChoice choice) =>
+        CaptureServices(
+          intake: _FakeIntake(),
+          extractor: _FakeExtractor(lines),
+          renderer: _FakeRenderer(),
+          store: AttachmentStore(storeRoot),
+          shares: _FakeShares([CapturePick(bytes: kPng, choice: choice)]),
+        );
+
+    Future<({AppDatabase db, LedgerRepository repo})> pumpShared(
+      WidgetTester tester,
+      CaptureServices capture,
+    ) async {
+      final db = AppDatabase.inMemory();
+      final repo = LedgerRepository(db);
+      await repo.ensureDefaults();
+      await tester.pumpWidget(
+        LocalBudgetApp(repository: repo, db: db, capture: capture, io: _NoIo()),
+      );
+      await tester.pumpAndSettle();
+      return (db: db, repo: repo);
+    }
+
+    testWidgets('a shared statement PDF offers the wizard', (tester) async {
+      final ctx = await pumpShared(
+        tester,
+        shared(statementLines, CaptureChoice.pdf),
+      );
+      try {
+        expect(find.text('Looks like a statement'), findsOneWidget);
+        expect(
+          find.text('Import it to review the rows before anything is saved.'),
+          findsOneWidget,
+        );
+        expect(find.byType(CaptureReviewSheet), findsNothing);
+
+        await tester.tap(find.byKey(const Key('share-open-import')));
+        await tester.pumpAndSettle();
+        expect(find.byType(ImportWizardScreen), findsOneWidget);
+        expect(find.byKey(const Key('import-pick-document')), findsOneWidget);
+      } finally {
+        await ctx.db.close();
+      }
+    });
+
+    testWidgets('declining the sniff keeps today’s receipt Review', (
+      tester,
+    ) async {
+      final ctx = await pumpShared(
+        tester,
+        shared(statementLines, CaptureChoice.pdf),
+      );
+      try {
+        await tester.tap(find.byKey(const Key('share-read-receipt')));
+        await tester.pumpAndSettle();
+        expect(find.byType(CaptureReviewSheet), findsOneWidget);
+      } finally {
+        await ctx.db.close();
+      }
+    });
+
+    testWidgets('a receipt PDF and a camera share never see the dialog', (
+      tester,
+    ) async {
+      // Bill-ish receipt: a total but no due date → not a statement.
+      final ctx = await pumpShared(
+        tester,
+        shared(const [
+          'GREENGROCER MARKET',
+          '2026-10-28',
+          'TOTAL 12.34',
+        ], CaptureChoice.pdf),
+      );
+      try {
+        expect(find.text('Looks like a statement'), findsNothing);
+        expect(find.byType(CaptureReviewSheet), findsOneWidget);
+      } finally {
+        await ctx.db.close();
+      }
+
+      final ctx2 = await pumpShared(
+        tester,
+        shared(statementLines, CaptureChoice.camera),
+      );
+      try {
+        expect(find.text('Looks like a statement'), findsNothing);
+        expect(find.byType(CaptureReviewSheet), findsOneWidget);
+      } finally {
+        await ctx2.db.close();
+      }
+    });
   });
 }

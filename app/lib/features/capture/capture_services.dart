@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:capture/capture.dart';
 import 'package:core/core.dart';
 import 'package:data/data.dart';
@@ -36,6 +38,7 @@ class CaptureServices {
     required this.intake,
     this.extractor,
     this.renderer,
+    this.scannedPdfPages,
     this.store,
     this.shares,
     this.structurerFor,
@@ -44,6 +47,13 @@ class CaptureServices {
   final CaptureIntake intake;
   final TextExtractor? extractor;
   final TextRenderer? renderer;
+
+  /// E11 §2 — scanned-PDF pages for the document wizard, capped at
+  /// [kRenderedPageCap] by the adapter. A tear-off of the concrete channel
+  /// adapter's method: extension members never dispatch virtually, so the
+  /// [TextRenderer] interface alone can only ever offer page 1.
+  final Future<List<Uint8List>> Function(Uint8List pdf)? scannedPdfPages;
+
   final AttachmentStore? store;
   final ShareIngest? shares;
 

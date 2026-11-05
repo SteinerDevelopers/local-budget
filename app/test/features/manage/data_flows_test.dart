@@ -12,12 +12,15 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:capture/capture.dart' show TextExtractor;
 import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:local_budget/features/capture/capture_intake.dart';
+import 'package:local_budget/features/capture/capture_services.dart';
 import 'package:local_budget/features/manage/io.dart';
 import 'package:local_budget/features/manage/manage_screen.dart';
 import 'package:local_budget/main.dart';
@@ -39,6 +42,50 @@ class FakeIo implements Io {
     required String fileName,
   }) async => shared.add((bytes, fileName));
 }
+
+/// E11 document-import seam: the intake hands back opaque bytes the
+/// [TextExtractor] fake maps to canned lines (tag = first byte lets one
+/// extractor answer per-page for scanned PDFs). Nothing below this boundary
+/// is faked — routing, parsing, preview and commit are the real path.
+class DocIntake implements CaptureIntake {
+  @override
+  bool get hasScreenshotRow => false;
+
+  @override
+  Future<CapturePick?> pick(CaptureChoice choice) async =>
+      CapturePick(bytes: Uint8List.fromList([0]), choice: choice);
+}
+
+class LinesExtractor implements TextExtractor {
+  LinesExtractor({this.lines = const [], this.byTag = const {}});
+  final List<String> lines;
+  final Map<int, List<String>> byTag;
+
+  @override
+  Future<List<String>> extractText(Uint8List image) async =>
+      byTag[image.isEmpty ? 0 : image.first] ?? lines;
+}
+
+class FakeScannedPages {
+  FakeScannedPages(this.count);
+  final int count;
+
+  Future<List<Uint8List>> renderPages(Uint8List pdf) => Future.value([
+    for (var i = 1; i <= count; i++) Uint8List.fromList([i]),
+  ]);
+}
+
+CaptureServices docServices({
+  List<String> lines = const [],
+  Map<int, List<String>> byTag = const {},
+  int scannedPages = 0,
+}) => CaptureServices(
+  intake: DocIntake(),
+  extractor: LinesExtractor(lines: lines, byTag: byTag),
+  scannedPdfPages: scannedPages == 0
+      ? null
+      : FakeScannedPages(scannedPages).renderPages,
+);
 
 void main() {
   sqlite3_open.open.overrideFor(
@@ -72,6 +119,7 @@ void main() {
     AppDatabase? db,
     Directory? docs,
     Io? io,
+    CaptureServices? capture,
     FxService? fx,
     Future<void> Function(Backup backup)? restore,
   }) async {
@@ -82,6 +130,7 @@ void main() {
           db: db,
           docsDir: docs,
           io: io ?? FakeIo(),
+          capture: capture,
           fx: fx,
           restore: restore,
           kdfIterations: 1000,
@@ -527,6 +576,205 @@ void main() {
         expect(rows.map((x) => x.source).toSet(), {
           TransactionSource.statementImport,
         });
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+  });
+
+  group('document import (E11 §5)', () {
+    // ≥ kStatementMinRows date+amount lines, no bill signature.
+    final statementLines = const [
+      '12/01/2026 CORNER MARKET 24.60 1,204.60',
+      '12/03/2026 SALARY CREDIT 2,400.00 3,604.60',
+      '12/05/2026 UTILITY AUTO PAY 84.00 3,520.60',
+      '12/08/2026 COFFEE HOUSE 4.75 3,515.85',
+    ];
+    const billLines = [
+      'ACME ELECTRIC',
+      'AMOUNT DUE 84.00',
+      'PAYMENT DUE DATE 01/15/2027',
+    ];
+
+    /// Manage → Import → the third row → one sheet choice, services faked.
+    Future<void> openDocument(WidgetTester tester, String rowLabel) async {
+      await tapRow(tester, 'import-statement');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('import-pick-document')));
+      await tester.pumpAndSettle();
+      expect(find.text('Add from a document'), findsOneWidget);
+      await tester.tap(find.text(rowLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('statement photo → same Preview and commit path as CSV', (
+      tester,
+    ) async {
+      final r = await liveDb();
+      try {
+        await pumpManage(
+          tester,
+          repo: r.repo,
+          db: r.db,
+          docs: r.docs,
+          capture: docServices(lines: statementLines),
+        );
+        await openDocument(tester, 'Photos');
+        // No column mapping — scanned lines arrive pre-parsed (§5).
+        expect(find.text('What is each column?'), findsNothing);
+        expect(find.byKey(const Key('import-document-note')), findsOneWidget);
+        expect(
+          find.textContaining(
+            'Scanned rows are checked against what is already in the account.',
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const Key('import-commit')));
+        await tester.pumpAndSettle();
+        expect(find.text('Imported 4 transactions'), findsOneWidget);
+
+        final rows = await r.db.select(r.db.transactions).get();
+        expect(rows, hasLength(4));
+        expect(rows.map((x) => x.source).toSet(), {
+          TransactionSource.statementImport,
+        });
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+
+    testWidgets('scanned PDF past the page cap says so on the preview', (
+      tester,
+    ) async {
+      final r = await liveDb();
+      // Pages 1–2 carry the rows; the fake rasterizer still hands over 12.
+      final byTag = {
+        1: statementLines.take(2).toList(),
+        2: statementLines.skip(2).take(2).toList(),
+      };
+      try {
+        await pumpManage(
+          tester,
+          repo: r.repo,
+          db: r.db,
+          docs: r.docs,
+          capture: docServices(byTag: byTag, scannedPages: 12),
+        );
+        await openDocument(tester, 'PDF file');
+        expect(find.text('4 new'), findsOneWidget);
+        expect(
+          find.textContaining(
+            'We read the first 10 pages of the PDF — '
+            'later pages are not included.',
+          ),
+          findsOneWidget,
+        );
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+
+    testWidgets('bill photo → prefilled editor → “Bill saved.”, nothing '
+        'written without the Save tap', (tester) async {
+      final r = await liveDb();
+      try {
+        await pumpManage(
+          tester,
+          repo: r.repo,
+          db: r.db,
+          docs: r.docs,
+          capture: docServices(lines: billLines),
+        );
+        await openDocument(tester, 'Photos');
+        expect(find.byKey(const Key('bill-prefill-note')), findsOneWidget);
+        expect(
+          find.text(
+            'We read this from your document — check it before saving.',
+          ),
+          findsOneWidget,
+        );
+        final nameField = tester.widget<TextField>(
+          find.byKey(const Key('bill-name')),
+        );
+        expect(nameField.controller!.text, 'ACME ELECTRIC');
+
+        // The editor never invents a category — pick one (the row scrolls,
+        // so tap the chip that is guaranteed built), then Save.
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('bill-categories')),
+            matching: find.text('Food'),
+          ),
+        );
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('bill-save')));
+        await tester.pumpAndSettle();
+        expect(find.text('Bill saved.'), findsOneWidget);
+
+        final rules = await r.db.select(r.db.recurringRules).get();
+        expect(rules, hasLength(1));
+        expect(rules.single.name, 'ACME ELECTRIC');
+        expect(rules.single.amountMinor, 8400);
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+
+    testWidgets('a document that is neither points at CSV/OFX', (tester) async {
+      final r = await liveDb();
+      try {
+        await pumpManage(
+          tester,
+          repo: r.repo,
+          db: r.db,
+          docs: r.docs,
+          capture: docServices(
+            lines: const ['hello there', 'nothing readable', 'just words'],
+          ),
+        );
+        await openDocument(tester, 'Photos');
+        expect(
+          find.textContaining('We couldn’t read a bill or a statement from it'),
+          findsOneWidget,
+        );
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+
+    testWidgets('no readable text is an honest refusal, not a dead end', (
+      tester,
+    ) async {
+      final r = await liveDb();
+      try {
+        await pumpManage(
+          tester,
+          repo: r.repo,
+          db: r.db,
+          docs: r.docs,
+          capture: docServices(lines: const []),
+        );
+        await openDocument(tester, 'Photos');
+        expect(
+          find.textContaining('We couldn’t read any text from it'),
+          findsOneWidget,
+        );
+        // Still usable: the source panel is where we landed, not a crash.
+        expect(find.byKey(const Key('import-pick-csv')), findsOneWidget);
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+
+    testWidgets('the row is hidden entirely without capture services', (
+      tester,
+    ) async {
+      final r = await liveDb();
+      try {
+        await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs);
+        await tapRow(tester, 'import-statement');
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('import-pick-document')), findsNothing);
       } finally {
         await tearDownDb(r);
       }
