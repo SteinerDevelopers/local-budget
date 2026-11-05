@@ -885,10 +885,18 @@ class _DayList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = _flattenDays(rows);
-    return ListView.builder(
-      // FAB clearance so the last row never hides under it.
-      padding: const EdgeInsets.only(bottom: Tokens.space5 + 40),
+    // Owner standardization, 2026-11-05 (tester note): Receipts wears the
+    // Bills list's hairline between rows so the two panels read as one
+    // family. The line sits between two transactions only — a day header
+    // is its own separator. The retired FAB's clearance is gone; the
+    // PanelAddBar below is the list's floor, exactly like Bills.
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: Tokens.space2),
       itemCount: items.length,
+      separatorBuilder: (_, i) =>
+          items[i] is DateTime || items[i + 1] is DateTime
+          ? const SizedBox.shrink()
+          : const Divider(height: 1, thickness: 0.5),
       itemBuilder: (context, i) {
         final item = items[i];
         if (item is DateTime) return _DayHeader(day: item);
