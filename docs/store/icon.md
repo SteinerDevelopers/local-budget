@@ -11,7 +11,7 @@ Vault V8 unchanged: one outline silhouette, Free paper/steel, Pro inverted +
 
 | concept | the job it signals | mass-market read | confusion risk | 32 px |
 |---|---|---|---|---|
-| **jar** | *the app itself*: fill toward the limit line; coin dropping in; limit tick = the green-until-red rule | personal finance / savings goal | water-tracker (killed by tick+coin) | ✅ tick+fill+coin all survive |
+| **jar** | *the app itself*: fill toward the limit line; coin dropping in; limit tick = the green-until-red rule. Marks flank the wall at fill level (steel Free / amber Pro — owner caught the first draft's paper-on-paper free-tier line) | personal finance / savings goal | water-tracker (killed by tick+coin) | ✅ tick+fill+coin all survive |
 | **piggy** | the universal budgeting animal; coin into slot | instant "budget/savings" | kids' savings apps, banking | ✅ blob+coin readable |
 | **envelope** | envelope budgeting (the YNAB-school term of art) | budgeting / expense | **mail/email apps** — real | ✅ |
 | **dial** | progress vs target (the Reports gauge) | analytics / habit tracker | speedometer/fitness | ⚠️ needle+arc mush — self-eliminated |
