@@ -76,3 +76,26 @@ trade-off is accepted.
 Advisory (ollamatest, verified): best_for_private_budget = pigsolid;
 category risks noted: pig reads savings-adjacent (savings/investing apps)
 — acceptable, same shelf neighborhood as budgeting.
+
+
+## Coin-ness round (owner Q: make the coin look like a coin?)
+
+Tested on the house: plain pair vs $-pair vs $-single vs ¢-single vs
+ridged rim (batch6, `icon-candidates6/` + verdict board).
+
+- ridged rim → reads GEAR. Dead.
+- ¢ (C+bar) → reads arrow/power-button at every size. Dead.
+- $-single → advisor liked it, but centered disc+mark re-opens the
+  bullseye symmetry — rejected on prior owner catch.
+- **$-pair (thick vector $, no serifs, knockout in ground color)** →
+  reads money from 512 to 32 px (4×-zoom checked; advisor: mark reads
+  dollar, survives small; plain pair flagged mush/no-money at 32).
+  Mark is **additive**: at tiny sizes it degrades to the plain-pair
+  texture we already had — never worse, often clearer.
+
+**Owner decision embedded in this pick: currency.** A "$" commits the
+brand to USD framing even though the app has a base-currency picker
+(Manage → Base currency). Fine if US-first (Play copy, store shots,
+pricing all USD); wrong if EU launch is close. ¢ was tried and cannot
+compete. If a neutral mark is ever needed, plain pair stays one commit
+away (tag: coin-pair).
