@@ -11,8 +11,6 @@ import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_budget/design/theme.dart';
-import 'package:local_budget/features/ledger/ledger_screen.dart'
-    show monthIndexOf;
 import 'package:local_budget/features/ledger/transaction_detail_sheet.dart';
 import 'package:sqlite3/open.dart' as sqlite3_open;
 
@@ -84,7 +82,9 @@ void main() {
           categoryId: cat.id,
           imageRef: rel,
         );
-        final entries = await repo.watchMonth(monthIndexOf(DateTime(2026, 9, 15))).first;
+        final entries = await repo
+            .watchMonth(yearMonthOf(DateTime(2026, 9, 15)))
+            .first;
         final entry = entries.single;
         expect(entry.imageRef, rel); // the projection carries it now
 
@@ -120,10 +120,10 @@ void main() {
           source: TransactionSource.manual,
           categoryId: cat.id,
         );
-        final entry = (await repo
-                .watchMonth(monthIndexOf(DateTime(2026, 9, 15))))
-            .first
-            .single;
+        final entries = await repo
+            .watchMonth(yearMonthOf(DateTime(2026, 9, 15)))
+            .first;
+        final entry = entries.single;
         final dir = Directory.systemTemp.createTempSync('attach-none');
         try {
           await openDetail(tester, repo, entry, AttachmentStore(dir));
