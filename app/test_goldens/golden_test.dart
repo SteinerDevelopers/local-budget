@@ -23,6 +23,9 @@ import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_budget/features/capture/capture_intake.dart';
+import 'package:local_budget/features/budgets/budgets_sheet.dart';
+import 'package:local_budget/features/ledger/ledger_screen.dart'
+    show LedgerScreen, monthIndexOf;
 import 'package:local_budget/features/capture/capture_services.dart';
 import 'package:local_budget/features/goals/goal_detail_sheet.dart';
 import 'package:local_budget/features/goals/goals_service.dart';
@@ -89,6 +92,18 @@ void main() {
             ? ThemeMode.light
             : ThemeMode.dark,
       ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  // 2026-11-06: the Manage → 'Budgets & bills' duplicate row was removed
+  // (bottom nav is the surface), so goldens open the sheet through the same
+  // front door the home-screen widget and bill notifications use.
+  Future<void> openBudgetsSheet(WidgetTester tester, LedgerRepository repo) async {
+    showBudgetsSheet(
+      tester.element(find.byType(LedgerScreen).first),
+      repository: repo,
+      monthIndex: monthIndexOf(DateTime.now()),
     );
     await tester.pumpAndSettle();
   }
@@ -397,12 +412,10 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo);
-          // The 2026-11-05 IA pass moved the sheet behind Manage: the
-          // Expenses stat now switches the home panel in place.
-          await tester.tap(find.byKey(const Key('manage-open')));
-          await tester.pumpAndSettle();
-          await tester.tap(find.text('Budgets & bills'));
-          await tester.pumpAndSettle();
+          // The Expenses stat now switches the home panel in place; the
+          // sheet itself is the widget/notification surface — open it
+          // through its front door (helper above).
+          await openBudgetsSheet(tester, repo);
           await expectLater(
             find.byType(BottomSheet),
             matchesGoldenFile('goldens/budgets_empty_$mode.png'),
@@ -471,10 +484,7 @@ void main() {
             categoryId: rent,
           );
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.byKey(const Key('manage-open')));
-          await tester.pumpAndSettle();
-          await tester.tap(find.text('Budgets & bills'));
-          await tester.pumpAndSettle();
+          await openBudgetsSheet(tester, repo);
           await expectLater(
             find.byType(BottomSheet),
             matchesGoldenFile('goldens/budgets_rows_$mode.png'),
@@ -520,10 +530,7 @@ void main() {
             nextDue: DateTime(2027, 6, 30),
           );
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.byKey(const Key('manage-open')));
-          await tester.pumpAndSettle();
-          await tester.tap(find.text('Budgets & bills'));
-          await tester.pumpAndSettle();
+          await openBudgetsSheet(tester, repo);
           // Scoped: the home bar behind the barrier also says 'Bills'.
           await tester.tap(
             find.descendant(
