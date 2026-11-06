@@ -326,7 +326,14 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       firstDate: DateTime(2015),
       lastDate: DateTime.now(),
     );
-    if (picked != null) setState(() => _day = picked);
+    if (picked == null) return;
+    // Chip-pick parity: collapse the strip after a calendar pick so the row
+    // returns to Today/USD/Add note — a backdated entry can then take a note
+    // in the same pass (the strip had no collapse affordance of its own).
+    setState(() {
+      _day = picked;
+      _dateStripOpen = false;
+    });
   }
 }
 

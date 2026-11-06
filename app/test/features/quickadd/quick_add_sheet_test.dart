@@ -168,6 +168,25 @@ void main() {
       expect(result!.amount, Money(500, _usd));
     });
 
+    testWidgets('calendar pick collapses the strip like the chips do', (tester) async {
+      // Bug (owner report, 2026-11-06): after a Calendar pick the row stayed
+      // in strip mode, so `Add note` was unreachable — backdated entries
+      // could not take a note in the same pass.
+      await openSheet(tester);
+      await tester.tap(find.text('Today'));
+      await tester.pump();
+      expect(find.text('Calendar…'), findsOneWidget);
+
+      await tester.tap(find.text('Calendar…'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Calendar…'), findsNothing); // strip collapsed
+      expect(find.text('Add note'), findsOneWidget); // note reachable again
+    });
+
     testWidgets('Add note swaps in a field, keeps the entry note', (
       tester,
     ) async {
