@@ -55,7 +55,7 @@ cashbox (→ POS/ATM, advisor-confirmed), monthbar (→ calendar app), jar v2
 - **Piggy (solid silhouette)** — advisor: *highest* private-budget fit,
   best mass read; the solid body finally survives 32 px (outline pigs kept
   reading as aliens). Coin above = amber element on Pro, top of glyph.
-- **Hearth (house containing a coin)** — advisor: strongest *pairing* with
+- **Hearth (house + coin PAIR)** — owner caught the single-ring coin reading as a bullseye; rebuilt as two overlapping coins (advisor: reads money, zero target/eye risk; mailbox-floor variant rejected same pass). Advisor's strongest *pairing* with
   Vault; the deepest story (money that stays inside the house = offline).
   BUT side-by-side shelf test (finalists.png) shows the two houses read
   nearly twin in the Free colorway — "Vault" vs "Vault's second app"
