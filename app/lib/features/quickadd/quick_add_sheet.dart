@@ -170,7 +170,8 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
     final need = 560.0 + navBar;
     final height = math.min(
       size.height * 0.92,
-      math.max(480.0, size.height * 0.48, need) * math.max(1.0, textScale),
+      math.max(math.max(480.0, size.height * 0.48), need) *
+          math.max(1.0, textScale),
     );
 
     return AnimatedPadding(
