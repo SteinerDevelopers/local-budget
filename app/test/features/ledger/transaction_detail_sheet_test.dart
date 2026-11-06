@@ -1,7 +1,10 @@
-// E2 §4 + listing promise ("attachments live with the entry, so 'what was
-// this?' has a picture as an answer"): a row saved with a scanned original
-// shows a thumbnail in the detail sheet, and the thumbnail opens a
-// full-screen viewer. Rows without one render exactly as before.
+// E2 §4 + the listing promise ("attachments live with the entry, so
+// 'what was this?' has a picture as an answer"): a row saved with a
+// scanned original shows a thumbnail in the detail sheet, and the
+// thumbnail opens a full-screen viewer. Rows without one render exactly
+// as before. Same drift rules as detail_sheet_test.dart: db.close()
+// INSIDE the test body, and the ledger stream is pumped through the app
+// (never awaited directly in the fake-async zone).
 import 'dart:convert' show base64Decode;
 import 'dart:ffi' show DynamicLibrary;
 import 'dart:io' show Directory;
@@ -10,9 +13,16 @@ import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:local_budget/design/theme.dart';
-import 'package:local_budget/features/ledger/transaction_detail_sheet.dart';
+import 'package:local_budget/features/capture/capture_intake.dart';
+import 'package:local_budget/features/capture/capture_services.dart';
+import 'package:local_budget/main.dart';
 import 'package:sqlite3/open.dart' as sqlite3_open;
+
+/// The detail path never touches intake; it only needs the store.
+class _NoIntake implements CaptureIntake {
+  @override
+  dynamic noSuchMethod(Invocation i) => throw UnsupportedError('unused');
+}
 
 void main() {
   sqlite3_open.open.overrideFor(
@@ -22,74 +32,64 @@ void main() {
 
   final usd = Currency.resolve('USD');
 
-  // 1×1 red PNG.
+  // A real (1×1 red) PNG: the viewer renders from the actual file.
   final png = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
     'AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   );
 
-  Future<void> openDetail(
-    WidgetTester tester,
-    LedgerRepository repo,
-    LedgerEntryData entry,
-    AttachmentStore? store,
-  ) async {
+  late AppDatabase db;
+  late LedgerRepository repo;
+
+  setUp(() {
+    db = AppDatabase.inMemory();
+    repo = LedgerRepository(db);
+  });
+
+  Future<int> seed({String? imageRef}) async {
+    await repo.ensureDefaults();
+    final account = await repo.defaultAccount();
+    final cats = await repo.categories();
+    return repo.addTransaction(
+      accountId: account.id,
+      date: DateTime.now(),
+      amount: Money(6993, usd),
+      source: TransactionSource.cameraScan,
+      categoryId: cats.first.id,
+      imageRef: imageRef,
+    );
+  }
+
+  Future<void> pumpLedger(WidgetTester tester, AttachmentStore store) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => showTransactionDetail(
-                context,
-                repository: repo,
-                entry: entry,
-                baseCode: 'USD',
-                attachments: store,
-              ),
-              child: const Text('open'),
-            ),
-          ),
-        ),
+      LocalBudgetApp(
+        repository: repo,
+        capture: CaptureServices(intake: _NoIntake(), store: store),
       ),
     );
-    await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
   }
 
   group('detail attachment (§4, listing)', () {
-    testWidgets('a row with an original shows the thumb and opens the viewer', (
-      tester,
-    ) async {
+    testWidgets('a row with an original shows the thumb and opens the viewer',
+        (tester) async {
       final dir = Directory.systemTemp.createTempSync('attach-test');
-      final db = AppDatabase.inMemory();
-      final repo = LedgerRepository(db);
       try {
-        await repo.ensureDefaults();
-        final store = AttachmentStore(dir);
-        final rel = store.saveOriginal(
-          png,
-          extension: 'png',
-          source: TransactionSource.cameraScan,
-        );
-        final acc = await repo.defaultAccount();
-        final cat = (await repo.categories()).first;
-        await repo.addTransaction(
-          accountId: acc.id,
-          date: DateTime(2026, 9, 11),
-          amount: Money(6993, usd),
-          source: TransactionSource.cameraScan,
-          categoryId: cat.id,
-          imageRef: rel,
-        );
-        final entries = await repo
-            .watchMonth(yearMonthOf(DateTime(2026, 9, 15)))
-            .first;
-        final entry = entries.single;
-        expect(entry.imageRef, rel); // the projection carries it now
+        final rel =
+            AttachmentStore(dir).saveOriginal(
+              png,
+              extension: 'png',
+              source: TransactionSource.cameraScan,
+            );
+        await seed(imageRef: rel);
+        await pumpLedger(tester, AttachmentStore(dir));
 
-        await openDetail(tester, repo, entry, store);
-        expect(find.byKey(const Key('detail-attachment-thumb')), findsOneWidget);
+        await tester.tap(find.text('Food').first); // open the detail
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('detail-attachment-thumb')),
+          findsOneWidget,
+        );
 
         await tester.tap(find.byKey(const Key('detail-attachment')));
         await tester.pumpAndSettle();
@@ -97,45 +97,36 @@ void main() {
 
         await tester.tap(find.byKey(const Key('photo-close')));
         await tester.pumpAndSettle();
-        // back on the sheet, not on a viewer
+        // Back on the sheet with the thumb; the viewer is gone.
         expect(find.byKey(const Key('photo-viewer-image')), findsNothing);
-        expect(find.byKey(const Key('detail-attachment-thumb')), findsOneWidget);
+        expect(
+          find.byKey(const Key('detail-attachment-thumb')),
+          findsOneWidget,
+        );
       } finally {
         await db.close();
         dir.deleteSync(recursive: true);
       }
     });
 
-    testWidgets('no original, no thumbnail (renders as before)', (tester) async {
-      final db = AppDatabase.inMemory();
-      final repo = LedgerRepository(db);
+    testWidgets('no original, no thumbnail (renders as before)', (
+      tester,
+    ) async {
+      final dir = Directory.systemTemp.createTempSync('attach-none');
       try {
-        await repo.ensureDefaults();
-        final acc = await repo.defaultAccount();
-        final cat = (await repo.categories()).first;
-        await repo.addTransaction(
-          accountId: acc.id,
-          date: DateTime(2026, 9, 11),
-          amount: Money(500, usd),
-          source: TransactionSource.manual,
-          categoryId: cat.id,
+        await seed(); // manual row, no imageRef
+        await pumpLedger(tester, AttachmentStore(dir));
+        await tester.tap(find.text('Food').first);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('detail-attachment-thumb')),
+          findsNothing,
         );
-        final entries = await repo
-            .watchMonth(yearMonthOf(DateTime(2026, 9, 15)))
-            .first;
-        final entry = entries.single;
-        final dir = Directory.systemTemp.createTempSync('attach-none');
-        try {
-          await openDetail(tester, repo, entry, AttachmentStore(dir));
-          expect(
-            find.byKey(const Key('detail-attachment-thumb')),
-            findsNothing,
-          );
-        } finally {
-          dir.deleteSync(recursive: true);
-        }
+        // and the sheet itself is the normal one
+        expect(find.byKey(const Key('detail-delete')), findsOneWidget);
       } finally {
         await db.close();
+        dir.deleteSync(recursive: true);
       }
     });
   });
