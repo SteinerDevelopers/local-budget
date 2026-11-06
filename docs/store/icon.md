@@ -145,3 +145,19 @@ the roof on Pro like Vault does — two ambers compete AND the Pro
 silhouette collapses into Vault-Pro at a glance. Budget's amber lives
 on the COIN; Vault's on the roof — same accent grammar, different
 anchor, distinct silhouettes.
+
+
+## Device verification of the FINAL (kit 515c948, ondevice-final.png)
+
+Installed on both dev phones, native launcher pixels (×4 / ×3 zooms):
+
+- **Verge 260 dpi** (the phone that killed the old mark): house + coin
+  + $ all read; Free's paper knockout on steel survives, Pro's dark $
+  on amber reads as money instantly. No more blob.
+- **Flip6 420 dpi**: crisp; Vault chevron eaves intact under the
+  squircle; safe-zone scale 0.74 keeps roof corners inside circle and
+  squircle masks (Verge circle mask = worst case, still clean).
+
+Icon status: **SHIPPED — device-verified**. Production assets live in
+app/android/app/src/{main,pro}/res (adaptive layers all densities +
+legacy full-composites); generator tmp/adapticon/gen-v2vault.js.
