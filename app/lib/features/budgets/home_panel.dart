@@ -38,12 +38,18 @@ class HomePanel extends StatefulWidget {
     required this.initialMonthIndex,
     this.currency,
     this.capture,
+    this.onOpenManage,
   });
 
   final LedgerRepository repository;
   final int tab;
   final int initialMonthIndex;
   final Currency? currency;
+
+  /// Owner consistency pass, 2026-11-06: the Manage gear lives in the
+  /// header on EVERY home tab — hiding it on Budgets/Bills/Goals made
+  /// Base currency etc. silently unreachable from three of four tabs.
+  final VoidCallback? onOpenManage;
 
   /// Passed to the Bills body: "Add from a document" shows where capture
   /// exists, is hidden where it doesn't (never a dead end).
@@ -174,11 +180,15 @@ class _HomePanelState extends State<HomePanel> {
                 semantic: 'Next month',
                 onTap: () => _shiftMonth(1),
               ),
-              _Chevron(
-                keyName: 'home-reports-open-actual',
-                icon: Icons.insights_outlined,
-                semantic: 'Reports',
-                onTap: () => Navigator.of(context).push(
+              // Owner consistency pass, 2026-11-06: the action cluster is
+              // the same three icons at the same 24 px the Receipts header
+              // uses (_Chevron's 28 px is for chevrons only) — and Manage
+              // is present here too.
+              IconButton(
+                key: const Key('home-reports-open-actual'),
+                tooltip: 'Reports',
+                icon: const Icon(Icons.insights_outlined, size: 24),
+                onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => ReportsScreen(
                       repository: widget.repository,
@@ -187,14 +197,21 @@ class _HomePanelState extends State<HomePanel> {
                   ),
                 ),
               ),
-              _Chevron(
-                keyName: 'home-budget-help',
-                icon: Icons.help_outline,
-                semantic: 'Help',
-                onTap: () => Navigator.of(context).push(
+              IconButton(
+                key: const Key('home-budget-help'),
+                tooltip: 'Help',
+                icon: const Icon(Icons.help_outline, size: 24),
+                onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
                 ),
               ),
+              if (widget.onOpenManage != null)
+                IconButton(
+                  key: const Key('home-manage-open'),
+                  tooltip: 'Manage',
+                  icon: const Icon(Icons.settings_outlined, size: 24),
+                  onPressed: widget.onOpenManage,
+                ),
             ],
           ),
         ),

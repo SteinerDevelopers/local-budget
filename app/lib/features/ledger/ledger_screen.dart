@@ -679,6 +679,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 initialMonthIndex: _index,
                 currency: _currency,
                 capture: widget.capture,
+                onOpenManage: _openManage,
               ),
       ),
       bottomNavigationBar: NavigationBar(

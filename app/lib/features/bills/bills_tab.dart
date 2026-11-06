@@ -48,34 +48,52 @@ class BillsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (bills.isEmpty) {
+      // Owner consistency pass, 2026-11-06: the 2026-11-05 standardization
+      // moved the *list* state onto PanelAddBar but left this branch with
+      // the old centered CTA stack — so an empty Bills tab no longer
+      // matched Receipts (or even a filled Bills tab). Empty now wears the
+      // same grammar: centered body, shared add bar pinned at the bottom.
+      // The button keeps the `bill-add-empty` key: the affordance moved,
+      // the tests and muscle memory did not.
       final scheme = Theme.of(context).colorScheme;
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.event_repeat_outlined,
-              size: 48,
-              color: scheme.onSurfaceVariant,
+      return Column(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.event_repeat_outlined,
+                      size: 48,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: Tokens.space3),
+                    Text('No bills yet', style: Tokens.body(context)),
+                    const SizedBox(height: Tokens.space1),
+                    Text(
+                      'Recurring payments you add here remind you '
+                      'the morning they fall due.',
+                      style: Tokens.labelCaps(context),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: Tokens.space3),
-            Text('No bills yet', style: Tokens.body(context)),
-            const SizedBox(height: Tokens.space1),
-            Text(
-              'Recurring payments you add here remind you the morning they fall due.',
-              style: Tokens.labelCaps(context),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: Tokens.space3),
-            TextButton.icon(
+          ),
+          PanelAddBar(
+            primary: TextButton.icon(
               key: const Key('bill-add-empty'),
               icon: const Icon(Icons.add, size: 20),
               label: const Text('Add bill'),
               onPressed: () => _add(context),
             ),
-            if (capture != null) _documentButton(compact: true),
-          ],
-        ),
+            secondary: capture == null ? null : _documentButton(compact: true),
+          ),
+        ],
       );
     }
     return Column(

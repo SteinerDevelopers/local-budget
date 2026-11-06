@@ -6,6 +6,7 @@
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 
+import '../../design/panel_add_bar.dart';
 import '../../design/tokens.dart';
 import '../manage/icon_registry.dart';
 import 'goal_detail_sheet.dart';
@@ -27,33 +28,47 @@ class GoalsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (goals.isEmpty) {
+      // Owner consistency pass, 2026-11-06: same grammar as Receipts and
+      // Bills — centered empty body, shared add bar pinned at the bottom;
+      // the key stays `goal-add-empty`.
       final scheme = Theme.of(context).colorScheme;
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.savings_outlined,
-              size: 48,
-              color: scheme.onSurfaceVariant,
+      return Column(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.savings_outlined,
+                      size: 48,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: Tokens.space3),
+                    Text('No goals yet', style: Tokens.body(context)),
+                    const SizedBox(height: Tokens.space1),
+                    Text(
+                      'Money set aside here is a transfer — it never '
+                      'counts as spending.',
+                      style: Tokens.labelCaps(context),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: Tokens.space3),
-            Text('No goals yet', style: Tokens.body(context)),
-            const SizedBox(height: Tokens.space1),
-            Text(
-              'Money set aside here is a transfer — it never counts as spending.',
-              style: Tokens.labelCaps(context),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: Tokens.space3),
-            TextButton.icon(
+          ),
+          PanelAddBar(
+            primary: TextButton.icon(
               key: const Key('goal-add-empty'),
               icon: const Icon(Icons.add, size: 20),
               label: const Text('Add goal'),
               onPressed: () => _add(context),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
     return Column(
@@ -68,19 +83,15 @@ class GoalsTab extends StatelessWidget {
                 _GoalRow(line: goals[i], onTap: () => _open(context, goals[i])),
           ),
         ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(Tokens.space2),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: const Key('goal-add'),
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text('Add goal'),
-                onPressed: () => _add(context),
-              ),
-            ),
+        // Owner consistency pass, 2026-11-06: this hand-rolled SafeArea/
+        // Align row rendered the same thing PanelAddBar's left slot does —
+        // now it *is* the shared widget, so all four tabs add through one.
+        PanelAddBar(
+          primary: TextButton.icon(
+            key: const Key('goal-add'),
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text('Add goal'),
+            onPressed: () => _add(context),
           ),
         ),
       ],
