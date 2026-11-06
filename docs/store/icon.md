@@ -127,3 +127,21 @@ the 260 dpi problem), **8 solid roof** (strongest thumbnail mass),
 **3 negative coin** (most distinctive; needs the solid house to keep
 the hole visible). Bake-off plan: top three rendered with $ fill-ratio
 >=0.55, then live A/B on the Verge — the phone that exposed the flaw.
+
+
+## FINAL DIRECTION (owner verdict, batch 7)
+
+**Row 2 is the winner, restated in the Steiner Vault house** (owner:
+"can the house be made to match the house style of Steiner Vault?" —
+yes, and it should be: pentagon was my deviation, not house grammar).
+
+Production geometry: Vault eaved-chevron house (roof 24,44→50,20→76,44;
+walls 30,41→70,78; 6u stroke) + single coin r15 @ (50,60) + fat $
+knockout, fill-ratio 0.60 (bar was ≥0.55 for 260 dpi survival).
+
+Family shelf test (family-shelf.png): Free/Pro sit next to Vault
+cleanly; content differs (sheet vs coin). Rejected variant: ambering
+the roof on Pro like Vault does — two ambers compete AND the Pro
+silhouette collapses into Vault-Pro at a glance. Budget's amber lives
+on the COIN; Vault's on the roof — same accent grammar, different
+anchor, distinct silhouettes.
