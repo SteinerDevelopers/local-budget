@@ -99,3 +99,31 @@ brand to USD framing even though the app has a base-currency picker
 pricing all USD); wrong if EU launch is close. ¢ was tried and cannot
 compete. If a neutral mark is ever needed, plain pair stays one commit
 away (tag: coin-pair).
+
+
+## On-device verification of the $-pair (owner ask: sharp on a phone?)
+
+Kit 66ccb17 installed on both dev phones, launcher screenshots taken:
+
+- **Flip6 SM-F766U1 @420 dpi: $ knockout is crisp on both flavors.**
+  Pro (amber coin, dark $) is genuinely handsome (see
+  icon-candidates7/ondevice-verdict.png).
+- **Verge SL219A @260 dpi: the $ collapses.** Coin reads as a money
+  blob; the knockout strokes fall to ~1 px. Budget-phone class is a
+  real slice of the US market — this is a design problem, not a
+  launcher-cache bug (APK pixels verified identical to source).
+
+Conclusion: the $ needs a larger fill-ratio of the coin (glyph height
+>= 0.55 of coin diameter) to survive 260 dpi. That is the lens for
+batch 7.
+
+## Batch 7 — eight cleanliness variations (icon-candidates7/sheet8.png)
+
+One cleanliness lever each; advisor blind ranking 2>8>3>5>1>4>6>7
+agrees with my own read. 6 (walls without floor: unstable at 32) and
+7 (opacity pair: muddy Pro) eliminated on the sheet.
+Front-runners: **2 solo coin** (biggest $ per pixel — best answer to
+the 260 dpi problem), **8 solid roof** (strongest thumbnail mass),
+**3 negative coin** (most distinctive; needs the solid house to keep
+the hole visible). Bake-off plan: top three rendered with $ fill-ratio
+>=0.55, then live A/B on the Verge — the phone that exposed the flaw.
