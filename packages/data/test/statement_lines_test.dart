@@ -122,6 +122,64 @@ void main() {
     });
   });
 
+  group('saved layout profiles (e12 §3)', () {
+    final eu = const StatementLayout(decimalComma: true, dayFirst: true);
+
+    test('a known issuer’s saved style settles what alone was refused', () {
+      final lines = ['01.10.2026 CAFE 12.34', '02.10.2026 BAKERY 1.234,56'];
+      expect(StatementLines.tryParse(lines, currency: usd, now: now), isNull);
+      final p = StatementLines.tryParse(
+        lines,
+        currency: usd,
+        now: now,
+        layout: eu,
+      );
+      expect(p, isNotNull);
+      // The comma-decimal profile reads 1.234,56 as money and 12.34… stays
+      // 12.34 under the later-mark rule; both rows come through.
+      expect(p!.rows.length, 2);
+      expect(p.rows[1].minor, 123456);
+    });
+
+    test('the dayFirst profile overrides document derivation', () {
+      // A day-ambiguous pair resolves MM/DD by default; the saved
+      // dayFirst layout reads it DD/MM instead.
+      const ambiguous = ['05/12/2026 STORE 9.99'];
+      final fresh = parse(ambiguous)!;
+      expect(fresh.rows.single.date, DateTime.utc(2026, 5, 12));
+      final p = StatementLines.tryParse(
+        ambiguous,
+        currency: usd,
+        now: now,
+        layout: eu,
+      )!;
+      expect(p.rows.single.date, DateTime.utc(2026, 12, 5));
+    });
+
+    test('parse reports the layout it ran on', () {
+      final fresh = parse(['10/01/2026 CAFE 12.34'])!;
+      expect(fresh.layout, const StatementLayout(
+        decimalComma: false,
+        dayFirst: false,
+      ));
+      final saved = StatementLines.tryParse(
+        ['05.12.2026 GESELLSCHAFT 1.234,56'],
+        currency: usd,
+        now: now,
+        layout: eu,
+      )!;
+      expect(saved.layout, eu);
+    });
+
+    test('encode/decode round-trips; junk decodes to null', () {
+      final round = StatementLayout.decode(eu.encode());
+      expect(round, eu);
+      expect(StatementLayout.decode('not json'), isNull);
+      expect(StatementLayout.decode('{"dc":1}'), isNull);
+      expect(StatementLayout.decode(null), isNull);
+    });
+  });
+
   group('refusals', () {
     test('dates far outside the believable window are skipped', () {
       final p = parse(['01/01/2019 OLDSCHOOL 5.00']);

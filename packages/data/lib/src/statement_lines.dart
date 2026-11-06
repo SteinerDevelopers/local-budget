@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:core/core.dart' show Currency;
 
 import 'csv_import.dart';
@@ -28,11 +30,59 @@ final class StatementRow {
   final bool ambiguous;
 }
 
+/// Per-issuer column layout learned from a committed statement (e12 §3).
+/// A snapshot of what the parser *derived* from a document the user reviewed
+/// and committed — the owner's confirmation that the parse was right. It is
+/// applied again only when a later document names the same issuer, and the
+/// Preview discloses its use with a reset.
+final class StatementLayout {
+  const StatementLayout({required this.decimalComma, required this.dayFirst});
+
+  /// True when amounts use `12,34` (comma is the decimal mark).
+  final bool decimalComma;
+
+  /// True when dates read `DD.MM.YYYY` rather than `MM/DD/…`.
+  final bool dayFirst;
+
+  String encode() =>
+      jsonEncode({'dc': decimalComma, 'df': dayFirst});
+
+  static StatementLayout? decode(String? stored) {
+    if (stored == null || stored.isEmpty) return null;
+    try {
+      final j = jsonDecode(stored);
+      if (j is! Map) return null;
+      final dc = j['dc'], df = j['df'];
+      if (dc is! bool || df is! bool) return null;
+      return StatementLayout(decimalComma: dc, dayFirst: df);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is StatementLayout &&
+      other.decimalComma == decimalComma &&
+      other.dayFirst == dayFirst;
+
+  @override
+  int get hashCode => Object.hash(decimalComma, dayFirst);
+}
+
 /// Result of [StatementLines.tryParse].
 final class StatementParse {
-  const StatementParse({required this.rows, required this.skippedLines});
+  const StatementParse({
+    required this.rows,
+    required this.skippedLines,
+    required this.layout,
+  });
 
   final List<StatementRow> rows;
+
+  /// The layout this parse ran on — derived from the document, or the saved
+  /// profile that was applied (e12 §3). Commit persists it per issuer.
+  final StatementLayout layout;
 
   /// Non-blank lines that carried neither a row nor a description wrap —
   /// headers, footers, balance-only lines. Surfaced on Preview so a mostly
@@ -55,14 +105,17 @@ class StatementLines {
     List<String> lines, {
     required Currency currency,
     DateTime? now,
+    StatementLayout? layout,
   }) {
     final at = _day(now ?? DateTime.now());
     final cleaned = [for (final l in lines) l.replaceAll('\u00a0', ' ').trim()]
       ..removeWhere((l) => l.isEmpty);
     if (cleaned.isEmpty) return null;
 
-    // Document-level decimal style: provable marks must not contradict.
-    if (_isStyleAmbiguous(cleaned)) return null;
+    // Document-level decimal style: provable marks must not contradict —
+    // unless a saved profile for this issuer settles the dispute (e12 §3).
+    final (commaDecimal, dotDecimal) = _styleProbe(cleaned);
+    if (commaDecimal && dotDecimal && layout == null) return null;
 
     final shapes = [for (final l in cleaned) _shape(l, currency)];
     final rowish = shapes.where((s) => s.dateToken != null && s.hasAmount);
@@ -71,7 +124,8 @@ class StatementLines {
     // most rows print two numerals there is a running-balance column.
     final twoNum = rowish.where((s) => s.amounts.length >= 2).length;
     final balanceColumn = rowish.isNotEmpty && twoNum * 2 >= rowish.length;
-    final dayFirst = _dayFirst(cleaned);
+    final derivedDayFirst = _dayFirst(cleaned);
+    final dayFirst = layout?.dayFirst ?? derivedDayFirst;
 
     final rows = <StatementRow>[];
     var skipped = 0;
@@ -123,7 +177,19 @@ class StatementLines {
         ),
       );
     }
-    return StatementParse(rows: rows, skippedLines: skipped);
+    return StatementParse(
+      rows: rows,
+      skippedLines: skipped,
+      layout:
+          layout ??
+          StatementLayout(
+            // Undecidable documents default to the dot style the strict
+            // CSV helpers already assume; only a *proven* comma mark says
+            // comma (e12 §3 keeps the snapshot honest).
+            decimalComma: commaDecimal && !dotDecimal,
+            dayFirst: derivedDayFirst,
+          ),
+    );
   }
 
   // --- decimal style -----------------------------------------------------
@@ -154,10 +220,13 @@ class StatementLines {
     return '~' * t.length;
   });
 
-  /// Both comma-decimal and dot-decimal *provably* present (a mark with
-  /// 1–2 trailing digits, or both marks where the later one is the decimal
-  /// point) is a contradiction no parser should paper over.
-  static bool _isStyleAmbiguous(List<String> lines) {
+  /// What the provable marks say about this document's decimal style:
+  /// comma-decimal (`12,34`) and/or dot-decimal (`12.34`) present. Both at
+  /// once is a contradiction no parser should paper over — unless a saved
+  /// per-issuer profile settles it (e12 §3).
+  static (bool commaDecimal, bool dotDecimal) _styleProbe(
+    List<String> lines,
+  ) {
     var commaDecimal = false, dotDecimal = false;
     for (final line in lines) {
       // Dates are not amounts: `05.12.2026` would fake a dot-decimal and
@@ -179,7 +248,7 @@ class StatementLines {
         }
       }
     }
-    return commaDecimal && dotDecimal;
+    return (commaDecimal, dotDecimal);
   }
 
   // --- per-line shape ------------------------------------------------------

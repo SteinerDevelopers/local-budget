@@ -66,6 +66,12 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
   // the preview via [_docNote].
   bool _reading = false;
   String? _docNote;
+  // e12 §3 — the layout story of the document being previewed: whose saved
+  // layout was applied (shown + reset in the Preview), and what commit
+  // should persist once the owner reviews the rows.
+  String? _layoutIssuer;
+  String? _layoutKey;
+  StatementLayout? _pendingLayout;
   final _profileName = TextEditingController();
   bool _profileSaved = false;
 
@@ -243,9 +249,22 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
   Future<void> _previewDocument(DocumentRead read) async {
     final accountId = _accountId;
     if (accountId == null || _busy) return;
-    final parsed = StatementLines.tryParse(read.lines, currency: _currency);
+    // e12 §3: a document from a known issuer may carry a learned column
+    // layout; using it is disclosed in the Preview and resettable there.
+    final issuer = BillDraft.issuerOf(read.lines);
+    final layoutKey = issuer == null
+        ? null
+        : 'stmt.layout.${issuer.toLowerCase()}';
+    final saved = layoutKey == null
+        ? null
+        : StatementLayout.decode(await widget.repository.setting(layoutKey));
+    final parsed = StatementLines.tryParse(
+      read.lines,
+      currency: _currency,
+      layout: saved,
+    );
     final rows = parsed?.rows ?? const <StatementRow>[];
-    if (rows.isEmpty) {
+    if (rows.isEmpty || parsed == null) {
       _snack(
         'We couldn’t read reliable dates and amounts from it — '
         'try CSV or OFX instead.',
@@ -268,6 +287,9 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
             ? 'We read the first ${read.pagesRead} pages of the PDF — '
                   'later pages are not included.'
             : null;
+        _layoutIssuer = saved == null ? null : issuer;
+        _layoutKey = layoutKey;
+        _pendingLayout = parsed.layout;
         _checked = {
           for (final r in preview.rows)
             if (!r.duplicate) r.rowIndex,
@@ -382,6 +404,18 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
               currency: preview.currency,
               rows: rows,
             );
+      // e12 §3: the owner's commit IS the confirmation that this parse was
+      // right — only now does the derived layout get remembered, and only
+      // for documents whose issuer the app actually knows.
+      if (_format == ImportFormat.document &&
+          n > 0 &&
+          _layoutKey != null &&
+          _pendingLayout != null) {
+        await widget.repository.setSetting(
+          _layoutKey!,
+          _pendingLayout!.encode(),
+        );
+      }
       if (!mounted) return;
       setState(() => _done = n);
     } finally {
@@ -665,6 +699,44 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
+            ),
+          ),
+        // e12 §3: a saved layout never works silently — it says whose it
+        // is and offers the way back to reading the paper fresh.
+        if (_layoutIssuer case final issuer?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Used the saved column layout for $issuer.',
+                    key: const Key('import-layout-note'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.tertiary,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  key: const Key('import-layout-reset'),
+                  onPressed: () async {
+                    await widget.repository.deleteSetting(_layoutKey!);
+                    if (!mounted) return;
+                    setState(() {
+                      _layoutIssuer = null;
+                      // Committing this preview must not re-save what the
+                      // owner just cleared.
+                      _layoutKey = null;
+                      _pendingLayout = null;
+                    });
+                    _snack(
+                      'Layout for $issuer cleared — '
+                      'the next scan reads the paper fresh.',
+                    );
+                  },
+                  child: const Text('Reset'),
+                ),
+              ],
             ),
           ),
         Expanded(

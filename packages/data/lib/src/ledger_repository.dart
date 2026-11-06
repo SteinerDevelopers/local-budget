@@ -359,6 +359,10 @@ class LedgerRepository {
     db.settings,
   )..where((s) => s.key.equals(key))).getSingleOrNull())?.value;
 
+  /// Forget one key (e12 §3: the layout-profile reset).
+  Future<void> deleteSetting(String key) =>
+      (db.delete(db.settings)..where((s) => s.key.equals(key))).go();
+
   Future<void> setBaseCurrency(String code) async {
     if (Currency.find(code) == null) {
       throw ArgumentError('unknown currency: $code');

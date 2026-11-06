@@ -217,6 +217,11 @@ class BillDraft {
     (RegExp(r'NAVY\s+FEDERAL'), 'Navy Federal'),
   ];
 
+  /// Public door for the e12 §3 layout profiles: the issuer name when the
+  /// document's own header prints one of the known card/bank vocabularies.
+  /// A document naming no known issuer gets no profile — nothing is guessed.
+  static String? issuerOf(List<String> lines) => _issuerIn(lines);
+
   static String? _issuerIn(List<String> lines) {
     final text = lines.take(40).join(' ').toUpperCase();
     for (final (re, name) in _issuers) {
