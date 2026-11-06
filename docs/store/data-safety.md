@@ -1,4 +1,4 @@
-# Data Safety inventory — Local Budget (Android)
+# Data Safety inventory — Steiner Budget (Android)
 
 _E9 groundwork, 2026-11-05. Derived from the actual merged manifest of the
 current shipping APKs (dcf8c39), not from plugin READMEs. Verified by

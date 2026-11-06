@@ -175,7 +175,7 @@ class _CoffeeSheetState extends State<CoffeeSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _titleText('Enjoying LocalBudget? Buy me a coffee ☕'),
+            _titleText('Enjoying Steiner Budget? Buy me a coffee ☕'),
             const SizedBox(height: 4),
             Text(
               'Everything you use today stays free. Tips keep the lights '

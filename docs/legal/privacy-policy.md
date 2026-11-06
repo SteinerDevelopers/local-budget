@@ -1,11 +1,11 @@
-# Privacy policy — Local Budget
+# Privacy policy — Steiner Budget
 
-_Covered app: Local Budget (and Local Budget Pro), Android.
+_Covered app: Steiner Budget (and Steiner Budget Pro), Android.
 Version 1.0 — 2026-11-03._
 
 ## The short version
 
-**Local Budget does not collect your data.** There is no account, no
+**Steiner Budget does not collect your data.** There is no account, no
 server of ours, no analytics, no advertising SDK, no tracking. Your
 transactions, balances, categories and receipt images are stored only
 in the app's private storage on your device. Uninstalling the app

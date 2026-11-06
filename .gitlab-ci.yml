@@ -453,6 +453,10 @@ package-apk-pro:
       # (flavor.dart). Without the define every CI pro kit booted the FREE
       # tier (no Cloud backups/Insights/widgets, "Get Pro" row shown). The
       # define is mandatory:
+      # PAIRED GUARD: this assertion must pass WITH the define, one line
+      # before the build that must carry it (app/test/flavor_guard_test.dart
+      # also runs define-free in app-test for the free direction).
+      flutter test test/flavor_guard_test.dart --dart-define=APP_FLAVOR=pro
       flutter build apk --debug --flavor pro --dart-define=APP_FLAVOR=pro --split-per-abi
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-arm64-v8a-pro-debug.apk "$CI_PROJECT_DIR/out/"

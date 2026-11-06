@@ -407,7 +407,7 @@ class LocalBudgetApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LocalBudget',
+      title: 'Steiner Budget',
       navigatorKey: navigatorKey,
       theme: theme ?? AppTheme.light(),
       darkTheme: darkTheme ?? AppTheme.dark(),

@@ -1,5 +1,5 @@
 <resources>
     <!-- Settings > Apps > Permissions wording for the transfer permission;
-         only ever shown for same-signed LocalBudget Pro. -->
-    <string name="transfer_permission_description">Lets LocalBudget Pro read the data snapshot you explicitly chose to copy from this app.</string>
+         only ever shown for same-signed Steiner Budget Pro. -->
+    <string name="transfer_permission_description">Lets Steiner Budget Pro read the data snapshot you explicitly chose to copy from this app.</string>
 </resources>

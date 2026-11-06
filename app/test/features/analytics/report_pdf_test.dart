@@ -74,7 +74,7 @@ void main() {
   });
 
   test('deterministic title and a date-stamped file name', () async {
-    expect(ReportPdf.title, 'LocalBudget report');
+    expect(ReportPdf.title, 'Steiner Budget report');
     expect(
       ReportPdf.fileName(DateTime(2026, 3, 7)),
       'budget-report-2026-03-07.pdf',

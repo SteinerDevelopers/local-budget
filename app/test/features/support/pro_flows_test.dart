@@ -157,7 +157,7 @@ void main() {
         expect(backup.databaseBytes, isNotEmpty);
         expect(backup.manifest.appVersion, appVersion);
         expect(
-          find.textContaining('Copied. Open LocalBudget Pro'),
+          find.textContaining('Copied. Open Steiner Budget Pro'),
           findsOneWidget,
         );
         await expireSnack(tester);

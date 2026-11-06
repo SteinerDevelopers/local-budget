@@ -475,7 +475,7 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
         );
       } on BackupSchemaTooNewException {
         _snack(
-          'That backup is from a newer Local Budget — update the app first.',
+          'That backup is from a newer Steiner Budget — update the app first.',
         );
         return;
       } on BackupFormatException {

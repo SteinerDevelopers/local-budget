@@ -1,11 +1,13 @@
-# Store listing copy — Local Budget (Android / Google Play)
+# Store listing copy — Steiner's Private Budget (Android / Google Play)
 
 _Draft v1 — 2026-11-03. Character limits counted on-device, not
 approximated. `<…>` marks owner decisions to fill before publishing._
 
 ## Identity
 
-- **Name:** Local Budget (12 chars)
+- **Name:** Steiner Budget (13 chars) — full name *Steiner's Private Budget*
+- **Developer:** Steiner Developers, L.L.C. (shown as store developer)
+- **iOS subtitle (conditional E10):** "Private budgeting, offline" (26 chars)
 - **Package:** `dev.steiner.local_budget` (frozen, #10)
 - **Category:** Finance · **Tags:** budget, expense tracker, offline
 - **Contact email:** `<OWNER-CONTACT — same as privacy policy>`
@@ -21,7 +23,7 @@ manual capture with proof attached, and literal local-only storage.)
 ## Full description (Play, 4000 max)
 
 > Most budgeting apps want your bank login, your cloud, or your
-> attention. Local Budget wants nothing. You type what you spent —
+> attention. Steiner Budget wants nothing. You type what you spent —
 > or photograph the receipt and tap the numbers it found — and it all
 > stays on your phone. No account. No analytics. No ads. Uninstalling
 > removes every byte.
@@ -59,7 +61,7 @@ manual capture with proof attached, and literal local-only storage.)
 > One tap on “?” opens offline Help with an article for every screen —
 > it even searches without internet.
 >
-> Local Budget is made by one person who answers email. Feature
+> Steiner Budget is made by one person who answers email. Feature
 > requests shape it more than dashboards do, because there are no
 > dashboards.
 
@@ -97,7 +99,8 @@ Eight shots, 9:16, in this order (tells the story top-to-bottom):
    month, delete first — see below)
 2. Capture review sheet with highlighted fields (proves OCR honesty)
 3. A transaction detail with an attached receipt photo
-4. Budgets sheet, one category mid-amber
+4. Budgets sheet, one category near its limit (full green bar + honest number;
+   the design has no amber state — green until red, §2.1)
 5. Reports → Budget vs actual
 6. Statement import preview
 7. Help screen with a search typed in

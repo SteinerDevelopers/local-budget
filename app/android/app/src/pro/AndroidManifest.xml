@@ -22,7 +22,7 @@
          surface to audit. LocalBudgetApp adds only the §4.3 day tick. -->
     <application
         android:name=".LocalBudgetApp"
-        android:label="LocalBudget Pro"
+        android:label="Steiner Budget Pro"
         tools:replace="android:name,android:label">
 
         <receiver

@@ -73,12 +73,12 @@ class _GetProPageState extends State<GetProPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('LocalBudget Pro')),
+      appBar: AppBar(title: const Text('Steiner Budget Pro')),
       body: ListView(
         padding: const EdgeInsets.all(Tokens.space4),
         children: [
           Text(
-            'LocalBudget Pro — the same app, plus',
+            'Steiner Budget Pro — the same app, plus',
             style: theme.textTheme.titleLarge,
           ),
           const SizedBox(height: 4),
@@ -153,7 +153,7 @@ class _GetProPageState extends State<GetProPage> {
             ),
           const SizedBox(height: Tokens.space2),
           Text(
-            'Prefer a file? Back up in LocalBudget and restore that file in '
+            'Prefer a file? Back up in Steiner Budget and restore that file in '
             'Pro — same data, any path works.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,

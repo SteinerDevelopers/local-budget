@@ -259,7 +259,7 @@ class _ManageScreenState extends State<ManageScreen> {
                   title: const Text('Home-screen widgets'),
                   content: const Text(
                     'Long-press an empty spot on the home screen, open the '
-                    'widget picker, and add any of LocalBudget’s three:\n\n'
+                    'widget picker, and add any of Steiner Budget’s three:\n\n'
                     '• Spend this month — taps open Reports\n'
                     '• Envelope left — taps open the budgets sheet; long-press '
                     'the tile to pin one envelope\n'
@@ -471,7 +471,7 @@ class _ManageScreenState extends State<ManageScreen> {
         );
       } on BackupSchemaTooNewException {
         _snack(
-          'That backup is from a newer Local Budget — update the app first.',
+          'That backup is from a newer Steiner Budget — update the app first.',
         );
         return;
       } on BackupFormatException {
@@ -563,7 +563,7 @@ class _ManageScreenState extends State<ManageScreen> {
     );
     await t.stage(bytes);
     if (!mounted) return;
-    _snack('Copied. Open LocalBudget Pro and tap "Transfer from free app".');
+    _snack('Copied. Open Steiner Budget Pro and tap "Transfer from free app".');
   });
 
   /// Pro side: pull the staged snapshot and hand it to the *same* restore
@@ -651,12 +651,20 @@ Future<void> showManageHelp(BuildContext context) => showModalBottomSheet<void>(
     shrinkWrap: true,
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
     children: [
-      Text('Local Budget', style: Theme.of(sheetContext).textTheme.titleMedium),
+      Text(
+        'Steiner\u2019s Private Budget',
+        style: Theme.of(sheetContext).textTheme.titleMedium,
+      ),
       const SizedBox(height: 8),
       Text(
         'Everything you enter stays on this device. No account, no '
         'cloud, no analytics — uninstalling removes every byte.',
         style: Theme.of(sheetContext).textTheme.bodyMedium,
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Steiner Developers, L.L.C.',
+        style: Theme.of(sheetContext).textTheme.bodySmall,
       ),
       const SizedBox(height: 20),
       for (final (icon, title, body) in _helpRows)

@@ -78,7 +78,7 @@ const List<HelpArticle> kHelpArticles = [
           'only ever copies what you chose, into its own folder.',
       'You can also send receipts to the app instead of hunting for them: '
           'use Share or Open with from your files app, email or scanner '
-          'app and pick Local Budget. If you share several at once they '
+          'app and pick Steiner Budget. If you share several at once they '
           'arrive one at a time — review one, then the next.',
       'If the source sheet shows a "Recent screenshot" row, the most '
           'recent screenshot on your phone is one tap away. The row only '
@@ -446,7 +446,7 @@ const List<HelpArticle> kHelpArticles = [
           'battery. The screen shows when a copy '
           'last succeeded, so “automatic” is never “mysterious”.',
       'Widgets (Pro): long-press an empty spot on your home screen, open '
-          'the widget picker and find LocalBudget Pro. Spend this month '
+          'the widget picker and find Steiner Budget Pro. Spend this month '
           'opens Reports when tapped; Envelope left shows whichever '
           'budget has the least room left — long-press the widget while '
           'placing it to pin a specific one — and Quick scan opens the '

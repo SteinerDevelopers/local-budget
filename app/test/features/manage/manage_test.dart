@@ -337,7 +337,7 @@ void main() {
       await tester.tap(find.text('About & help'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Local Budget'), findsOneWidget);
+      expect(find.text('Steiner\u2019s Private Budget'), findsOneWidget);
       expect(find.textContaining('stays on this device'), findsOneWidget);
       expect(find.text('Add an entry'), findsOneWidget);
       expect(find.text('Delete with undo'), findsOneWidget);

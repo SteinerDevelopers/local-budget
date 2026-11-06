@@ -1,12 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- E6 §3 (free flavor): the transfer surface. The permission is
          *signature*-level, so only an app signed with this same key —
-         LocalBudget Pro — can ever hold it; users see no dialog.
+         Steiner Budget Pro — can ever hold it; users see no dialog.
          Design: docs/design/e6-monetization.md §3. -->
     <permission
         android:name="dev.steiner.local_budget.permission.TRANSFER"
         android:protectionLevel="signature"
-        android:label="transfer LocalBudget data"
+        android:label="transfer Steiner Budget data"
         android:description="@string/transfer_permission_description" />
 
     <!-- The paid listing, so proInstalled() can answer honestly. -->

@@ -15,14 +15,14 @@ import 'package:pdf/widgets.dart' as pw;
 abstract final class ReportPdf {
   /// Deterministic document metadata (the PDF /Title), matching the
   /// workbook Summary sheet's first label.
-  static const String title = 'LocalBudget report';
+  static const String title = 'Steiner Budget report';
 
   /// Share-sheet file name; same date stem as the workbook's.
   static String fileName(DateTime now) =>
       ReportWorkbook.fileName(now).replaceAll('.xlsx', '.pdf');
 
   static Future<Uint8List> build(ReportData d) async {
-    final doc = pw.Document(title: title, creator: 'LocalBudget');
+    final doc = pw.Document(title: title, creator: 'Steiner Budget');
     String money(int minor) => Money(minor, d.currency).format();
     final showCompare = d.months.any((m) => m.compareSpentMinor != null);
 
@@ -41,10 +41,7 @@ abstract final class ReportPdf {
           pw.Text(
             title,
             // (pdf 3.12 cannot const-evaluate a bold TextStyle's font fallbacks.)
-            style: pw.TextStyle(
-              fontSize: 20,
-              fontWeight: pw.FontWeight.bold,
-            ),
+            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 3),
           pw.Text(
@@ -63,7 +60,10 @@ abstract final class ReportPdf {
               if (d.compareSpentMinor != null)
                 ['Compare spent', money(d.compareSpentMinor!)],
               if (d.compareNormalizedMinor != null)
-                ['Compare spent (normalized)', money(d.compareNormalizedMinor!)],
+                [
+                  'Compare spent (normalized)',
+                  money(d.compareNormalizedMinor!),
+                ],
               if (d.deltaBp != null)
                 [
                   'Change',
@@ -78,11 +78,7 @@ abstract final class ReportPdf {
             _empty('No spending in this range.')
           else
             _table(
-              [
-                'Month',
-                'Spent',
-                if (showCompare) 'Spent (compare)',
-              ],
+              ['Month', 'Spent', if (showCompare) 'Spent (compare)'],
               [
                 for (final m in d.months)
                   [
