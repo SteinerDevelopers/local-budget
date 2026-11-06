@@ -90,10 +90,14 @@ name, quantity, unitPriceMinor, currencyCode) with no writer. M5 gives it one.
 
 - New pure-Dart `ItemLines.tryParse(lines)` in packages/data: scans the block
   between a transaction row and its following total/summary boundary for
-  item-shaped rows — free-text name at the left, price at the right, **no date
-  on the line** (a date makes it another transaction row), optional quantity as
-  a leading integer × (e.g. `2 × 4.99`). Stops at TOTAL/SUBTOTAL/TAX summary
-  words and at the next dated row.
+   item-shaped rows — free-text name at the left, exactly one price at the
+   right, **no date on the line** (a date makes it another transaction row).
+   A line with two numerals is balance/reference territory: it closes the
+   block instead of being read (the schema keeps a `quantity` column for a
+   later, marker-backed pass; the parser leaves it null). Stops at
+   TOTAL/SUBTOTAL/TAX/BALANCE summary words and at the next dated row; a
+   lone-item block stores nothing — one price equal to the row's own is
+   more likely an echo than an itemization.
 - Wiring: a statement row whose document contained item lines stores them when
   the row is committed (same transaction, same currency; `position` preserves
   document order). Documents without a trustworthy item block store nothing —
@@ -101,8 +105,10 @@ name, quantity, unitPriceMinor, currencyCode) with no writer. M5 gives it one.
 - Display: transaction detail gains an expandable "Items (n)" section
   (amounts right-aligned, total line reconciles to the transaction amount; if
   the items don't reconcile the section is hidden and nothing is stored).
-- The gold corpus gains two itemized fixtures; precision bar: items are stored
-  only when every parsed price sums to the row's amount (±currency exponent).
+- The parser fixtures (item-block group in `packages/data/test`) pin both
+  directions; precision bar: items are stored only when the parsed prices sum
+  *exactly* to the row's amount — stricter than the ±exponent originally
+  sketched, and the bar that shipped.
 
 ## 6. iOS VisionKit parity (E10 seam)
 
