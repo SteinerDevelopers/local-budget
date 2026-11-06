@@ -1,5 +1,5 @@
 // #34 — the budgets sheet (design e3 §2.1/§2.2): opened from the ledger's
-// Expenses stat and from Manage, overall target + category limits on the
+// Expenses stat and from Reports, overall target + category limits on the
 // shared keypad, rollover badge, overspend honesty, copy-last-month.
 //
 // Same drift rules as manage_test.dart: close the db INSIDE the test body.
@@ -15,7 +15,6 @@ import 'package:local_budget/features/ledger/balance_strip.dart';
 import 'package:local_budget/features/ledger/ledger_screen.dart'
     show monthIndexOf, monthTitle;
 import 'package:local_budget/features/ledger/view_models.dart';
-import 'package:local_budget/main.dart';
 import 'package:sqlite3/open.dart' as sqlite3_open;
 
 void main() {
@@ -334,27 +333,9 @@ void main() {
     });
   });
 
-  group('Manage entry point (§2.4)', () {
-    testWidgets('Budgets & bills opens the same sheet', (tester) async {
-      final (:db, :repo) = freshRepo();
-      await tester.pumpWidget(LocalBudgetApp(repository: repo));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('receipt-add')));
-      await tester.pumpAndSettle();
-      await tester.dragUntilVisible(
-        find.text('Manage'),
-        find.byKey(const Key('chip-row')),
-        const Offset(-80, 0),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ActionChip, 'Manage'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Budgets & bills'));
-      await tester.pumpAndSettle();
-      expect(find.text('No budgets yet'), findsOneWidget);
-      await db.close();
-    });
-  });
+  // 'Manage entry point (§2.4)' group removed 2026-11-06 with the duplicate
+  // Manage → 'Budgets & bills' row (the bottom nav covers it; the sheet's
+  // own tests above keep the Expenses-stat / Reports paths covered).
 
   group('Rollover switch & period surfacing (#38)', () {
     testWidgets('the switch persists device-wide and survives a reopen', (

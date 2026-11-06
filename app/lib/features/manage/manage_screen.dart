@@ -9,13 +9,12 @@ import 'package:flutter/material.dart';
 import '../../design/tokens.dart';
 import '../../flavor.dart';
 import '../../version.dart';
-import '../budgets/budgets_sheet.dart';
 import '../capture/capture_services.dart';
 import 'package:local_budget/features/cloud/cloud_backup_screen.dart';
 import 'package:local_budget/features/cloud/cloud_hub.dart';
 import '../help/help_screen.dart';
 import '../import/import_wizard_screen.dart';
-import '../ledger/ledger_screen.dart' show monthIndexOf;
+
 import '../support/coffee_sheet.dart';
 import '../support/get_pro_page.dart';
 import '../support/transfer.dart';
@@ -170,16 +169,9 @@ class _ManageScreenState extends State<ManageScreen> {
               ),
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.savings_outlined),
-            title: const Text('Budgets & bills'),
-            onTap: () => showBudgetsSheet(
-              context,
-              repository: widget.repository,
-              monthIndex: monthIndexOf(DateTime.now()),
-              capture: widget.capture,
-            ),
-          ),
+          // 'Budgets & bills' used to live here — removed 2026-11-06: the
+          // bottom nav (Receipts · Bills · Budgets · Goals) is the primary
+          // surface and the Expenses stat / Reports still open the sheet.
           ListTile(
             leading: const Icon(Icons.attach_money),
             title: const Text('Base currency'),

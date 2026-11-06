@@ -19,9 +19,10 @@ import 'budgets_service.dart';
 import 'budgets_tab.dart';
 import 'limit_editor_sheet.dart';
 
-/// Budgets & bills entry point — from the ledger's Expenses stat or Manage
-/// (design e3 §2.1). A near-full-height sheet: budgets live next to the
-/// ledger, not on a new bottom tab (E1 IA decision, unchanged).
+/// Budgets & bills sheet — from the ledger's Expenses stat or Reports
+/// (design e3 §2.1; the duplicate Manage entry point was removed
+/// 2026-11-06 — the bottom nav is the primary home). A near-full-height
+/// sheet: budgets live next to the ledger (E1 IA decision).
 /// [focusBillId] (§5, notification tap) lands on the Bills tab with that
 /// rule's occurrence sheet open.
 Future<void> showBudgetsSheet(
