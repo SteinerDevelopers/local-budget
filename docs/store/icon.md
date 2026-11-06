@@ -161,3 +161,13 @@ Installed on both dev phones, native launcher pixels (×4 / ×3 zooms):
 Icon status: **SHIPPED — device-verified**. Production assets live in
 app/android/app/src/{main,pro}/res (adaptive layers all densities +
 legacy full-composites); generator tmp/adapticon/gen-v2vault.js.
+
+
+## Final polish: optical centering of the $ (kit b56cc4a)
+
+Liberation Bold's $ ink box hangs 0.03 em below its central-baseline
+anchor (measured: ink bbox center vs anchor at 200 px em). Text y
+nudged 60 -> 59.25. Drawn-ink check: $ bbox center within 0.5 px of
+the drawn coin center at 192 px (err -0.5,-0.5). Device captures
+(ondevice-nudge.png): balanced in circle mask (Verge 260 dpi) and
+squircle (Flip6 420 dpi), both flavors. Icon CLOSED.
