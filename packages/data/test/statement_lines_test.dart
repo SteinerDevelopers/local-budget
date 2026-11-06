@@ -158,10 +158,10 @@ void main() {
 
     test('parse reports the layout it ran on', () {
       final fresh = parse(['10/01/2026 CAFE 12.34'])!;
-      expect(fresh.layout, const StatementLayout(
-        decimalComma: false,
-        dayFirst: false,
-      ));
+      expect(
+        fresh.layout,
+        const StatementLayout(decimalComma: false, dayFirst: false),
+      );
       final saved = StatementLines.tryParse(
         ['05.12.2026 GESELLSCHAFT 1.234,56'],
         currency: usd,
@@ -232,14 +232,16 @@ void main() {
       expect(p.rows.single.items, hasLength(3));
     });
 
-    test('a lone price line is not an item (single-item blocks stay silent)',
-        () {
-      final p = parse([
-        '12/05/2026 CITY HOSPITAL 250.00 4,300.00',
-        'X-RAY READING 250.00',
-      ])!;
-      expect(p.rows.single.items, isNull);
-    });
+    test(
+      'a lone price line is not an item (single-item blocks stay silent)',
+      () {
+        final p = parse([
+          '12/05/2026 CITY HOSPITAL 250.00 4,300.00',
+          'X-RAY READING 250.00',
+        ])!;
+        expect(p.rows.single.items, isNull);
+      },
+    );
   });
 
   group('refusals', () {

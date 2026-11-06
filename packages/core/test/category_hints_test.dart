@@ -6,8 +6,8 @@ void main() {
     test('a well-known brand reads high', () {
       expect(CategoryHints.suggest('UBER TRIP HELP.PEOPLE.COM'),
           ('Transport', FieldConfidence.high));
-      expect(CategoryHints.suggest('netflix.com'),
-          ('Fun', FieldConfidence.high));
+      expect(
+          CategoryHints.suggest('netflix.com'), ('Fun', FieldConfidence.high));
       expect(CategoryHints.suggest('COSTCO WHOLESALE #123'), isNull);
       expect(CategoryHints.suggest('STARBUCKS STORE 4018'),
           ('Food', FieldConfidence.high));

@@ -101,22 +101,24 @@ void main() {
       expect(p.rows[0].duplicate, isFalse); // preview row is an expense
     });
 
-    test('category inference (e12 §2): brands preselect, income stays silent',
-        () async {
-      final p = await preview();
-      final byText = {for (final r in p.rows) r.description!: r};
-      // 'Cafe Late' hits the brand table → Food, high, resolved to the
-      // seeded category's id so commit persists it after review.
-      final cafe = byText['Cafe Late']!;
-      expect(cafe.categoryName, 'Food');
-      expect(cafe.categoryConfidence, FieldConfidence.high);
-      expect(cafe.categoryId, isNotNull);
-      // Income rows are never inferred.
-      expect(byText['Salary Corp']!.categoryName, isNull);
-      // 'Corner Store' matches no vocabulary → silence, not a guess.
-      expect(byText['Corner Store']!.categoryName, isNull);
-      expect(byText['Corner Store']!.categoryConfidence, isNull);
-    });
+    test(
+      'category inference (e12 §2): brands preselect, income stays silent',
+      () async {
+        final p = await preview();
+        final byText = {for (final r in p.rows) r.description!: r};
+        // 'Cafe Late' hits the brand table → Food, high, resolved to the
+        // seeded category's id so commit persists it after review.
+        final cafe = byText['Cafe Late']!;
+        expect(cafe.categoryName, 'Food');
+        expect(cafe.categoryConfidence, FieldConfidence.high);
+        expect(cafe.categoryId, isNotNull);
+        // Income rows are never inferred.
+        expect(byText['Salary Corp']!.categoryName, isNull);
+        // 'Corner Store' matches no vocabulary → silence, not a guess.
+        expect(byText['Corner Store']!.categoryName, isNull);
+        expect(byText['Corner Store']!.categoryConfidence, isNull);
+      },
+    );
 
     test('item blocks survive commit into LineItems in document order '
         '(e12 §5)', () async {
@@ -138,15 +140,17 @@ void main() {
         rows: parsed.rows,
       );
       expect(preview.rows.single.items, hasLength(3));
-      final n = await CsvImport(db).commit(
-        accountId: accountId,
-        currency: usd,
-        rows: preview.rows,
-      );
+      final n = await CsvImport(
+        db,
+      ).commit(accountId: accountId, currency: usd, rows: preview.rows);
       expect(n, 1);
       final tx = (await repo.transactionsForMonth('2026-12')).single;
       final stored = await repo.lineItemsFor(tx.id);
-      expect(stored.map((e) => e.name), ['X-RAY READING', 'LAB WORK', 'SUPPLY FEE']);
+      expect(stored.map((e) => e.name), [
+        'X-RAY READING',
+        'LAB WORK',
+        'SUPPLY FEE',
+      ]);
       expect(stored.map((e) => e.position), [0, 1, 2]);
       expect(
         stored.fold<int>(0, (s, e) => s + e.unitPriceMinor!),
@@ -154,7 +158,8 @@ void main() {
       );
     });
 
-    test('commit rides CsvImport.commit; re-preview flags everything',
+    test(
+      'commit rides CsvImport.commit; re-preview flags everything',
       () async {
         final p = await preview();
         final n = await imp.commit(

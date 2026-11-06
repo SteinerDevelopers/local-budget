@@ -633,16 +633,18 @@ class CsvImport {
         if (items != null && items.isNotEmpty) {
           for (var p = 0; p < items.length; p++) {
             final it = items[p];
-            await db.into(db.lineItems).insert(
-              LineItemsCompanion.insert(
-                transactionId: txId,
-                position: Value(p),
-                name: it.name,
-                quantity: Value(it.quantity?.toDouble()),
-                unitPriceMinor: Value(it.unitPriceMinor),
-                currencyCode: currency.code,
-              ),
-            );
+            await db
+                .into(db.lineItems)
+                .insert(
+                  LineItemsCompanion.insert(
+                    transactionId: txId,
+                    position: Value(p),
+                    name: it.name,
+                    quantity: Value(it.quantity?.toDouble()),
+                    unitPriceMinor: Value(it.unitPriceMinor),
+                    currencyCode: currency.code,
+                  ),
+                );
           }
         }
         n++;
@@ -677,25 +679,26 @@ class CsvImport {
 
     return CsvPreview(
       rows: [
-        for (var i = 0; i < rows.length; i++) () {
-          final hint = rows[i].isIncome
-              ? null
-              : CategoryHints.suggest(rows[i].description ?? '');
-          return CsvPreviewRow(
-            rowIndex: i,
-            date: rows[i].date,
-            minor: rows[i].minor,
-            isIncome: rows[i].isIncome,
-            description: rows[i].description,
-            categoryId: findCat(hint?.$1),
-            categoryName: hint?.$1,
-            categoryConfidence: hint?.$2,
-            items: rows[i].items,
-            duplicate: existing.contains(
-              _dedupKey(rows[i].date, rows[i].minor, rows[i].isIncome),
-            ),
-          );
-        }(),
+        for (var i = 0; i < rows.length; i++)
+          () {
+            final hint = rows[i].isIncome
+                ? null
+                : CategoryHints.suggest(rows[i].description ?? '');
+            return CsvPreviewRow(
+              rowIndex: i,
+              date: rows[i].date,
+              minor: rows[i].minor,
+              isIncome: rows[i].isIncome,
+              description: rows[i].description,
+              categoryId: findCat(hint?.$1),
+              categoryName: hint?.$1,
+              categoryConfidence: hint?.$2,
+              items: rows[i].items,
+              duplicate: existing.contains(
+                _dedupKey(rows[i].date, rows[i].minor, rows[i].isIncome),
+              ),
+            );
+          }(),
       ],
       errors: const [],
       currency: currency,

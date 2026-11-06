@@ -35,8 +35,8 @@ class CategoryHints {
     brands(
       'Food',
       r'\bSTARBUCKS\b|\bMCDONALD|\bSUBWAY\b|\bCHIPOTLE\b|\bDOMINO'
-      r'|\bPIZZA HUT\b|\bWHOLE FOODS\b|\bTRADER JOE|\bSAFEWAY\b|\bKROGER\b'
-      r'|\bALDI\b|\bWEGMANS\b|\bPUBlix\b|\bCAFE\b|\bCOFFEE\b|\bGRILL\b',
+          r'|\bPIZZA HUT\b|\bWHOLE FOODS\b|\bTRADER JOE|\bSAFEWAY\b|\bKROGER\b'
+          r'|\bALDI\b|\bWEGMANS\b|\bPUBlix\b|\bCAFE\b|\bCOFFEE\b|\bGRILL\b',
     );
     generic(
       'Food',
@@ -45,7 +45,7 @@ class CategoryHints {
     brands(
       'Transport',
       r'\bUBER\b|\bLYFT\b|\bSHELL\b|\bCHEVRON\b|\bEXXON\b|\bSUNOCO\b'
-      r'|\bMARATHON\b|\bAIRLINES?\b|\bAMTRAK\b|\bGREYHOUND\b',
+          r'|\bMARATHON\b|\bAIRLINES?\b|\bAMTRAK\b|\bGREYHOUND\b',
     );
     generic(
       'Transport',
@@ -54,31 +54,31 @@ class CategoryHints {
     brands(
       'Utilities',
       r'\bPG&E\b|\bCOMCAST\b|\bXFINITY\b|\bCHARTER\b|\bSPECTRUM\b'
-      r'|\bVERIZON\b|\bT[- ]?MOBILE\b|\bAT\s*&\s*T\b|\bDUKE ENERGY\b'
-      r'|\bCONED\b|\bCON ED\b|\bNATIONAL GRID\b',
+          r'|\bVERIZON\b|\bT[- ]?MOBILE\b|\bAT\s*&\s*T\b|\bDUKE ENERGY\b'
+          r'|\bCONED\b|\bCON ED\b|\bNATIONAL GRID\b',
     );
     generic(
       'Utilities',
       r'\bELECTRIC\b|\bPOWER\b|\bWATER\b|\bENERGY\b|\bUTILITY\b'
-      r'|\bINTERNET\b|\bWIRELESS\b|\bTELECOM\b',
+          r'|\bINTERNET\b|\bWIRELESS\b|\bTELECOM\b',
     );
     brands(
       'Fun',
       r'\bNETFLIX\b|\bSPOTIFY\b|\bDISNEY\+?\b|\bHULU\b|\bPARAMOUNT\+\b'
-      r'|\bPEACOCK\b|\bAPPLE TV\b|\bPRIME VIDEO\b|\bYOUTUBE PREMIUM\b'
-      r'|\bXBOX\b|\bPLAYSTATION\b|\bSTEAM\b|\bCINEMARK\b|\bAMC THEATERS\b',
+          r'|\bPEACOCK\b|\bAPPLE TV\b|\bPRIME VIDEO\b|\bYOUTUBE PREMIUM\b'
+          r'|\bXBOX\b|\bPLAYSTATION\b|\bSTEAM\b|\bCINEMARK\b|\bAMC THEATERS\b',
     );
     generic('Fun', r'\bMOVIE\b|\bCINEMA\b|\bTHEATER\b|\bARCADE\b');
     brands(
       'Health',
       r'\bCVS\b|\bWALGREEN|\bRITE AID\b|\bPHARMACY\b|\bKAISER\b|\bCIGNA\b'
-      r'|\bAETNA\b|\bUNITEDHEALTH\b|BLUE (?:CROSS|SHIELD)|\bDENTAL\b'
-      r'|\bOPTOMETRY\b|\bCOPAY\b',
+          r'|\bAETNA\b|\bUNITEDHEALTH\b|BLUE (?:CROSS|SHIELD)|\bDENTAL\b'
+          r'|\bOPTOMETRY\b|\bCOPAY\b',
     );
     generic(
       'Health',
       r'\bMEDICAL\b|\bCLINIC\b|\bHOSPITAL\b|\bDOCTOR\b|\bPHARMA\b'
-      r'|\bEYE CARE\b|\bLAB\b',
+          r'|\bEYE CARE\b|\bLAB\b',
     );
     return rules;
   }

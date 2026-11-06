@@ -65,8 +65,7 @@ final class StatementLayout {
   /// True when dates read `DD.MM.YYYY` rather than `MM/DD/…`.
   final bool dayFirst;
 
-  String encode() =>
-      jsonEncode({'dc': decimalComma, 'df': dayFirst});
+  String encode() => jsonEncode({'dc': decimalComma, 'df': dayFirst});
 
   static StatementLayout? decode(String? stored) {
     if (stored == null || stored.isEmpty) return null;
@@ -289,9 +288,7 @@ class StatementLines {
   /// comma-decimal (`12,34`) and/or dot-decimal (`12.34`) present. Both at
   /// once is a contradiction no parser should paper over — unless a saved
   /// per-issuer profile settles it (e12 §3).
-  static (bool commaDecimal, bool dotDecimal) _styleProbe(
-    List<String> lines,
-  ) {
+  static (bool commaDecimal, bool dotDecimal) _styleProbe(List<String> lines) {
     var commaDecimal = false, dotDecimal = false;
     for (final line in lines) {
       // Dates are not amounts: `05.12.2026` would fake a dot-decimal and
@@ -428,9 +425,7 @@ class StatementLines {
     bool day(int v) => v >= 1 && v <= 31;
     if (n.length == 3) {
       if (t.contains('-') && n[0] >= 1900) return month(n[1]) && day(n[2]);
-      return day(n[0]) &&
-          month(n[1]) &&
-          n[2] >= 1900 ||
+      return day(n[0]) && month(n[1]) && n[2] >= 1900 ||
           month(n[0]) && day(n[1]) && n[2] >= 1900;
     }
     if (n.length == 2) {
