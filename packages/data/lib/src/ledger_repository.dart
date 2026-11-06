@@ -765,7 +765,10 @@ extension LedgerE1 on LedgerRepository {
               db.categories,
               db.categories.id.equalsExp(tx.categoryId),
             ),
-            leftOuterJoin(db.merchants, db.merchants.id.equalsExp(tx.merchantId)),
+            leftOuterJoin(
+              db.merchants,
+              db.merchants.id.equalsExp(tx.merchantId),
+            ),
           ])
           ..where(tx.dateDays.isBetweenValues(r.fromDays, r.toDays))
           // §3.5: goal movements never appear in the ledger list — and the
