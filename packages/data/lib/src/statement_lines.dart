@@ -8,6 +8,23 @@ import 'csv_import.dart';
 /// (E11, e11-document-import.md §3). Maps 1:1 onto `CsvPreviewRow` on the
 /// import Preview; `externalId` deliberately stays null there — dedupe is
 /// the shared E5 date|amount|direction tuple, same as FITID-less OFX rows.
+/// One itemized line under a statement row (e12 §5): name left, price right,
+/// no date of its own. Only ever stored when the whole block reconciles to
+/// its row's amount — silence is the honest answer otherwise.
+final class ItemLine {
+  const ItemLine({
+    required this.name,
+    required this.unitPriceMinor,
+    this.quantity,
+  });
+
+  final String name;
+  final int unitPriceMinor;
+  final int? quantity;
+
+  int get totalMinor => unitPriceMinor * (quantity ?? 1);
+}
+
 final class StatementRow {
   const StatementRow({
     required this.date,
@@ -15,6 +32,7 @@ final class StatementRow {
     required this.isIncome,
     this.description,
     this.ambiguous = false,
+    this.items,
   });
 
   final DateTime date;
@@ -23,6 +41,9 @@ final class StatementRow {
   final int minor;
   final bool isIncome;
   final String? description;
+
+  /// Itemized lines that reconciled to this row's amount (e12 §5), else null.
+  final List<ItemLine>? items;
 
   /// True when something was *inferred* (balance-column split, carried
   /// year, ambiguous extra numerals) — the Preview renders these amber so
@@ -129,9 +150,47 @@ class StatementLines {
 
     final rows = <StatementRow>[];
     var skipped = 0;
+    // e12 §5 — an item block is the run of dateless, priced, lettered lines
+    // directly under a row. It is attached only when it closes reconciling
+    // exactly to that row's amount; otherwise it is silently dropped.
+    var itemOwner = -1;
+    var itemBlock = <ItemLine>[];
+    void closeItemBlock() {
+      if (itemOwner >= 0 && itemBlock.length >= 2) {
+        final owner = rows[itemOwner];
+        final sum = itemBlock.fold<int>(0, (s, it) => s + it.totalMinor);
+        if (sum == owner.minor) {
+          rows[itemOwner] = StatementRow(
+            date: owner.date,
+            minor: owner.minor,
+            isIncome: owner.isIncome,
+            description: owner.description,
+            ambiguous: owner.ambiguous,
+            items: List.unmodifiable(itemBlock),
+          );
+        }
+      }
+      itemOwner = -1;
+      itemBlock = [];
+    }
+
     for (var i = 0; i < cleaned.length; i++) {
       final line = cleaned[i];
       final shape = shapes[i];
+      if (shape.dateToken == null && shape.hasAmount) {
+        // Dateless priced line: candidate item, or whatever ends a block —
+        // a total line, a carried balance, anything untrustworthy.
+        final item = shape.hasLetters && itemOwner == rows.length - 1
+            ? _itemFrom(line, shape)
+            : null;
+        if (item != null) {
+          itemBlock.add(item);
+          continue;
+        }
+        closeItemBlock();
+        skipped++;
+        continue;
+      }
       if (shape.dateToken == null || !shape.hasAmount) {
         // A letters-only line directly under a row is that row's
         // description wrapped by the OCR (statements do this at every
@@ -146,6 +205,7 @@ class StatementLines {
                 ? line
                 : '${prev.description} $line',
             ambiguous: prev.ambiguous,
+            items: prev.items,
           );
           continue;
         }
@@ -162,6 +222,9 @@ class StatementLines {
         skipped++;
         continue;
       }
+      // A dated line — whatever item block hung off the previous row ends
+      // here on paper, reconciled or not (e12 §5).
+      closeItemBlock();
       final amount = _pickAmount(shape, balanceColumn: balanceColumn);
       if (amount == null) {
         skipped++;
@@ -176,7 +239,9 @@ class StatementLines {
           ambiguous: amount.ambiguous || !_hasYearOnPaper(shape.dateToken!),
         ),
       );
+      itemOwner = rows.length - 1;
     }
+    closeItemBlock();
     return StatementParse(
       rows: rows,
       skippedLines: skipped,
@@ -251,6 +316,37 @@ class StatementLines {
     return (commaDecimal, dotDecimal);
   }
 
+  // --- item blocks (e12 §5) ------------------------------------------------
+
+  /// Words that end an item block: the statement's own summary vocabulary.
+  static final RegExp _summaryRe = RegExp(
+    r'\bTOTALS?\b|\bSUB ?TOTAL\b|\bBALANCE\b|\bAMOUNT\s+DUE\b|\bTAX\b'
+    r'|\bGST\b|\bVAT\b|\bPAYMENT\b|\bINTEREST\b|\bFEE TOTAL\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _qtyRe = RegExp(r'^(\d{1,2})\s*[x×]\s*(.+)$');
+
+  /// One dateless priced lettered line as an item, or null when the line is
+  /// summary vocabulary, carries more than one numeral (that is balance
+  /// territory), or has no name left after a `2 ×` quantity prefix is read.
+  static ItemLine? _itemFrom(String line, _LineShape shape) {
+    if (shape.amounts.length != 1 || _summaryRe.hasMatch(line)) return null;
+    final name0 = _describe(line, shape);
+    if (name0 == null || !name0.contains(RegExp('[A-Za-z]'))) return null;
+    var name = name0.trim();
+    int? qty;
+    final qm = _qtyRe.firstMatch(name);
+    if (qm != null) {
+      qty = int.parse(qm.group(1)!);
+      name = qm.group(2)!.trim();
+      if (name.isEmpty) return null;
+    }
+    final price = shape.amounts.first.minor; // amounts run right to left
+    if (price <= 0) return null;
+    return ItemLine(name: name, unitPriceMinor: price, quantity: qty);
+  }
+
   // --- per-line shape ------------------------------------------------------
 
   /// Date token + amount candidates, computed once per line so style,
@@ -258,11 +354,14 @@ class StatementLines {
   static _LineShape _shape(String line, Currency currency) {
     var masked = line;
     String? dateToken;
-    final dm = _dateRe.firstMatch(line);
-    if (dm != null) {
+    // Only a *plausible* date reads as one: `120.00` starts with what the
+    // bare-pair branch could match (`20.00`), but month 20 does not exist —
+    // calling that a date would mask a real amount (e12 §5 item lines).
+    for (final dm in _dateRe.allMatches(line)) {
+      if (!_plausibleDate(dm.group(0)!)) continue;
       dateToken = dm.group(0)!;
-      // '~' cannot be read as a sign or separator by the numeral regex.
-      masked = line.replaceRange(dm.start, dm.end, '~' * dm.group(0)!.length);
+      masked = line.replaceRange(dm.start, dm.end, '~' * dateToken.length);
+      break;
     }
     final amounts = <_Amount>[];
     for (final m in _numTokenRe.allMatches(masked)) {
@@ -317,6 +416,28 @@ class StatementLines {
     r'|\d{1,2}[/.-]\d{1,2}[/.-]\d{4}'
     r'|\d{1,2}[/.]\d{1,2}(?![\d/.-])',
   );
+
+  /// Whether a date-shaped token could actually name a calendar date, in
+  /// either day/month order. Day-first documents (31.12.) stay plausible;
+  /// `20.00`, `80.00`, `24.60` do not and keep their amount meaning.
+  static bool _plausibleDate(String t) {
+    final p = [for (final s in t.split(RegExp(r'[/.-]'))) int.tryParse(s)];
+    if (p.any((e) => e == null)) return false;
+    final n = p.cast<int>();
+    bool month(int v) => v >= 1 && v <= 12;
+    bool day(int v) => v >= 1 && v <= 31;
+    if (n.length == 3) {
+      if (t.contains('-') && n[0] >= 1900) return month(n[1]) && day(n[2]);
+      return day(n[0]) &&
+          month(n[1]) &&
+          n[2] >= 1900 ||
+          month(n[0]) && day(n[1]) && n[2] >= 1900;
+    }
+    if (n.length == 2) {
+      return month(n[0]) && day(n[1]) || month(n[1]) && day(n[0]);
+    }
+    return false;
+  }
 
   /// Day-first vs month-first for slash dates: document vote from values
   /// above 12 in year-ful dates; no evidence keeps `MM/dd` (US statements).

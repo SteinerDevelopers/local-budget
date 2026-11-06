@@ -180,6 +180,68 @@ void main() {
     });
   });
 
+  group('item blocks (e12 §5)', () {
+    const itemized = [
+      '12/05/2026 CITY HOSPITAL 250.00 4,300.00',
+      'X-RAY READING 120.00',
+      'LAB WORK 80.00',
+      'SUPPLY FEE 50.00',
+      'TOTAL CHARGES 250.00',
+      '12/07/2026 DELTA FOODS 30.00 4,270.00',
+    ];
+
+    test('a block reconciling to the row amount is kept, in order', () {
+      final p = parse(itemized)!;
+      expect(p.rows, hasLength(2));
+      final hosp = p.rows.first;
+      expect(hosp.description, contains('CITY HOSPITAL'));
+      expect(hosp.items, hasLength(3));
+      expect(hosp.items!.map((e) => e.name), [
+        'X-RAY READING',
+        'LAB WORK',
+        'SUPPLY FEE',
+      ]);
+      expect(hosp.items!.fold<int>(0, (s, e) => s + e.totalMinor), hosp.minor);
+      // The next row has no block of its own.
+      expect(p.rows.last.items, isNull);
+    });
+
+    test('a block that does not reconcile is dropped, the row kept', () {
+      final p = parse([
+        '12/05/2026 CITY HOSPITAL 250.00 4,300.00',
+        'X-RAY READING 130.00', // 130 + 80 + 50 ≠ 250
+        'LAB WORK 80.00',
+        'SUPPLY FEE 50.00',
+      ])!;
+      expect(p.rows.single.items, isNull);
+      expect(p.rows.single.minor, 25000);
+    });
+
+    test('summary vocabulary closes the block before it overruns', () {
+      // The second block under TOTAL would swallow the summary price if
+      // the block did not stop at the summary word.
+      final p = parse([
+        '12/05/2026 CITY HOSPITAL 250.00 4,300.00',
+        'X-RAY READING 120.00',
+        'LAB WORK 80.00',
+        'SUPPLY FEE 50.00',
+        'TOTAL CHARGES 250.00',
+        'ORPHAN FEE 9.00',
+        'OTHER FEE 9.00',
+      ])!;
+      expect(p.rows.single.items, hasLength(3));
+    });
+
+    test('a lone price line is not an item (single-item blocks stay silent)',
+        () {
+      final p = parse([
+        '12/05/2026 CITY HOSPITAL 250.00 4,300.00',
+        'X-RAY READING 250.00',
+      ])!;
+      expect(p.rows.single.items, isNull);
+    });
+  });
+
   group('refusals', () {
     test('dates far outside the believable window are skipped', () {
       final p = parse(['01/01/2019 OLDSCHOOL 5.00']);

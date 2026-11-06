@@ -220,6 +220,7 @@ class CsvPreviewRow {
     this.categoryConfidence,
     this.note,
     this.externalId,
+    this.items,
     this.duplicate = false,
   });
 
@@ -244,6 +245,10 @@ class CsvPreviewRow {
   /// Same (accountId, dateDays, amountMinor, isIncome) exists in the ledger.
   final bool duplicate;
 
+  /// Reconciled item lines from a scanned statement (e12 §5); stored under
+  /// the committed transaction. Null for files and non-reconciling scans.
+  final List<ItemLine>? items;
+
   CsvPreviewRow copyWith({int? categoryId, bool? duplicate}) => CsvPreviewRow(
     rowIndex: rowIndex,
     date: date,
@@ -255,6 +260,7 @@ class CsvPreviewRow {
     categoryConfidence: categoryConfidence,
     note: note,
     externalId: externalId,
+    items: items,
     duplicate: duplicate ?? this.duplicate,
   );
 }
@@ -610,7 +616,7 @@ class CsvImport {
     return db.transaction(() async {
       var n = 0;
       for (final r in rows) {
-        await _repo.addTransaction(
+        final txId = await _repo.addTransaction(
           accountId: accountId,
           date: r.date,
           amount: Money(r.minor, currency),
@@ -621,6 +627,24 @@ class CsvImport {
           isIncome: r.isIncome,
           externalId: r.externalId,
         );
+        // e12 §5: item lines exist only because they reconciled to this
+        // row's amount at parse time; keep the document order in position.
+        final items = r.items;
+        if (items != null && items.isNotEmpty) {
+          for (var p = 0; p < items.length; p++) {
+            final it = items[p];
+            await db.into(db.lineItems).insert(
+              LineItemsCompanion.insert(
+                transactionId: txId,
+                position: Value(p),
+                name: it.name,
+                quantity: Value(it.quantity?.toDouble()),
+                unitPriceMinor: Value(it.unitPriceMinor),
+                currencyCode: currency.code,
+              ),
+            );
+          }
+        }
         n++;
       }
       return n;
@@ -666,6 +690,7 @@ class CsvImport {
             categoryId: findCat(hint?.$1),
             categoryName: hint?.$1,
             categoryConfidence: hint?.$2,
+            items: rows[i].items,
             duplicate: existing.contains(
               _dedupKey(rows[i].date, rows[i].minor, rows[i].isIncome),
             ),

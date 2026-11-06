@@ -351,10 +351,17 @@ class LedgerRepository {
 
   // ---- settings -----------------------------------------------------------
 
+  /// e12 §5 — the stored item lines of a committed statement row, in
+  /// document order (the transaction detail sheet reads these back).
+  Future<List<LineItemRow>> lineItemsFor(int transactionId) => (db.select(
+    db.lineItems,
+  )
+    ..where((t) => t.transactionId.equals(transactionId))
+    ..orderBy([(t) => OrderingTerm.asc(t.position)])).get();
+
   Future<void> setSetting(String key, String value) => db
       .into(db.settings)
       .insertOnConflictUpdate(SettingsCompanion.insert(key: key, value: value));
-
   Future<String?> setting(String key) async => (await (db.select(
     db.settings,
   )..where((s) => s.key.equals(key))).getSingleOrNull())?.value;

@@ -90,6 +90,9 @@ class _Detail extends StatelessWidget {
         ),
         if (entry.note != null && entry.note!.isNotEmpty)
           _Meta(icon: Icons.sticky_note_2_outlined, label: entry.note!),
+        // e12 §5 — itemized lines stored with this row at commit time;
+        // the section only exists when the block reconciled.
+        _Items(repository: repository, transactionId: entry.id),
         const SizedBox(height: Tokens.space4),
         Align(
           alignment: Alignment.centerLeft,
@@ -108,9 +111,54 @@ class _Detail extends StatelessWidget {
   }
 }
 
+/// e12 §5 — expandable item lines stored under this transaction.
+class _Items extends StatelessWidget {
+  const _Items({required this.repository, required this.transactionId});
+
+  final LedgerRepository repository;
+  final int transactionId;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<LineItemRow>>(
+    future: repository.lineItemsFor(transactionId),
+    builder: (context, snap) {
+      final items = snap.data;
+      if (items == null || items.isEmpty) return const SizedBox.shrink();
+      return ExpansionTile(
+        key: const Key('detail-items'),
+        tilePadding: EdgeInsets.zero,
+        title: Text(
+          'Items (${items.length})',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        children: [
+          for (final it in items)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                (it.quantity ?? 1) > 1
+                    ? '${it.name} × ${it.quantity!.toStringAsFixed(0)}'
+                    : it.name,
+              ),
+              trailing: Text(
+                MoneyDisplay.signed(
+                  Money(
+                    it.unitPriceMinor! * (it.quantity ?? 1).toInt(),
+                    Currency.resolve(it.currencyCode),
+                  ),
+                  isExpense: true,
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
+
 class _Meta extends StatelessWidget {
   const _Meta({required this.icon, required this.label});
-
   final IconData icon;
   final String label;
 

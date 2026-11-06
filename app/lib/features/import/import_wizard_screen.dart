@@ -958,8 +958,9 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
                               ? null
                               : () => setState(() {
                                   _batch.removeAt(_tab);
-                                  if (_tab >= _batch.length)
+                                  if (_tab >= _batch.length) {
                                     _tab = _batch.length - 1;
+                                  }
                                 }),
                           child: const Text('Remove'),
                         )

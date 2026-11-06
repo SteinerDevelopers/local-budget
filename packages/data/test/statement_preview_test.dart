@@ -118,6 +118,42 @@ void main() {
       expect(byText['Corner Store']!.categoryConfidence, isNull);
     });
 
+    test('item blocks survive commit into LineItems in document order '
+        '(e12 §5)', () async {
+      final parsed = StatementLines.tryParse(
+        const [
+          '12/05/2026 CITY HOSPITAL 250.00 4,300.00',
+          'X-RAY READING 120.00',
+          'LAB WORK 80.00',
+          'SUPPLY FEE 50.00',
+          'TOTAL CHARGES 250.00',
+        ],
+        currency: usd,
+        now: DateTime.utc(2026, 12, 20),
+      )!;
+      expect(parsed.rows.single.items, hasLength(3));
+      final preview = await CsvImport(db).previewStatement(
+        accountId: accountId,
+        currency: usd,
+        rows: parsed.rows,
+      );
+      expect(preview.rows.single.items, hasLength(3));
+      final n = await CsvImport(db).commit(
+        accountId: accountId,
+        currency: usd,
+        rows: preview.rows,
+      );
+      expect(n, 1);
+      final tx = (await repo.transactionsForMonth('2026-12')).single;
+      final stored = await repo.lineItemsFor(tx.id);
+      expect(stored.map((e) => e.name), ['X-RAY READING', 'LAB WORK', 'SUPPLY FEE']);
+      expect(stored.map((e) => e.position), [0, 1, 2]);
+      expect(
+        stored.fold<int>(0, (s, e) => s + e.unitPriceMinor!),
+        parsed.rows.single.minor,
+      );
+    });
+
     test('commit rides CsvImport.commit; re-preview flags everything',
       () async {
         final p = await preview();
