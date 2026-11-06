@@ -1,9 +1,9 @@
 # Icon design — Steiner Budget
 
 _Status: **candidate sheet ready — awaiting owner pick** (agent recommendation:
-**A2 · Outline Wallet & Receipt**). Candidates: `deliverables/icon-candidates-budget/`
-(`contact-sheet.png`, incl. launcher-mask previews + 32 px legibility strip;
-family pair-review vs Steiner Vault alongside). Production exports will be
+**A2 · Outline Wallet & Receipt**). Candidates: `docs/store/icon-candidates/`
+`contact-sheet.png`, incl. launcher-mask previews + 32 px legibility strip;
+family pair-review vs Steiner Vault in deliverables). Production exports will be
 hand-authored SVGs mirroring the Vault V8 pipeline — this sheet is the concept
 stage, same as Vault's._
 
