@@ -217,6 +217,7 @@ class CsvPreviewRow {
     this.description,
     this.categoryId,
     this.categoryName,
+    this.categoryConfidence,
     this.note,
     this.externalId,
     this.duplicate = false,
@@ -229,6 +230,11 @@ class CsvPreviewRow {
   final String? description;
   final int? categoryId;
   final String? categoryName;
+
+  /// Set only when the category was *inferred* (e12 §2) — [FieldConfidence.medium]
+  /// renders as a visible "?" in the preview; null means the row's category
+  /// came from the file itself.
+  final FieldConfidence? categoryConfidence;
   final String? note;
 
   /// OFX FITID when the row came from a statement import (E5 §5); CSV
@@ -246,6 +252,7 @@ class CsvPreviewRow {
     description: description,
     categoryId: categoryId ?? this.categoryId,
     categoryName: categoryName,
+    categoryConfidence: categoryConfidence,
     note: note,
     externalId: externalId,
     duplicate: duplicate ?? this.duplicate,
@@ -528,13 +535,20 @@ class CsvImport {
       }
       final rawDesc = cell(descAt)?.trim();
       final rawNote = cell(noteAt)?.trim();
+      final rawCat = cell(catAt)?.trim();
+      // e12 §2: rows whose file carries no category get a deterministic
+      // merchant suggestion — expenses only, income rows stay untouched.
+      final hint = (rawCat == null || rawCat.isEmpty) && !amount.isIncome
+          ? CategoryHints.suggest(rawDesc ?? '')
+          : null;
       final row2 = CsvPreviewRow(
         rowIndex: i,
         date: date,
         minor: amount.minor,
         isIncome: amount.isIncome,
         description: (rawDesc == null || rawDesc.isEmpty) ? null : rawDesc,
-        categoryName: cell(catAt)?.trim(),
+        categoryName: rawCat?.isNotEmpty == true ? rawCat : hint?.$1,
+        categoryConfidence: hint?.$2,
         note: (rawNote == null || rawNote.isEmpty) ? null : rawNote,
       );
       rows.add(
@@ -626,19 +640,37 @@ class CsvImport {
     required List<StatementRow> rows,
   }) async {
     final existing = await _dedupKeys(accountId);
+    // e12 §2: scanned rows suggest categories exactly like CSV/OFX rows.
+    final cats = await _repo.categories();
+    int? findCat(String? name) {
+      final t = name?.trim().toLowerCase();
+      if (t == null || t.isEmpty) return null;
+      for (final c in cats) {
+        if (!c.isIncome && c.name.toLowerCase() == t) return c.id;
+      }
+      return null;
+    }
+
     return CsvPreview(
       rows: [
-        for (var i = 0; i < rows.length; i++)
-          CsvPreviewRow(
+        for (var i = 0; i < rows.length; i++) () {
+          final hint = rows[i].isIncome
+              ? null
+              : CategoryHints.suggest(rows[i].description ?? '');
+          return CsvPreviewRow(
             rowIndex: i,
             date: rows[i].date,
             minor: rows[i].minor,
             isIncome: rows[i].isIncome,
             description: rows[i].description,
+            categoryId: findCat(hint?.$1),
+            categoryName: hint?.$1,
+            categoryConfidence: hint?.$2,
             duplicate: existing.contains(
               _dedupKey(rows[i].date, rows[i].minor, rows[i].isIncome),
             ),
-          ),
+          );
+        }(),
       ],
       errors: const [],
       currency: currency,

@@ -212,6 +212,19 @@ class OfxImport {
     }
 
     final fileSeen = <String>{};
+    // e12 §2: OFX never carries categories either — the same deterministic
+    // merchant suggestion the CSV preview uses, resolved against the user's
+    // real categories so only an existing one is ever preselected.
+    final cats = await db.select(db.categories).get();
+    int? findCat(String? name) {
+      final t = name?.trim().toLowerCase();
+      if (t == null || t.isEmpty) return null;
+      for (final c in cats) {
+        if (!c.isIncome && c.name.toLowerCase() == t) return c.id;
+      }
+      return null;
+    }
+
     final rows = <CsvPreviewRow>[];
     for (var i = 0; i < statement.transactions.length; i++) {
       final t = statement.transactions[i];
@@ -224,6 +237,7 @@ class OfxImport {
               (seenTuple.contains(tuple) || fileSeen.contains(tuple)));
       if (t.fitId != null) fileSeen.add(t.fitId!);
       fileSeen.add(tuple);
+      final hint = t.isIncome ? null : CategoryHints.suggest(t.name ?? '');
       rows.add(
         CsvPreviewRow(
           rowIndex: i,
@@ -231,6 +245,9 @@ class OfxImport {
           minor: t.minor,
           isIncome: t.isIncome,
           description: t.name,
+          categoryId: findCat(hint?.$1),
+          categoryName: hint?.$1,
+          categoryConfidence: hint?.$2,
           note: t.memo,
           externalId: t.fitId,
           duplicate: duplicate,

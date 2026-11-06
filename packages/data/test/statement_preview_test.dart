@@ -24,6 +24,7 @@ void main() {
     setUp(() async {
       db = AppDatabase.inMemory();
       repo = LedgerRepository(db);
+      await repo.ensureDefaults(); // the seed categories exist here
       imp = CsvImport(db);
       accountId = await repo.createAccount(
         name: 'Checking',
@@ -100,8 +101,24 @@ void main() {
       expect(p.rows[0].duplicate, isFalse); // preview row is an expense
     });
 
-    test(
-      'commit rides CsvImport.commit; re-preview flags everything',
+    test('category inference (e12 §2): brands preselect, income stays silent',
+        () async {
+      final p = await preview();
+      final byText = {for (final r in p.rows) r.description!: r};
+      // 'Cafe Late' hits the brand table → Food, high, resolved to the
+      // seeded category's id so commit persists it after review.
+      final cafe = byText['Cafe Late']!;
+      expect(cafe.categoryName, 'Food');
+      expect(cafe.categoryConfidence, FieldConfidence.high);
+      expect(cafe.categoryId, isNotNull);
+      // Income rows are never inferred.
+      expect(byText['Salary Corp']!.categoryName, isNull);
+      // 'Corner Store' matches no vocabulary → silence, not a guess.
+      expect(byText['Corner Store']!.categoryName, isNull);
+      expect(byText['Corner Store']!.categoryConfidence, isNull);
+    });
+
+    test('commit rides CsvImport.commit; re-preview flags everything',
       () async {
         final p = await preview();
         final n = await imp.commit(

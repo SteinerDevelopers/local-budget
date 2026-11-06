@@ -687,10 +687,32 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text(
-                    '${_iso(row.date)} · '
-                    '${MoneyDisplay.signed(Money(row.minor, preview.currency), isExpense: !row.isIncome)}'
-                    '${row.duplicate ? ' · already imported' : ''}',
+                  subtitle: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text:
+                              '${_iso(row.date)} · '
+                              '${MoneyDisplay.signed(Money(row.minor, preview.currency), isExpense: !row.isIncome)}'
+                              '${row.duplicate ? ' · already imported' : ''}',
+                        ),
+                        // e12 §2: an inferred category is said, not smuggled
+                        // in — a medium guess keeps its visible "?".
+                        if (row.categoryName != null &&
+                            row.categoryConfidence != null)
+                          TextSpan(
+                            text:
+                                ' · ${row.categoryName}'
+                                '${row.categoryConfidence == FieldConfidence.medium ? '?' : ''}',
+                            style: TextStyle(
+                              color: row.categoryConfidence ==
+                                      FieldConfidence.medium
+                                  ? Theme.of(context).colorScheme.tertiary
+                                  : Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
             ],

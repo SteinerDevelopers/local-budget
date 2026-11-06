@@ -5,6 +5,7 @@
 library;
 
 export 'src/bill_heuristics.dart';
+export 'src/category_hints.dart';
 export 'src/currency.dart';
 export 'src/dedupe.dart';
 export 'src/heuristics.dart';
