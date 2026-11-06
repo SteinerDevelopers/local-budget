@@ -3,11 +3,10 @@
 _Status: **FINALISTS (batch 4)** — see `icon-candidates4/finalists.png`
 and the reasoning block at the bottom of this file. Batch 2/3 history below._
 
- (owner rejected
-batch 1: "none of these really convey what it does"; that guidance —
-wallet/receipt silhouettes — is retired). Batch 2 sheet + tiles:
-`docs/store/icon-candidates2/` on the server. Style inherited from Steiner
-Vault V8 unchanged: one outline silhouette, Free paper/steel, Pro inverted +
+_History: batch 1 (wallet/receipt) retired — owner ruled it too generic to
+convey the job. Batch 2 sheet + tiles: `docs/store/icon-candidates2/`;
+batch 3 grids in `icon-candidates4/batch4-grid.png`. Style inherited from
+Steiner Vault V8 unchanged: one silhouette, Free paper/steel, Pro inverted +
 **one amber element at the glyph's top** (answers Vault's roof)._
 
 ## Batch 2 concepts (glyph names the job — no label needed)
