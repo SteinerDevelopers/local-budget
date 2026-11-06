@@ -320,11 +320,16 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   );
 
   Future<void> _openCalendar() async {
+    final today = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _day,
       firstDate: DateTime(2015),
-      lastDate: DateTime.now(),
+      // Planning app: envelope budgets are written ahead of the month, and
+      // the owner's approved demo table itself lands dates after "today" —
+      // DateTime.now() made tomorrow unselectable (owner-report during the
+      // 2026-11-06 manual-entry pass). One year ahead; easy to veto/tune.
+      lastDate: DateTime(today.year, today.month, today.day).add(const Duration(days: 366)),
     );
     if (picked == null) return;
     // Chip-pick parity: collapse the strip after a calendar pick so the row
