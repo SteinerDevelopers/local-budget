@@ -59,7 +59,16 @@ class _Detail extends StatelessWidget {
 
     return ListView(
       shrinkWrap: true,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      // Established nav-bar guard (quick_add_sheet, budgets_sheet): the
+      // modal's useSafeArea deliberately never insets the bottom, so the
+      // content adds the system bar itself — without it, Delete (the last
+      // row) sits under the 3-button nav bar (tester report, 2026-11-06).
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        Tokens.space5 + MediaQuery.viewPaddingOf(context).bottom,
+      ),
       children: [
         Center(
           child: Text(
