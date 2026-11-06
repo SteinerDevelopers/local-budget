@@ -46,9 +46,22 @@ class _BillDetailSheet extends StatelessWidget {
     final r = line.rule;
     return switch (r.frequency) {
       'weekly' => 'Weekly · ${billWeekdayShort(r.dayOfWeek ?? 1)}',
+      // e12 §1: the biweekly ladder anchors on the rule's start date.
+      'biweekly' => 'Every 2 weeks · from ${_startDay(r.startMs)}',
+      'quarterly' => 'Quarterly · every ${_nth(r.dayOfMonth ?? 1)}',
       'yearly' => 'Yearly · every ${_nth(r.dayOfMonth ?? 1)}',
       _ => 'Monthly · ${_nth(r.dayOfMonth ?? 1)}',
     };
+  }
+
+  static const _moShort = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _startDay(int startMs) {
+    final d = DateTime.fromMillisecondsSinceEpoch(startMs, isUtc: true);
+    return '${_moShort[d.month - 1]} ${d.day}';
   }
 
   @override

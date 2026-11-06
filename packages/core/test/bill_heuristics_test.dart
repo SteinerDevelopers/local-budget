@@ -89,9 +89,20 @@ void main() {
           (BillFrequencyHint.yearly, FieldConfidence.high));
     });
 
-    test('quarterly degrades to monthly at medium, never a fake frequency', () {
+    test('quarterly is quarterly now that the engine has the rung (e12)', () {
       expect(freq(['QUARTERLY INSTALLMENT']),
-          (BillFrequencyHint.monthly, FieldConfidence.medium));
+          (BillFrequencyHint.quarterly, FieldConfidence.high));
+      expect(freq(['BILLING: EVERY THREE MONTHS']),
+          (BillFrequencyHint.quarterly, FieldConfidence.high));
+    });
+
+    test('biweekly vocabulary reads biweekly (e12 §1)', () {
+      expect(freq(['BILLED BIWEEKLY']),
+          (BillFrequencyHint.biweekly, FieldConfidence.high));
+      expect(freq(['Payment every 2 weeks']),
+          (BillFrequencyHint.biweekly, FieldConfidence.high));
+      expect(freq(['BI-WEEKLY SERVICE CHARGE']),
+          (BillFrequencyHint.biweekly, FieldConfidence.high));
     });
 
     test('weekly reads weekly', () {

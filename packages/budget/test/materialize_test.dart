@@ -84,6 +84,68 @@ void main() {
           nextDueEpochDay: d(2026, 12, 15));
       expect(nextDueAfter(r, r.nextDueEpochDay), d(2027, 12, 15));
     });
+
+    // --- e12 §1: quarterly & biweekly ------------------------------------
+
+    test('quarterly walks the 3-month ladder of its start month', () {
+      // Jan start → Apr → Jul → Oct → next Jan.
+      var r = rule(
+          frequency: BillFrequency.quarterly,
+          dayOfMonth: 10,
+          startEpochDay: d(2026, 1, 10),
+          nextDueEpochDay: d(2026, 1, 10));
+      expect(nextDueAfter(r, r.nextDueEpochDay), d(2026, 4, 10));
+      r = rule(
+          frequency: BillFrequency.quarterly,
+          dayOfMonth: 10,
+          startEpochDay: d(2026, 1, 10),
+          nextDueEpochDay: d(2026, 10, 10));
+      expect(nextDueAfter(r, r.nextDueEpochDay), d(2027, 1, 10));
+    });
+
+    test('quarterly mid-ladder dates snap to the next ladder month', () {
+      // A quarterly rule whose cursor sits in May (ladder Jan/Apr/Jul/Oct)
+      // must resume on July, never on a June +3-month drift.
+      final r = rule(
+          frequency: BillFrequency.quarterly,
+          dayOfMonth: 20,
+          startEpochDay: d(2026, 1, 20),
+          nextDueEpochDay: d(2026, 5, 20));
+      expect(nextDueAfter(r, r.nextDueEpochDay), d(2026, 7, 20));
+    });
+
+    test('quarterly clamps day 31 anchors to short quarter months', () {
+      // Jan-31 start: the April rung has no 31st → April 30 (E3 clamp rule).
+      final r = rule(
+          frequency: BillFrequency.quarterly,
+          dayOfMonth: 31,
+          startEpochDay: d(2026, 1, 31),
+          nextDueEpochDay: d(2026, 1, 31));
+      expect(nextDueAfter(r, r.nextDueEpochDay), d(2026, 4, 30));
+    });
+
+    test('biweekly steps 14 days from the anchored start', () {
+      final r = rule(
+          frequency: BillFrequency.biweekly,
+          dayOfMonth: null,
+          startEpochDay: d(2026, 11, 5),
+          nextDueEpochDay: d(2026, 11, 5));
+      expect(nextDueAfter(r, r.nextDueEpochDay), d(2026, 11, 19));
+      expect(nextDueAfter(r, d(2026, 11, 25)), d(2026, 12, 3));
+    });
+
+    test('biweekly keeps its weekday across the year boundary', () {
+      // Nov 5 2026 is a Thursday; every rung stays a Thursday.
+      final r = rule(
+          frequency: BillFrequency.biweekly,
+          dayOfMonth: null,
+          startEpochDay: d(2026, 11, 5),
+          nextDueEpochDay: d(2026, 12, 31));
+      final next = nextDueAfter(r, r.nextDueEpochDay);
+      expect(DateTime.utc(1970, 1, 1).add(Duration(days: next)).weekday,
+          DateTime.thursday);
+      expect(next, greaterThan(d(2026, 12, 31)));
+    });
   });
 
   group('planMaterialization', () {

@@ -5,7 +5,7 @@
 import 'dart:math' as math;
 
 import 'package:budget/budget.dart' show BillFrequency;
-import 'package:core/core.dart' show Currency;
+import 'package:core/core.dart' show BillFrequencyHint, Currency;
 // Full import: the repository API lives in `extension … on LedgerRepository`
 // declarations, which a `show` clause would hide.
 import 'package:data/data.dart';
@@ -32,6 +32,7 @@ final class BillPrefill {
     required this.name,
     required this.amountMinor,
     this.dueDate,
+    this.frequency,
     this.fromDocument = false,
   });
 
@@ -40,6 +41,10 @@ final class BillPrefill {
 
   /// Parsed due date (e11) — the first-due cursor for the new rule.
   final DateTime? dueDate;
+
+  /// Recurrence read from the document (e12 §1) — the wizard only passes a
+  /// high-confidence hint; it prefills the chip, review stays required.
+  final BillFrequencyHint? frequency;
 
   /// True only for the document route: the editor says where it came from.
   final bool fromDocument;
@@ -96,9 +101,13 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
     text: widget.line?.rule.name ?? widget.prefill?.name ?? '',
   );
 
-  late BillFrequency _freq = widget.line == null
-      ? BillFrequency.monthly
-      : BillFrequency.fromStorage(widget.line!.rule.frequency);
+  // Edit mode keeps the stored cadence; a document prefill preselects the
+  // hint the wizard read (e12 §1); the plain add starts monthly.
+  late BillFrequency _freq = widget.line != null
+      ? BillFrequency.fromStorage(widget.line!.rule.frequency)
+      : widget.prefill?.frequency != null
+      ? BillFrequency.fromStorage(widget.prefill!.frequency!.wireName)
+      : BillFrequency.monthly;
   // E11 §4: a document's due date seeds the cursor — start month and day
   // come from it, so the first occurrence lands exactly where the bill says.
   late int _dom =
@@ -155,11 +164,25 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
 
   Future<void> _save() async {
     final startMonth = DateTime(2000 + _startIdx ~/ 12, _startIdx % 12 + 1);
+    // e12 §1: the biweekly ladder anchors on a date, so the start pins to
+    // the picked day of the start month; the engine ignores dayOfMonth for
+    // that kind. Everything else starts on the month and recurs by dom/dow.
+    final biweekly = _freq == BillFrequency.biweekly;
+    final start = biweekly
+        ? DateTime(
+            startMonth.year,
+            startMonth.month,
+            math.min(
+              _dom,
+              DateTime(startMonth.year, startMonth.month + 1, 0).day,
+            ),
+          )
+        : startMonth;
     final dueEpoch = firstDueOnOrAfter(
       frequency: _freq,
-      dayOfMonth: _freq == BillFrequency.weekly ? null : _dom,
+      dayOfMonth: _freq == BillFrequency.weekly || biweekly ? null : _dom,
       dayOfWeek: _freq == BillFrequency.weekly ? _dow : null,
-      startEpochDay: epochDayOf(startMonth),
+      startEpochDay: epochDayOf(start),
     );
     final due = dayFromEpoch(dueEpoch);
     final name = _name.text.trim();
@@ -170,10 +193,10 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
         amountMinor: _pad.money.minorUnits,
         currencyCode: widget.currency.code,
         frequency: _freq.storageKey,
-        start: startMonth,
+        start: start,
         nextDue: due,
         categoryId: _categoryId,
-        dayOfMonth: _freq == BillFrequency.weekly ? null : _dom,
+        dayOfMonth: _freq == BillFrequency.weekly || biweekly ? null : _dom,
         dayOfWeek: _freq == BillFrequency.weekly ? _dow : null,
         notify: _notify,
       );
@@ -185,10 +208,10 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
         name: name,
         amountMinor: _pad.money.minorUnits,
         frequency: _freq.storageKey,
-        start: startMonth,
+        start: start,
         nextDue: due,
         categoryId: _categoryId,
-        dayOfMonth: _freq == BillFrequency.weekly ? null : _dom,
+        dayOfMonth: _freq == BillFrequency.weekly || biweekly ? null : _dom,
         dayOfWeek: _freq == BillFrequency.weekly ? _dow : null,
         notify: _notify,
       );
@@ -335,15 +358,32 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
           onManage: null,
         ),
         const SizedBox(height: Tokens.space3),
-        SegmentedButton<BillFrequency>(
-          segments: const [
-            ButtonSegment(value: BillFrequency.weekly, label: Text('Weekly')),
-            ButtonSegment(value: BillFrequency.monthly, label: Text('Monthly')),
-            ButtonSegment(value: BillFrequency.yearly, label: Text('Yearly')),
-          ],
-          selected: {_freq},
-          showSelectedIcon: false,
-          onSelectionChanged: (s) => setState(() => _freq = s.first),
+        FittedBox(
+          // Five cadences must stay honest-readable on a 360 dp phone: the
+          // segment row scales down instead of scrolling off (e12 §1).
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: SegmentedButton<BillFrequency>(
+            segments: const [
+              ButtonSegment(value: BillFrequency.weekly, label: Text('Weekly')),
+              ButtonSegment(
+                value: BillFrequency.biweekly,
+                label: Text('Biweekly'),
+              ),
+              ButtonSegment(
+                value: BillFrequency.monthly,
+                label: Text('Monthly'),
+              ),
+              ButtonSegment(
+                value: BillFrequency.quarterly,
+                label: Text('Quarterly'),
+              ),
+              ButtonSegment(value: BillFrequency.yearly, label: Text('Yearly')),
+            ],
+            selected: {_freq},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => setState(() => _freq = s.first),
+          ),
         ),
         const SizedBox(height: Tokens.space2),
         _daySelector(),

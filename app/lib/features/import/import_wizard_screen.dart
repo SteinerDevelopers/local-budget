@@ -294,6 +294,11 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
         name: draft.payee ?? '',
         amountMinor: draft.amountDue?.minorUnits ?? 0,
         dueDate: draft.dueDate,
+        // e12 §1: only an explicit cadence reading preselects the chip —
+        // the statistical monthly default (low) must not masquerade as one.
+        frequency: draft.frequencyConfidence == FieldConfidence.high
+            ? draft.frequency
+            : null,
         fromDocument: true,
       ),
     );

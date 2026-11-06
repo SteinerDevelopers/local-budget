@@ -3,13 +3,15 @@ import 'heuristics.dart';
 import 'money.dart';
 import 'receipt.dart';
 
-/// Recurrence suggested by document text. Mirrors the three frequencies the
-/// rule engine (E3) actually stores — a quarterly bill lands on `monthly`
-/// with the parsed due date as the first-due cursor (e11 §4), never on an
-/// invented frequency the editor cannot show.
+/// Recurrence suggested by document text. Mirrors the frequencies the rule
+/// engine (E3) actually stores; since e12 §1 the engine knows biweekly and
+/// quarterly too, so the hint no longer degrades quarterly to monthly —
+/// a hint only prefills the editor chip, review stays required.
 enum BillFrequencyHint {
   weekly('weekly'),
+  biweekly('biweekly'),
   monthly('monthly'),
+  quarterly('quarterly'),
   yearly('yearly');
 
   const BillFrequencyHint(this.wireName);
@@ -667,6 +669,11 @@ class BillDraft {
     r'\bWEEKLY\b|EVERY\s+WEEK',
     caseSensitive: false,
   );
+  static final RegExp _biweeklyRe = RegExp(
+    r'\bBI-?WEEKLY\b|EVERY\s+(?:2|TWO)\s+WEEKS?|EVERY\s+OTHER\s+WEEK|'
+    r'\bFORTNIGHTLY\b',
+    caseSensitive: false,
+  );
   static final RegExp _monthlyRe = RegExp(
     r'\bMONTHLY\b|EVERY\s+MONTH',
     caseSensitive: false,
@@ -676,17 +683,21 @@ class BillDraft {
     List<String> lines,
   ) {
     final text = lines.join('\n');
-    // Quarterly has no rule-engine representation: monthly with the parsed
-    // due date as first-due cursor is the faithful degrade (e11 §4), so it
-    // reports monthly at medium — better than nothing, honest about it.
+    // e12 §1: biweekly/quarterly are real rule-engine frequencies now, so
+    // an explicit reading reports itself; monthly stays the statistical
+    // default only when the paper says nothing ("monthly is the statistical
+    // default", not a reading of the document).
     if (_yearlyRe.hasMatch(text)) {
       return (BillFrequencyHint.yearly, FieldConfidence.high);
     }
+    if (_quarterlyRe.hasMatch(text)) {
+      return (BillFrequencyHint.quarterly, FieldConfidence.high);
+    }
+    if (_biweeklyRe.hasMatch(text)) {
+      return (BillFrequencyHint.biweekly, FieldConfidence.high);
+    }
     if (_weeklyRe.hasMatch(text)) {
       return (BillFrequencyHint.weekly, FieldConfidence.high);
-    }
-    if (_quarterlyRe.hasMatch(text)) {
-      return (BillFrequencyHint.monthly, FieldConfidence.medium);
     }
     if (_monthlyRe.hasMatch(text)) {
       return (BillFrequencyHint.monthly, FieldConfidence.high);

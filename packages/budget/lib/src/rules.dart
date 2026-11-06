@@ -3,10 +3,15 @@
 /// turns one into money, and it does so visibly.
 library;
 
-/// Mirrors the drift `recurringRules.frequency` column values.
+/// Mirrors the drift `recurringRules.frequency` column values. The column is
+/// a plain string, so new keys are additive: an older build reads an unknown
+/// key through `fromStorage` as `monthly` — it would bill too often, never
+/// too rarely (e12 §1).
 enum BillFrequency {
   weekly('weekly'),
+  biweekly('biweekly'),
   monthly('monthly'),
+  quarterly('quarterly'),
   yearly('yearly');
 
   const BillFrequency(this.storageKey);
@@ -74,6 +79,14 @@ int nextDueAfter(RecurringRule rule, int fromEpochDay) {
       final target = rule.dayOfWeek ?? DateTime.monday;
       final d = _date(fromEpochDay + 1);
       return fromEpochDay + 1 + (target - d.weekday + 7) % 7;
+    case BillFrequency.biweekly:
+      // Every 14 days anchored on the rule's start — the occurrence the
+      // user reviewed when they saved (e12 §1); day-of-week/month are
+      // unused for this kind.
+      final start = rule.startEpochDay;
+      if (start > fromEpochDay) return start;
+      final k = (fromEpochDay + 14 - start) ~/ 14;
+      return start + 14 * k;
     case BillFrequency.monthly:
       final from = _date(fromEpochDay);
       final day = rule.dayOfMonth ?? 1;
@@ -83,6 +96,27 @@ int nextDueAfter(RecurringRule rule, int fromEpochDay) {
         final ny = from.month == 12 ? from.year + 1 : from.year;
         final nm = from.month == 12 ? 1 : from.month + 1;
         due = _epoch(ny, nm, clampDay(ny, nm, day));
+      }
+      return due;
+    case BillFrequency.quarterly:
+      // Monthly's day-clamp semantics on a 3-month ladder anchored on the
+      // start month: Jan→Apr→Jul→Oct from a January start, and a "31st"
+      // quarterly bill lands on month end in short months (e12 §1).
+      final from = _date(fromEpochDay);
+      final anchor = _date(rule.startEpochDay);
+      final day = rule.dayOfMonth ?? anchor.day;
+      var idx = from.year * 12 + from.month;
+      final ladder = idx - (anchor.year * 12 + anchor.month);
+      final rem = ladder % 3; // Dart % is non-negative for a positive divisor
+      if (rem != 0) idx += 3 - rem;
+      var y = (idx - 1) ~/ 12;
+      var m = (idx - 1) % 12 + 1;
+      var due = _epoch(y, m, clampDay(y, m, day));
+      if (due <= fromEpochDay) {
+        idx += 3;
+        y = (idx - 1) ~/ 12;
+        m = (idx - 1) % 12 + 1;
+        due = _epoch(y, m, clampDay(y, m, day));
       }
       return due;
     case BillFrequency.yearly:
