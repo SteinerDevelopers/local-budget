@@ -597,6 +597,7 @@ class LedgerEntryData {
     required this.categoryName,
     this.categoryIcon,
     required this.note,
+    this.imageRef,
   });
 
   final int id;
@@ -620,6 +621,10 @@ class LedgerEntryData {
   /// Icon-registry key of the joined category (#18); null ⇒ by-name fallback.
   final String? categoryIcon;
   final String? note;
+
+  /// `attachments/<file>` relative path of an original photo stored with
+  /// the row (E2 §4); the detail sheet renders it through the store.
+  final String? imageRef;
 }
 
 // ---- E1 ledger (design §2.1) ------------------------------------------------
@@ -778,6 +783,7 @@ extension LedgerE1 on LedgerRepository {
             categoryName: row.read(db.categories.name),
             categoryIcon: row.read(db.categories.icon),
             note: row.readTable(tx).note,
+            imageRef: row.readTable(tx).imageRef,
           ),
       ],
     );

@@ -588,6 +588,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       repository: widget.repository,
       entry: row,
       baseCode: _currency.code,
+      attachments: widget.capture?.store,
     );
     if (action == 'delete' && mounted) await _delete(row.id);
   }

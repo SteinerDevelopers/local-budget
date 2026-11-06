@@ -1,3 +1,5 @@
+import 'dart:io' show File;
+
 import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
@@ -16,14 +18,19 @@ Future<String?> showTransactionDetail(
   required LedgerRepository repository,
   required LedgerEntryData entry,
   required String baseCode,
+  AttachmentStore? attachments,
 }) => showModalBottomSheet<String>(
   context: context,
   useSafeArea: true,
   shape: const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
   ),
-  builder: (_) =>
-      _Detail(repository: repository, entry: entry, baseCode: baseCode),
+  builder: (_) => _Detail(
+    repository: repository,
+    entry: entry,
+    baseCode: baseCode,
+    attachments: attachments,
+  ),
 );
 
 class _Detail extends StatelessWidget {
@@ -31,11 +38,16 @@ class _Detail extends StatelessWidget {
     required this.repository,
     required this.entry,
     required this.baseCode,
+    this.attachments,
   });
 
   final LedgerRepository repository;
   final LedgerEntryData entry;
   final String baseCode;
+
+  /// E2 §4 originals live in this store; null (tests, no-capture builds)
+  /// simply renders no thumbnail.
+  final AttachmentStore? attachments;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +102,11 @@ class _Detail extends StatelessWidget {
         ),
         if (entry.note != null && entry.note!.isNotEmpty)
           _Meta(icon: Icons.sticky_note_2_outlined, label: entry.note!),
+        // E2 §4: the scanned/photographed original, when the row has one.
+        _Attachment(
+          store: attachments,
+          ref: entry.imageRef,
+        ),
         // e12 §5 — itemized lines stored with this row at commit time;
         // the section only exists when the block reconciled.
         _Items(repository: repository, transactionId: entry.id),
@@ -107,6 +124,98 @@ class _Detail extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// E2 §4: the original receipt saved with this row, rendered from the
+/// attachment store; tap opens a full-screen pinch-zoomable viewer.
+class _Attachment extends StatelessWidget {
+  const _Attachment({required this.store, required this.ref});
+
+  final AttachmentStore? store;
+  final String? ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = store, r = ref;
+    if (s == null || r == null || !AttachmentStore.isSafeRel(r)) {
+      return const SizedBox.shrink();
+    }
+    final file = s.resolve(r);
+    if (!file.existsSync()) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: Tokens.space3),
+      child: Semantics(
+        button: true,
+        label: 'Attached receipt photo — tap to view full size',
+        child: InkWell(
+          key: const Key('detail-attachment'),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => _PhotoViewer(file: file),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.file(
+              file,
+              key: const Key('detail-attachment-thumb'),
+              height: 220,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen viewer for a stored original: black stage, pinch zoom,
+/// tap anywhere (or the close button) to leave. The photo never leaves
+/// the device — this is a local file read, nothing else.
+class _PhotoViewer extends StatelessWidget {
+  const _PhotoViewer({required this.file});
+
+  final File file;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: InteractiveViewer(
+                maxScale: 6,
+                child: Center(
+                  child: Image.file(
+                    file,
+                    key: const Key('photo-viewer-image'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: IconButton(
+                  key: const Key('photo-close'),
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
