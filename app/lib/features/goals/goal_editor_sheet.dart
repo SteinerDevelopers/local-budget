@@ -138,13 +138,20 @@ class _GoalEditorSheetState extends State<_GoalEditorSheet> {
     // QuickAdd's height grammar (device feedback 2026-11-04 pm): a
     // font-scaled budget capped at 92 % — the old 520 dp floor was taller
     // than a landscape phone, so the pad clipped mid-row there — plus
-    // nav-bar clearance the modal deliberately does not inset.
+    // nav-bar clearance the modal deliberately does not inset. The floor
+    // must include that nav-bar clearance because it is spent INSIDE the
+    // fixed height (bottom padding below); the sibling limit editor proved
+    // the bare floor clips `. 0 ⌫` on 3-button phones (owner report
+    // 2026-11-06). The name field buys this sheet one extra row over
+    // QuickAdd.
     final pad = _pad;
     final size = MediaQuery.sizeOf(context);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final navBar = MediaQuery.viewPaddingOf(context).bottom;
+    final need = 600.0 + navBar;
     final height = math.min(
       size.height * 0.92,
-      math.max(520.0, size.height * 0.56) * math.max(1.0, textScale),
+      math.max(math.max(520.0, size.height * 0.56), need) * math.max(1.0, textScale),
     );
     return AnimatedPadding(
       duration: const Duration(milliseconds: 120),

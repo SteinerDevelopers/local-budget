@@ -137,11 +137,17 @@ class _LimitEditorSheetState extends State<_LimitEditorSheet> {
     // font-scaled budget capped at 92 % and nav-bar clearance the modal
     // deliberately does not inset; landscape gives the pad its own pane
     // because the short screen cannot stack it under the fields.
+    // Owner-report 2026-11-06: the bare 480 dp floor re-clipped the pad's
+    // `. 0 ⌫` row on a 3-button phone — the nav bar is spent INSIDE this
+    // fixed height (bottom padding below), so the floor must cover content
+    // + nav bar, exactly as QuickAdd's 560 dp fix does.
     final size = MediaQuery.sizeOf(context);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final navBar = MediaQuery.viewPaddingOf(context).bottom;
+    final need = 560.0 + navBar;
     final height = math.min(
       size.height * 0.92,
-      math.max(480.0, size.height * 0.52) * math.max(1.0, textScale),
+      math.max(math.max(480.0, size.height * 0.52), need) * math.max(1.0, textScale),
     );
     return AnimatedPadding(
       // No text fields here, but keep the same keyboard-proofing grammar as
