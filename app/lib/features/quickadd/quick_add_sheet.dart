@@ -158,9 +158,19 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
     // the whole screen.
     final size = MediaQuery.sizeOf(context);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final navBar = MediaQuery.viewPaddingOf(context).bottom;
+    // Owner pass, 2026-11-06 (demo-entry session): 492fadc cleared the
+    // nav bar out of the sheet's paint — Save had been under it — but it
+    // took those ~48 dp out of the keypad's slack instead of the budget,
+    // so on 3-button devices the pad fell under its own 4×touch-min
+    // minimum and `. 0 ⌫` hid behind the extreme-scale scroll hatch:
+    // decimals and zeroes were untypeable without discovering an
+    // unlabeled scroll. The floor now states the real requirement:
+    // fixed chrome (≈340 dp) + keypad minimum (192 dp) + nav bar.
+    final need = 560.0 + navBar;
     final height = math.min(
       size.height * 0.92,
-      math.max(480.0, size.height * 0.48) * math.max(1.0, textScale),
+      math.max(480.0, size.height * 0.48, need) * math.max(1.0, textScale),
     );
 
     return AnimatedPadding(
