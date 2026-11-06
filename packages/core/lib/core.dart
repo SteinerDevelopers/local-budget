@@ -11,5 +11,6 @@ export 'src/dedupe.dart';
 export 'src/heuristics.dart';
 export 'src/money.dart';
 export 'src/ocr_lines.dart';
+export 'src/payee_sanity.dart';
 export 'src/receipt.dart';
 export 'src/widget_state.dart';

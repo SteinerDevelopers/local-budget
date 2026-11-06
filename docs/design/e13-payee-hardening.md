@@ -35,17 +35,17 @@ New pure function `PayeeSanity.junkName(String line) -> bool` consulted inside
 `guessMerchant` before accepting any candidate, and inside the corroboration
 replacement path so an alternative is judged by the same bar.
 
-A line is junk when any letter-token of length ≥ 3 is *unpronounceable*:
-- all-consonant and length ≥ 4 (`FVAFD`; but `XYZ`, `CNN`, `TGI`, `TV` at 1–3
-  letters are letter-brand territory and pass), or
+A token of **≤3 letters always passes** (letter-brand territory: `XYZ`, `TGI`,
+`CNN`, `TV`); for longer tokens a line is junk when any letter-token is
+*unpronounceable*:
+- all-consonant (`FVAFD`), or
+- fewer than three distinct letters (`AAAAA`, `IIIII` — raster echo runs;
+  advisor case, adopted after the vowel rule alone let it through), or
 - the token's leading consonant cluster is not an attested English onset
   (whitelist: single consonants + `bl br ch cl cr dr fl fr gl gr kl kn kr ph
-  pl pr qu sc sh sk sl sm sn sp spr sq st sw thr th th tr tw wh sch scr spl
-  squ`) **and** no vowel appears within the token's first two characters —
-  this catches `FVAFD` (onset `FV`, first vowel at index 2) while `TGI` (≤3
-  letters), `XYZ` (≤3), `BOUI` (onset `B`) pass, or
-- the token has fewer than three distinct letters (`AAAAA`, `IIIII` — raster
-  echo runs; advisor case, adopted after the vowel rule alone let it through).
+  pl pr qu rh sc sch scr sh sk sl sm sn sp spl spr sq squ st str sw th thr
+  tr tw wh`) — this catches `FVAFD` (onset `FV`) while `BOUI` (onset `B`)
+  and `STRATA` (onset `str`) pass.
 
 Seeded brand whitelist bypasses the gate entirely (deterministic, grows only
 from real bounces): `AMZN MKTP` (Amazon's own OCR-normal name is all-consonant

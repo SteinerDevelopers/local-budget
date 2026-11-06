@@ -1,5 +1,6 @@
 import 'currency.dart';
 import 'money.dart';
+import 'payee_sanity.dart';
 import 'receipt.dart';
 
 /// Paper kind driving the totals vocabulary (e2-capture.md §3 v1.1).
@@ -250,6 +251,22 @@ class ReceiptHeuristics {
       if (RegExp(r'\b(SAMPLE|SPECIMEN|HANDOUT)\b', caseSensitive: false)
           .hasMatch(line)) {
         continue; // template/sample watermark text, not a merchant
+      }
+      if (PayeeSanity.totalishWithDigits(line)) {
+        continue; // `TOTAL: $45.99` is arithmetic prose, never a merchant
+      }
+      if (PayeeSanity.junkName(line)) {
+        // E13 §3 — raster junk (`BOUI FVAFD`). A twice-printed unpronounceable
+        // mark may genuinely be the biller, so it still ships, at medium; a
+        // lone junk hit hands the turn to the next line and the honest answer
+        // stays null when nothing better exists.
+        final up = line.toUpperCase();
+        final twice =
+            lines.where((l) => l.trim().toUpperCase() == up).length >= 2;
+        if (twice) {
+          return (name: line, confidence: FieldConfidence.medium);
+        }
+        continue;
       }
       return (
         name: line,

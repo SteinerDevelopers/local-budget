@@ -1,6 +1,7 @@
 import 'currency.dart';
 import 'heuristics.dart';
 import 'money.dart';
+import 'payee_sanity.dart';
 import 'receipt.dart';
 
 /// Recurrence suggested by document text. Mirrors the frequencies the rule
@@ -454,6 +455,8 @@ class BillDraft {
       final label = _trailingFieldRe.firstMatch(line);
       if (label != null) line = line.substring(0, label.start).trim();
       if (!_nameish(line) || _chromeRe.hasMatch(line)) continue;
+      if (PayeeSanity.junkName(line)) continue; // E13 §3: the alternative is
+      // held to the same bar as the first guess — junk replaces nothing.
       if (_providerCorroborated(line, lines)) return line;
     }
     return null;
