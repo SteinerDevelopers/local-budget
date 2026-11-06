@@ -116,7 +116,7 @@ or e2e-junk is in frame; dark mode `<pick one and stay consistent>`.
   device-verified 260/420 dpi). Production assets:
   `app/android/app/src/{main,pro}/res` (adaptive layers all densities);
   decision trail in `docs/store/icon.md`.
-- **Feature graphic: drafted, pending owner approval** —
+- **Feature graphic: APPROVED by owner 2026-11-06** (“I am good with the feature graphics”) —
   `docs/store/feature-graphic-free.png` / `-pro.png` (1024×500 PNG,
   ~40 KB, one amber on Pro, short description repeated at legible
   size per spec). Generator: `docs/store/feature-graphic/make-feature.js`
