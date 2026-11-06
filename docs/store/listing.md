@@ -110,11 +110,17 @@ Eight shots, 9:16, in this order (tells the story top-to-bottom):
 dev.steiner.local_budget`) and re-enter a tidy month so nothing real
 or e2e-junk is in frame; dark mode `<pick one and stay consistent>`.
 
-## Feature graphic + icon (owner)
+## Feature graphic + icon
 
-- Icon direction: wallet/receipt silhouette, one accent colour, reads
-  at 48 px. `<needs design — not generated copy>`
-- Feature graphic repeats the short description at legible size.
+- **Icon: FINAL** — Vault-house geometry + fat `$` coin (row-2 winner,
+  device-verified 260/420 dpi). Production assets:
+  `app/android/app/src/{main,pro}/res` (adaptive layers all densities);
+  decision trail in `docs/store/icon.md`.
+- **Feature graphic: drafted, pending owner approval** —
+  `docs/store/feature-graphic-free.png` / `-pro.png` (1024×500 PNG,
+  ~40 KB, one amber on Pro, short description repeated at legible
+  size per spec). Generator: `docs/store/feature-graphic/make-feature.js`
+  (sharp + SVG, FONTCONFIG_FILE=`icon-candidates6/fonts.conf`).
 
 ## Release notes template (each Play rollout)
 
