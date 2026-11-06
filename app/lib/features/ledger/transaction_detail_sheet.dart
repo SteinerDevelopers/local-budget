@@ -96,6 +96,9 @@ class _Detail extends StatelessWidget {
           icon: ManageIcons.of(entry.categoryIcon, entry.categoryName),
           label: entry.categoryName ?? 'Uncategorized',
         ),
+        // #45: the payee a scan/import stored — shown, not just saved.
+        if (entry.merchant != null && entry.merchant!.isNotEmpty)
+          _Meta(icon: Icons.storefront_outlined, label: entry.merchant!),
         _Meta(
           icon: Icons.calendar_today_outlined,
           label: DayLabel.of(entry.day),

@@ -597,6 +597,7 @@ class LedgerEntryData {
     required this.categoryName,
     this.categoryIcon,
     required this.note,
+    this.merchant,
     this.imageRef,
   });
 
@@ -621,6 +622,10 @@ class LedgerEntryData {
   /// Icon-registry key of the joined category (#18); null ⇒ by-name fallback.
   final String? categoryIcon;
   final String? note;
+
+  /// Name of the merchant joined from [Transaction.merchantId] (#45) —
+  /// the payee captured with a scan or import; null on manual rows.
+  final String? merchant;
 
   /// `attachments/<file>` relative path of an original photo stored with
   /// the row (E2 §4); the detail sheet renders it through the store.
@@ -747,8 +752,9 @@ extension LedgerE1 on LedgerRepository {
   }
 
   /// Reactive month list, newest day/entry first (spec §2.1: the saved row
-  /// is already visible at the top). Category name joined in, so the UI
-  /// needs no second query.
+  /// is already visible at the top). Category and merchant names joined in,
+  /// so the UI needs no second query (#45: the payee a scan review stores
+  /// must be the payee the list shows).
   Stream<List<LedgerEntryData>> watchMonth(String yearMonth) {
     final r = monthRange(yearMonth);
     final tx = db.transactions;
@@ -759,6 +765,7 @@ extension LedgerE1 on LedgerRepository {
               db.categories,
               db.categories.id.equalsExp(tx.categoryId),
             ),
+            leftOuterJoin(db.merchants, db.merchants.id.equalsExp(tx.merchantId)),
           ])
           ..where(tx.dateDays.isBetweenValues(r.fromDays, r.toDays))
           // §3.5: goal movements never appear in the ledger list — and the
@@ -782,6 +789,8 @@ extension LedgerE1 on LedgerRepository {
             // Outer-joined: null category must not throw.
             categoryName: row.read(db.categories.name),
             categoryIcon: row.read(db.categories.icon),
+            // Outer-joined, same rule: a row without a merchant is normal.
+            merchant: row.read(db.merchants.name),
             note: row.readTable(tx).note,
             imageRef: row.readTable(tx).imageRef,
           ),

@@ -46,7 +46,7 @@ void main() {
     repo = LedgerRepository(db);
   });
 
-  Future<int> seed({String? imageRef}) async {
+  Future<int> seed({String? imageRef, String? merchant}) async {
     await repo.ensureDefaults();
     final account = await repo.defaultAccount();
     final cats = await repo.categories();
@@ -57,6 +57,7 @@ void main() {
       source: TransactionSource.cameraScan,
       categoryId: cats.first.id,
       imageRef: imageRef,
+      merchant: merchant,
     );
   }
 
@@ -81,11 +82,16 @@ void main() {
               extension: 'png',
               source: TransactionSource.cameraScan,
             );
-        await seed(imageRef: rel);
+        await seed(imageRef: rel, merchant: 'Walmart');
         await pumpLedger(tester, AttachmentStore(dir));
+
+        // #45: the payee shows in the list the moment the row exists.
+        expect(find.text('Walmart'), findsOneWidget);
 
         await tester.tap(find.text('Food').first); // open the detail
         await tester.pumpAndSettle();
+        // #45: and again, spelled out, in the detail sheet.
+        expect(find.text('Walmart'), findsNWidgets(2));
         expect(
           find.byKey(const Key('detail-attachment-thumb')),
           findsOneWidget,

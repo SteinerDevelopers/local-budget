@@ -140,7 +140,12 @@ EntryTile tileFor(LedgerEntryData row, {required String baseCode}) => EntryTile(
   // Stored icon key wins (§2.4); name mapping is the pre-#18 fallback.
   icon: ManageIcons.of(row.categoryIcon, row.categoryName),
   title: row.categoryName ?? 'Uncategorized',
-  memo: (row.note == null || row.note!.isEmpty) ? null : row.note,
+  // The payee leads when the row carries one (#45: what the scan review
+  // stores must be what the list shows); manual rows keep their note.
+  // Import rows store both, identically — the display is unchanged there.
+  memo: (row.merchant?.isNotEmpty ?? false)
+      ? row.merchant
+      : ((row.note == null || row.note!.isEmpty) ? null : row.note),
   amount: Money(row.amountMinor, Currency.resolve(row.currencyCode)),
   kind: row.isIncome ? EntryKind.income : EntryKind.expense,
   day: row.day, // spoken in the row's TalkBack label (§5)
