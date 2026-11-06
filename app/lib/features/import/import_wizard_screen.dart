@@ -45,6 +45,38 @@ class ImportWizardScreen extends StatefulWidget {
   State<ImportWizardScreen> createState() => _ImportWizardScreenState();
 }
 
+/// One document inside the statement batch (e12 §4): its own review state,
+/// its own commit. A bad document never blocks a good one, and the batch
+/// tab shows which ones are already committed.
+final class _BatchDoc {
+  _BatchDoc({
+    required this.label,
+    this.preview,
+    this.checked = const {},
+    this.docNote,
+    this.layoutIssuer,
+    this.layoutKey,
+    this.pendingLayout,
+  });
+
+  final String label;
+  CsvPreview? preview;
+  Set<int> checked = {};
+  String? docNote;
+  // e12 §3 — whose saved layout was applied (disclosed + reset in the
+  // Preview), and what this doc's commit should persist once reviewed.
+  String? layoutIssuer;
+  String? layoutKey;
+  StatementLayout? pendingLayout;
+  bool committed = false;
+  int committedRows = 0;
+
+  /// The shared E5 dedupe tuple, recomputed per row for cross-document
+  /// flags inside one batch (the ledger only knows what is committed).
+  static String tuple(CsvPreviewRow r) =>
+      '${r.date.millisecondsSinceEpoch}|${r.minor}|${r.isIncome}';
+}
+
 class _ImportWizardScreenState extends State<ImportWizardScreen> {
   List<Account> _accounts = const [];
   int? _accountId;
@@ -55,23 +87,32 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
   bool _debitExpense = true;
   List<String> _profiles = const [];
 
-  CsvPreview? _preview;
-  Set<int> _checked = {};
   ImportFormat _format = ImportFormat.csv;
-  int? _done;
+  // e12 §4 — the statement route is a batch: every document gets its own
+  // review tab with its own checks and its own commit. The bill route
+  // stays 1:1 and never joins the queue (E11 decision 5).
+  final List<_BatchDoc> _batch = <_BatchDoc>[];
+  int _tab = 0;
+  bool _billDone = false;
   String? _doneLabel;
   bool _busy = false;
   // E11 — the document route reads OCR off the main thread while the
   // source panel wears a spinner; a scanned-PDF page-cap is disclosed in
-  // the preview via [_docNote].
+  // the preview via [_BatchDoc.docNote].
   bool _reading = false;
-  String? _docNote;
-  // e12 §3 — the layout story of the document being previewed: whose saved
-  // layout was applied (shown + reset in the Preview), and what commit
-  // should persist once the owner reviews the rows.
-  String? _layoutIssuer;
-  String? _layoutKey;
-  StatementLayout? _pendingLayout;
+
+  _BatchDoc? get _sel => _tab < _batch.length ? _batch[_tab] : null;
+  CsvPreview? get _preview => _sel?.preview;
+  Set<int> get _checked => _sel?.checked ?? const {};
+  String? get _docNote => _sel?.docNote;
+  String? get _layoutIssuer => _sel?.layoutIssuer;
+  String? get _layoutKey => _sel?.layoutKey;
+
+  /// Done once every open document is committed (or a lone bill was saved):
+  /// the batch only exits clean when nothing reviewable is left behind.
+  int? get _done => (_batch.isNotEmpty && _batch.every((d) => d.committed))
+      ? _batch.fold<int>(0, (s, d) => s + d.committedRows)
+      : (_billDone ? 1 : null);
   final _profileName = TextEditingController();
   bool _profileSaved = false;
 
@@ -149,10 +190,10 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
     setState(() {
       _file = file;
       _format = ImportFormat.csv;
-      _preview = null;
-      _done = null;
+      _batch.clear();
+      _tab = 0;
+      _billDone = false;
       _doneLabel = null;
-      _docNote = null;
       _roles = mapping.roles;
       _dateFormat = mapping.dateFormat ?? csvDateFormats.first;
       _debitExpense = mapping.debitMeansExpense;
@@ -169,14 +210,21 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
       setState(() {
         _format = ImportFormat.ofx;
         _file = null;
-        _preview = preview;
-        _done = null;
+        _billDone = false;
         _doneLabel = null;
-        _docNote = null;
-        _checked = {
-          for (final r in preview.rows)
-            if (!r.duplicate) r.rowIndex,
-        };
+        _batch
+          ..clear()
+          ..add(
+            _BatchDoc(
+              label: 'Statement',
+              preview: preview,
+              checked: {
+                for (final r in preview.rows)
+                  if (!r.duplicate) r.rowIndex,
+              },
+            ),
+          );
+        _tab = 0;
       });
     } on OfxFormatException catch (e) {
       _snack(e.message);
@@ -249,6 +297,12 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
   Future<void> _previewDocument(DocumentRead read) async {
     final accountId = _accountId;
     if (accountId == null || _busy) return;
+    // e12 §4: page-render memory is per document, so the batch has a cap —
+    // the honest ceiling of "many statements at once", not unlimited.
+    if (_batch.length >= 4) {
+      _snack('Four documents is a full batch — commit or remove one first.');
+      return;
+    }
     // e12 §3: a document from a known issuer may carry a learned column
     // layout; using it is disclosed in the Preview and resettable there.
     final issuer = BillDraft.issuerOf(read.lines);
@@ -276,24 +330,52 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
       final preview = await CsvImport(
         widget.db,
       ).previewStatement(accountId: accountId, currency: _currency, rows: rows);
+      final inBatch = <String>{
+        for (final d in _batch.where((d) => !d.committed))
+          for (final r in d.preview?.rows ?? const <CsvPreviewRow>[])
+            _BatchDoc.tuple(r),
+      };
+      // e12 §4: the dedupe ledger is shared across the whole batch — the
+      // same row in two not-yet-committed documents is flagged once, the
+      // source-first tab keeps it active.
+      final deduped = [
+        for (final r in preview.rows)
+          if (!r.duplicate && inBatch.contains(_BatchDoc.tuple(r)))
+            r.copyWith(duplicate: true)
+          else
+            r,
+      ];
       if (!mounted) return;
       setState(() {
         _format = ImportFormat.document;
         _file = null;
-        _preview = preview;
-        _done = null;
+        _billDone = false;
         _doneLabel = null;
-        _docNote = read.truncated
-            ? 'We read the first ${read.pagesRead} pages of the PDF — '
-                  'later pages are not included.'
-            : null;
-        _layoutIssuer = saved == null ? null : issuer;
-        _layoutKey = layoutKey;
-        _pendingLayout = parsed.layout;
-        _checked = {
-          for (final r in preview.rows)
-            if (!r.duplicate) r.rowIndex,
-        };
+        _batch.add(
+          _BatchDoc(
+            label:
+                '${issuer ?? 'Document ${_batch.length + 1}'} · '
+                '${deduped.where((r) => !r.duplicate).length} rows',
+            preview: CsvPreview(
+              rows: deduped,
+              errors: preview.errors,
+              currency: preview.currency,
+              accountRef: preview.accountRef,
+            ),
+            checked: {
+              for (final r in deduped)
+                if (!r.duplicate) r.rowIndex,
+            },
+            docNote: read.truncated
+                ? 'We read the first ${read.pagesRead} pages of the PDF — '
+                      'later pages are not included.'
+                : null,
+            layoutIssuer: saved == null ? null : issuer,
+            layoutKey: layoutKey,
+            pendingLayout: parsed.layout,
+          ),
+        );
+        _tab = _batch.length - 1;
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -326,12 +408,17 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
     );
     if (!mounted) return;
     if (saved == true) {
-      setState(() {
-        _file = null;
-        _preview = null;
-        _done = 1;
-        _doneLabel = 'Bill saved.';
-      });
+      // e12 §4: the bill route is 1:1 and finishes on its own — but a bill
+      // saved mid-batch must not touch the statement tabs waiting behind it.
+      if (_batch.isEmpty) {
+        setState(() {
+          _file = null;
+          _billDone = true;
+          _doneLabel = 'Bill saved.';
+        });
+      } else {
+        _snack('Bill saved — your open batch is waiting.');
+      }
     }
     // Backing out leaves the source panel exactly as it was — a document
     // that was refused is not half-imported anything.
@@ -353,11 +440,19 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
       ).buildPreview(file: file, mapping: _mapping, accountId: accountId);
       if (!mounted) return;
       setState(() {
-        _preview = preview;
-        _checked = {
-          for (final r in preview.rows)
-            if (!r.duplicate) r.rowIndex,
-        };
+        _batch
+          ..clear()
+          ..add(
+            _BatchDoc(
+              label: 'Statement',
+              preview: preview,
+              checked: {
+                for (final r in preview.rows)
+                  if (!r.duplicate) r.rowIndex,
+              },
+            ),
+          );
+        _tab = 0;
       });
     } on ArgumentError {
       _snack('Pick a date column and an amount column first.');
@@ -379,8 +474,9 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
   // ---- commit -----------------------------------------------------------------
 
   Future<void> _commit() async {
-    final preview = _preview, accountId = _accountId;
-    if (preview == null || accountId == null || _busy) return;
+    final preview = _preview, accountId = _accountId, doc = _sel;
+    if (preview == null || accountId == null || doc == null || _busy) return;
+    if (doc.committed) return; // one commit per batch tab
     final rows = [
       for (final r in preview.rows)
         if (_checked.contains(r.rowIndex)) r,
@@ -409,15 +505,18 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
       // for documents whose issuer the app actually knows.
       if (_format == ImportFormat.document &&
           n > 0 &&
-          _layoutKey != null &&
-          _pendingLayout != null) {
+          doc.layoutKey != null &&
+          doc.pendingLayout != null) {
         await widget.repository.setSetting(
-          _layoutKey!,
-          _pendingLayout!.encode(),
+          doc.layoutKey!,
+          doc.pendingLayout!.encode(),
         );
       }
       if (!mounted) return;
-      setState(() => _done = n);
+      setState(() {
+        doc.committed = true;
+        doc.committedRows = n;
+      });
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -646,6 +745,31 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
         preview.currency.code != _account.currencyCode;
     return Column(
       children: [
+        // e12 §4 — one strip per batched document; ✓ marks a committed tab.
+        if (_batch.length > 1)
+          SizedBox(
+            height: 44,
+            child: ListView(
+              key: const Key('import-batch-tabs'),
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              children: [
+                for (var i = 0; i < _batch.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      key: Key('import-batch-tab-$i'),
+                      selected: i == _tab,
+                      onSelected: (_) => setState(() => _tab = i),
+                      label: Text(
+                        '${_batch[i].committed ? '✓ ' : ''}'
+                        '${i + 1}. ${_batch[i].label}',
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Row(
@@ -723,11 +847,12 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
                     await widget.repository.deleteSetting(_layoutKey!);
                     if (!mounted) return;
                     setState(() {
-                      _layoutIssuer = null;
+                      final doc = _sel;
+                      doc?.layoutIssuer = null;
                       // Committing this preview must not re-save what the
                       // owner just cleared.
-                      _layoutKey = null;
-                      _pendingLayout = null;
+                      doc?.layoutKey = null;
+                      doc?.pendingLayout = null;
                     });
                     _snack(
                       'Layout for $issuer cleared — '
@@ -777,7 +902,8 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
                                 ' · ${row.categoryName}'
                                 '${row.categoryConfidence == FieldConfidence.medium ? '?' : ''}',
                             style: TextStyle(
-                              color: row.categoryConfidence ==
+                              color:
+                                  row.categoryConfidence ==
                                       FieldConfidence.medium
                                   ? Theme.of(context).colorScheme.tertiary
                                   : Theme.of(context).colorScheme.primary,
@@ -793,11 +919,58 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(Tokens.space4),
-            child: FilledButton(
-              key: const Key('import-commit'),
-              onPressed: _busy ? null : _commit,
-              child: Text('Import ${_checked.length}'),
-            ),
+            child: _sel?.committed == true
+                ? Column(
+                    children: [
+                      Text(
+                        key: const Key('import-tab-committed'),
+                        'Document committed ✓ — '
+                        '${_batch.where((d) => !d.committed).length} '
+                        'still open.',
+                      ),
+                      if (_format == ImportFormat.document)
+                        TextButton.icon(
+                          key: const Key('import-add-another'),
+                          onPressed: _busy ? null : _pickDocument,
+                          icon: const Icon(
+                            Icons.add_a_photo_outlined,
+                            size: 20,
+                          ),
+                          label: const Text('Add another document'),
+                        ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          key: const Key('import-commit'),
+                          onPressed: _busy ? null : _commit,
+                          child: Text('Import ${_checked.length}'),
+                        ),
+                      ),
+                      // e12 §4: an uncommitted tab can be dismissed —
+                      // a bad document never blocks the good ones.
+                      if (_format == ImportFormat.document && _batch.length > 1)
+                        TextButton(
+                          key: const Key('import-remove-doc'),
+                          onPressed: _busy
+                              ? null
+                              : () => setState(() {
+                                  _batch.removeAt(_tab);
+                                  if (_tab >= _batch.length)
+                                    _tab = _batch.length - 1;
+                                }),
+                          child: const Text('Remove'),
+                        )
+                      else if (_format == ImportFormat.document)
+                        TextButton(
+                          key: const Key('import-add-another'),
+                          onPressed: _busy ? null : _pickDocument,
+                          child: const Text('Add another'),
+                        ),
+                    ],
+                  ),
           ),
         ),
       ],
