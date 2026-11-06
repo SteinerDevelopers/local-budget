@@ -223,7 +223,21 @@ class ReceiptHeuristics {
       if (line.length < 2 || line.length > 40) continue;
       final letters = line.replaceAll(RegExp('[^A-Za-zÀ-ÿ]'), '').length;
       if (letters < 2) continue; // pure numbers/dates/punctuation
-      if (RegExp(r'^\d').hasMatch(line)) continue; // starts with digit
+      if (RegExp(r'^\d').hasMatch(line)) {
+        // E13 §4 — the old blanket reject killed `99¢ ONLY` and
+        // `24 HOUR MARKET`. Survivors enter at medium; only a doubled
+        // first-line mark earns high, same bar as everything else.
+        if (!PayeeSanity.digitLeadingMerchant(line, lines)) continue;
+        final up = line.trim().toUpperCase();
+        final twice =
+            lines.where((l) => l.trim().toUpperCase() == up).length >= 2;
+        return (
+          name: line,
+          confidence: index == 1 && twice
+              ? FieldConfidence.high
+              : FieldConfidence.medium,
+        );
+      }
       if (RegExp(r'\b(ST|STREET|RD|ROAD|AVE|AVENUE|BLVD|SUITE|STE|INC|LLC|LTD|BOX)\b',
                   caseSensitive: false)
               .hasMatch(line) &&

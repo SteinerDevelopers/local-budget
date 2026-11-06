@@ -101,4 +101,35 @@ class PayeeSanity {
       RegExp(r'^(TOTAL|SUBTOTAL|BALANCE|AMOUNT)\b', caseSensitive: false)
           .hasMatch(line.trim()) &&
       RegExp(r'\d').hasMatch(line);
+
+  // --- digit-leading merchant shapes (E13 §4) ------------------------------
+
+  static final RegExp _merchantWordRe = RegExp(
+    r'\b(MARKET|STORE|SHOP|CAF[EÉ]|DELI|DINER|PIZZA|FOODS|FLOWERS|BURGER|'
+    r'BAR|SALON|PHARMACY|STATION|GARAGE|LAUNDROMAT|MOTEL|WORKS|SUPPLY|'
+    r'ONLY|CO|INC|LLC)\b',
+    caseSensitive: false,
+  );
+  static final RegExp _phoneRe = RegExp(r'\d{3}[- ]\d{4}|\d{7}');
+  static final RegExp _discountRe = RegExp(
+    r'^\d+(\s*(OFF|PERCENT)\b|\s*[%¢]|\s*FOR\s)',
+    caseSensitive: false,
+  );
+  static final RegExp _dateRe = RegExp(r'^\d{1,2}[/.-]\d{1,2}');
+
+  /// `99¢ ONLY`, `24 HOUR MARKET`, `1-800-FLOWERS` — real merchants the old
+  /// blanket `^\d` reject killed. Order is deliberate (advisor cases):
+  /// phone shape is lethal always; a merchant word outranks date *and*
+  /// discount shapes (`99¢ ONLY` and `24/7 MARKET` live, `03/15 DUE` and
+  /// `10% DISCOUNT` die); with no vocabulary a second printed occurrence
+  /// is the only proof. Junk-shaped lines never survive.
+  static bool digitLeadingMerchant(String line, List<String> lines) {
+    if (_phoneRe.hasMatch(line)) return false;
+    if (!RegExp(r'\b[A-Za-zÀ-ÿ]{3,}\b').hasMatch(line)) return false;
+    if (junkName(line)) return false;
+    if (_merchantWordRe.hasMatch(line)) return true;
+    if (_discountRe.hasMatch(line) || _dateRe.hasMatch(line)) return false;
+    final up = line.trim().toUpperCase();
+    return lines.where((l) => l.trim().toUpperCase() == up).length >= 2;
+  }
 }

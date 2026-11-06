@@ -110,4 +110,59 @@ void main() {
       expect(d.amountDue?.minorUnits, 2240);
     });
   });
+
+  group('digit-leading merchants (E13 §4)', () {
+    test('vocabulary keepers survive at medium', () {
+      for (final keeper in [
+        '99¢ ONLY',
+        '24 HOUR MARKET',
+        '5 GUYS BURGER',
+        '1-800-FLOWERS',
+        '24/7 MARKET',
+        '6 PM CAFE',
+      ]) {
+        final m = heur().guessMerchant([keeper, 'TOTAL 9.99']);
+        expect(m?.name, keeper, reason: keeper);
+        expect(m?.confidence, FieldConfidence.medium, reason: keeper);
+      }
+    });
+
+    test('a doubled keeper on line 1 earns high', () {
+      final m = heur().guessMerchant([
+        '99¢ ONLY',
+        '04/12/2026',
+        '99¢ ONLY',
+        'TOTAL 7.75',
+      ]);
+      expect(m!.name, '99¢ ONLY');
+      expect(m.confidence, FieldConfidence.high);
+    });
+
+    test('dates, phones and discount prose stay dead', () {
+      for (final noise in [
+        '03/15 DUE',
+        '10 OFF TOTAL',
+        '10% DISCOUNT',
+        '1234 5678 9012',
+        '03/20/24',
+        '555-1212 CALL',
+      ]) {
+        expect(
+          heur().guessMerchant([noise, '22.40']),
+          isNull,
+          reason: noise,
+        );
+      }
+    });
+
+    test('no vocabulary and one occurrence is not enough', () {
+      expect(heur().guessMerchant(['1 HOUR PHOTO', 'TOTAL 9.00']), isNull);
+    });
+
+    test('the name never leaks into the amount', () {
+      final lines = ['99¢ ONLY', 'MILK 4.00', 'BREAD 3.50', 'TOTAL 12.50'];
+      expect(heur().guessMerchant(lines)!.name, '99¢ ONLY');
+      expect(heur().guessTotal(lines)!.amount.minorUnits, 1250);
+    });
+  });
 }
