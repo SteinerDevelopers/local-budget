@@ -485,23 +485,26 @@ package-apk-pro:
     expire_in: 4 weeks
 
 # E9 (#47) · CLOSED BETA lane: signed FREE release bundle for the Play
-# internal track. Play App Signing owns the app signing key; this job signs
-# with the rotatable UPLOAD key from CI secrets. Setup (owner, once):
-#   Settings → CI/CD → Secret files:  UPLOAD_KEYSTORE   (the .jks file)
-#   Settings → CI/CD → Variables:     UPLOAD_KEYSTORE_PASSWORD (masked)
-#   optional:                        UPLOAD_KEY_ALIAS (default "upload")
+# internal track. SELF-SIGNING (decision 13): the key below IS the app
+# signing key — back it up per the custody plan (encrypted blob in two
+# clouds, passphrase split). Setup (owner, once):
+#   Settings → CI/CD → Secret files:  SIGNING_KEYSTORE   (the .jks file)
+#   Settings → CI/CD → Variables:     SIGNING_KEYSTORE_PASSWORD (masked)
+#   optional:                        SIGNING_KEY_ALIAS (default "signing")
 # Without the secrets the job refuses EARLY — a debug-signed aab would only
 # fail at the Play upload, far from its cause. Upload of the artifact to the
 # Console is manual for the beta's first rounds; automation is a later lane.
+# Console note: choose the "manage your own app signing key" path — do NOT
+# accept Google-managed signing for this app.
 package-aab-release-free:
   <<: *package-apk-base
   script:
     - |
       set -e
-      if [ -z "${UPLOAD_KEYSTORE:-}" ] || [ ! -f "$UPLOAD_KEYSTORE" ] || [ -z "${UPLOAD_KEYSTORE_PASSWORD:-}" ]; then
+      if [ -z "${SIGNING_KEYSTORE:-}" ] || [ ! -f "$SIGNING_KEYSTORE" ] || [ -z "${SIGNING_KEYSTORE_PASSWORD:-}" ]; then
         echo "RELEASE SIGNING SECRETS MISSING."
-        echo "Add the secret file UPLOAD_KEYSTORE (keystore) and the masked"
-        echo "variable UPLOAD_KEYSTORE_PASSWORD under Settings → CI/CD."
+        echo "Add the secret file SIGNING_KEYSTORE (keystore) and the masked"
+        echo "variable SIGNING_KEYSTORE_PASSWORD under Settings → CI/CD."
         exit 1
       fi
       cd app

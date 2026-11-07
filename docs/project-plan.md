@@ -25,6 +25,7 @@ Offline-first, zero-data receipt-scanning budget app. **Android launches publicl
 | 10 | Design-first: prototype validated before build; usability gates at MVP & RC |
 | 11 | Build both platforms; defer heavy iOS testing/launch until "has legs" trigger |
 | 12 | **No F-Droid, source stays closed** — Android distribution is Google Play only; no open-source publication obligations (owner decision, 2026-11-07) |
+| 13 | **Self-signing** — the owner holds the app signing key (no Play App Signing); custody = age-encrypted blob in two independent cloud buckets + passphrase split across password manager and safe deposit box; annual restore drill. Keeps one signature across all channels (Galaxy Store & direct APK stay identity-compatible) (owner decision, 2026-11-07) |
 
 ## 3. Timeline & milestones
 
