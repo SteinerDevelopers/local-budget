@@ -507,6 +507,13 @@ package-aab-release-free:
         echo "variable SIGNING_KEYSTORE_PASSWORD under Settings → CI/CD."
         exit 1
       fi
+      # SIGNING_KEYSTORE is a File variable holding base64 of the PKCS12
+      # (text-safe through the GitLab API); the File variable expands to a
+      # path, so decode that file into a real keystore gradle can open.
+      # Ephemeral runner container - the plaintext dies with the job.
+      mkdir -p "$CI_PROJECT_DIR/.signing"
+      base64 -d "$SIGNING_KEYSTORE" > "$CI_PROJECT_DIR/.signing/release.p12"
+      export SIGNING_KEYSTORE="$CI_PROJECT_DIR/.signing/release.p12"
       cd app
       flutter pub get
       # Pro-direction guard runs in its job; here pin the FREE pairing the
