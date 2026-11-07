@@ -431,7 +431,7 @@ void main() {
         'Toll Free: (800) 841-4236 Code ID: MSN00001',
         'Statement Date 10/16/26 Account # 647760 AMOUNT DUE \$36.00',
         '1113000064776000000036001',
-        'JACLYN A HARE 647760 MAKE CHECK PAYABLE AND REMIT TO:',
+        'JANE Q PUBLIC 647760 MAKE CHECK PAYABLE AND REMIT TO:',
         'Montgomery Radiology Associates PA PO Box 830525 Dept #SF128',
         'Birmingham AL 35283-0525',
       ];
@@ -457,6 +457,55 @@ void main() {
         now: now,
       );
       expect(d.payee?.toUpperCase(), 'NETFLIX');
+    });
+  });
+
+  // Fourth tester bounce (2026-11-06, same radiology stub re-scanned): the
+  // document scanner's enhanced crop sharpened the MICR strip, ML Kit read
+  // the logo band as line-1 candidate `-MRA K)NIFXNHKI`, and the small
+  // remit label OCR'd to noise — the bill editor shipped the garbage as
+  // the Bill name, the first field the tester saw. Line shapes frozen
+  // from the tester's screenshot; names synthetic.
+  group('enhanced-scan logo garble', () {
+    const provider = 'Montgomery Radiology Associates PA';
+    const garbled = '-MRA K)NIFXNHKI';
+
+    test('garbled logo dies at the gate; the printed provider ships', () {
+      final d = BillDraft.draft(
+        [
+          garbled,
+          'MEDICAL STATEMENT OF SERVICE',
+          provider,
+          'PO Box 830525 Dept #SF128',
+          'Birmingham AL 35283-0525',
+          'Statement Date 10/16/26 Account # 647760',
+          'PAY ONLIN www.ePayitOnline.com Amount Due',
+          '1113000064776000000036001)', // MICR strip, stray closer
+          provider,
+          'PO Box 830525 Dept #SF128',
+          'Birmingham AL 35283-0525',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee, isNot(garbled));
+      expect(d.payee, provider);
+    });
+
+    test('garbled logo with no corroborated name leaves the payee silent',
+        () {
+      final d = BillDraft.draft(
+        [
+          garbled,
+          'MEDICAL STATEMENT OF SERVICE',
+          'Statement Date 10/16/26 Account # 647760',
+          '1113000064776000000036001)',
+          'Birmingham AL 35283-0525',
+        ],
+        currency: usd,
+        now: now,
+      );
+      expect(d.payee, isNull);
     });
   });
 
@@ -517,7 +566,7 @@ void main() {
       '11130DD0647760000D0036001',
       'MAKE CHECK PAYABLE AND REMIT TO:',
       'D5995 Inuulur"plpla||lrlilury',
-      'JACLYNA HARE 647760 Montgomery Radiology Associates PA',
+      'JANICE PUBLIC 647760 Montgomery Radiology Associates PA',
       '5908 Steiner Store Rd #R PO Box 830325 Dept #SF128',
       'Honoraville AL 36042-5304 Bimingham AL 35283-0525',
     ];

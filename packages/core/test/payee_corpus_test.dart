@@ -61,7 +61,7 @@ void main() {
     'Birmingham AL 35283-0525 UPay By Phone (800) 841-4236',
     '10/16/26 647760 \$36.00',
     'MAKE CHECK PAYABLE AND REMIT TO:',
-    'JACLYNA HARE 647760 Montgomery Radiology Associates PA',
+    'JANICE PUBLIC 647760 Montgomery Radiology Associates PA',
   ];
   const energelSimple = [
     'ENERGEL',

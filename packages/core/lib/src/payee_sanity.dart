@@ -62,8 +62,22 @@ class PayeeSanity {
 
   static bool _isVowel(String c) => 'aeiouy'.contains(c);
 
+  /// OCR debris that printed payee lines never carry: pipe, tilde,
+  /// underscore, or more closing brackets than opening ones. A stray `)`
+  /// is barcode/column merge debris — the tester's enhanced radiology scan
+  /// (2026-11-06) shipped `-MRA K)NIFXNHKI` as the bill name: the closer
+  /// chopped the garble into fragments too short for the pronunciation
+  /// scan to judge (`K` alone, `NIFXNHKI` starts on a legal `n` onset).
+  /// Balanced parentheses stay legal (`WALMART (SUPERCTR)`). This runs
+  /// before the brand pass — no printed brand carries these characters.
+  static bool _strayPunct(String line) =>
+      line.contains(RegExp(r'[|~_]')) ||
+      RegExp(r'[)\]}]').allMatches(line).length >
+          RegExp(r'[(\[{]').allMatches(line).length;
+
   /// True when [line] reads as unpronounceable OCR junk rather than a name.
   static bool junkName(String line) {
+    if (_strayPunct(line)) return true;
     final up = line.toUpperCase();
     for (final brand in _brandPass) {
       if (up.contains(brand)) return false;

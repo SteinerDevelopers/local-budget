@@ -17,6 +17,18 @@ void main() {
       expect(PayeeSanity.junkName('FVAFD'), isTrue);
     });
 
+    test('stray debris punctuation is junk (enhanced-scan bounce, 2026-11-06)',
+        () {
+      // The radiology logo line OCR'd as `-MRA K)NIFXNHKI` and shipped as
+      // the bill name at high confidence: the stray closer chopped the
+      // garble into fragments the pronunciation scan could not judge —
+      // `K` alone, and `NIFXNHKI` starting on a legal single-letter onset.
+      expect(PayeeSanity.junkName('-MRA K)NIFXNHKI'), isTrue);
+      expect(PayeeSanity.junkName('REMIT_T0:'), isTrue);
+      expect(PayeeSanity.junkName('SHELL|MARKET'), isTrue);
+      expect(PayeeSanity.junkName('DEPT 42] EAST'), isTrue);
+    });
+
     test('letter brands and odd-but-real names pass', () {
       for (final keeper in [
         'XYZ STORE',
@@ -29,6 +41,8 @@ void main() {
         'AMZN MKTP', // seeded whitelist
         'RHYTHM RECORDS',
         'TOTAL WINE & SPIRITS', // no digits: not amount prose
+        'WALMART (SUPERCTR)', // balanced parentheses are print, not debris
+        'CAFE (DOWNTOWN) LLC',
       ]) {
         expect(PayeeSanity.junkName(keeper), isFalse, reason: keeper);
       }
