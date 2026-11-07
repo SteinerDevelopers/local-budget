@@ -36,11 +36,36 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // E9 closed-beta upload key (#47). Play App Signing holds the real
+        // app signing key; this is the rotatable UPLOAD key. CI supplies it
+        // as a secret-file variable (UPLOAD_KEYSTORE -> keystore path) plus
+        // UPLOAD_KEYSTORE_PASSWORD (+ optional UPLOAD_KEY_ALIAS, default
+        // "upload"). No env (every local `flutter run --release`, debug
+        // packaging lanes): stays on debug keys exactly as before.
+        create("upload") {
+            val ks = System.getenv("UPLOAD_KEYSTORE")
+            if (!ks.isNullOrEmpty() && file(ks).exists()) {
+                storeFile = file(ks)
+                storePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("UPLOAD_KEY_ALIAS")?.takeIf { it.isNotEmpty() } ?: "upload"
+                keyPassword = System.getenv("UPLOAD_KEY_PASSWORD")
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the CI upload key when present; debug keys as the
+            // local fallback so `flutter run --release` still works without
+            // secrets (the CI aab lane GATES on the env and never ships a
+            // debug-signed aab).
+            signingConfig = if (System.getenv("UPLOAD_KEYSTORE")?.isNotEmpty() == true)
+                signingConfigs.getByName("upload")
+            else
+                signingConfigs.getByName("debug")
             // AGP 9 (gradle 9.3 era) defaults shrinking ON, and R8 trips over
             // ML Kit's optional language jars (referenced-but-absent classes)
             // — the wall Steiner Vault hit on 2026-11-07 (no release build

@@ -484,6 +484,40 @@ package-apk-pro:
       - out/app-arm64-v8a-pro-debug.apk
     expire_in: 4 weeks
 
+# E9 (#47) · CLOSED BETA lane: signed FREE release bundle for the Play
+# internal track. Play App Signing owns the app signing key; this job signs
+# with the rotatable UPLOAD key from CI secrets. Setup (owner, once):
+#   Settings → CI/CD → Secret files:  UPLOAD_KEYSTORE   (the .jks file)
+#   Settings → CI/CD → Variables:     UPLOAD_KEYSTORE_PASSWORD (masked)
+#   optional:                        UPLOAD_KEY_ALIAS (default "upload")
+# Without the secrets the job refuses EARLY — a debug-signed aab would only
+# fail at the Play upload, far from its cause. Upload of the artifact to the
+# Console is manual for the beta's first rounds; automation is a later lane.
+package-aab-release-free:
+  <<: *package-apk-base
+  script:
+    - |
+      set -e
+      if [ -z "${UPLOAD_KEYSTORE:-}" ] || [ ! -f "$UPLOAD_KEYSTORE" ] || [ -z "${UPLOAD_KEYSTORE_PASSWORD:-}" ]; then
+        echo "RELEASE SIGNING SECRETS MISSING."
+        echo "Add the secret file UPLOAD_KEYSTORE (keystore) and the masked"
+        echo "variable UPLOAD_KEYSTORE_PASSWORD under Settings → CI/CD."
+        exit 1
+      fi
+      cd app
+      flutter pub get
+      # Pro-direction guard runs in its job; here pin the FREE pairing the
+      # artifact name promises (flavor_guard also runs define-free upstream).
+      flutter test test/flavor_guard_test.dart --dart-define=APP_FLAVOR=free
+      flutter build appbundle --release --flavor free --dart-define=APP_FLAVOR=free
+      mkdir -p "$CI_PROJECT_DIR/out"
+      cp -v build/app/outputs/bundle/freeRelease/app-free-release.aab "$CI_PROJECT_DIR/out/"
+      ls -l "$CI_PROJECT_DIR/out/"
+  artifacts:
+    paths:
+      - out/app-free-release.aab
+    expire_in: 8 weeks
+
 # Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
   stage: probe
