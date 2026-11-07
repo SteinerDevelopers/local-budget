@@ -156,6 +156,33 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
       if (draft.date != null) _day = draft.date!;
       if (draft.merchant != null) _merchant.text = draft.merchant!;
     });
+    if (draft?.merchant != null) _fixTailDup(draft!.merchant!);
+  }
+
+  /// #44 — a rasterized logo trail can double the merchant's last glyph
+  /// (`Walmart` scanned as `Walmartk`, tester 2026-11-06) and mint a
+  /// near-duplicate merchant row. When the ledger already holds the
+  /// merchant under the un-doubled spelling, the prefill shows the stored
+  /// name instead. The query is the stem (tail dropped); hits run through
+  /// the exact tail-duplication rule, and a field the user already typed
+  /// over is never touched.
+  void _fixTailDup(String scanned) {
+    final lookup = widget.merchantLookup;
+    if (lookup == null || scanned.trim().length < 4) return;
+    unawaited(
+      lookup(scanned.trim().substring(0, scanned.trim().length - 1)).then(
+        (found) {
+          if (!mounted || _merchantEdited || found.isEmpty) return;
+          final fix = correctTailDuplication(scanned, found);
+          if (fix == null) return;
+          if (_merchant.text.trim().toLowerCase() !=
+              scanned.trim().toLowerCase()) {
+            return; // the user (or a hint chip) got there first
+          }
+          setState(() => _merchant.text = fix);
+        },
+      ),
+    );
   }
 
   @override

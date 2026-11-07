@@ -9,6 +9,7 @@ export 'src/category_hints.dart';
 export 'src/currency.dart';
 export 'src/dedupe.dart';
 export 'src/heuristics.dart';
+export 'src/merchant_names.dart';
 export 'src/money.dart';
 export 'src/ocr_lines.dart';
 export 'src/payee_sanity.dart';
