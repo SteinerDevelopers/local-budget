@@ -26,6 +26,7 @@ Offline-first, zero-data receipt-scanning budget app. **Android launches publicl
 | 11 | Build both platforms; defer heavy iOS testing/launch until "has legs" trigger |
 | 12 | **No F-Droid, source stays closed** — Android distribution is Google Play only; no open-source publication obligations (owner decision, 2026-11-07) |
 | 13 | **Self-signing, hybrid (Play excepted)** — the owner holds the app signing key for every channel except Google Play, where new apps are *required* to use Play App Signing (Google-managed app-signing key since Aug 2021); our key doubles as the Play **upload key** (auto-registered by first accepted bundle). Custody = age-encrypted blob in two independent cloud buckets (two regions) + passphrase split (password manager & safe deposit box); annual restore drill. Direct APK & any future non-Play store keep the one true signature (owner decision, 2026-11-07; hybrid amended same day when Play's mandate was confirmed) |
+| 14 | **Product icon = "minted sprout" (v1-ring)** — white sprout inside a coin-ring on brand green `#1e5c46`, pure vector (SVG masters → resvg renders; QA gates: 48 px actual, squint, round-mask, themed mono, wallpaper worlds); selected from 24 AI concepts + 8 hand-authored variants by measurement — the runner-up "sealed arc" died on real power-button adjacency at 48 dp. Brand tiers: company keeps the letter-"S" mark (site/favicon), products get glyphs in the one family palette (owner decision, 2026-11-07) |
 
 ## 3. Timeline & milestones
 
