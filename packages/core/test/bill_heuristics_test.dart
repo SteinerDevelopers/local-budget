@@ -492,8 +492,7 @@ void main() {
       expect(d.payee, provider);
     });
 
-    test('garbled logo with no corroborated name leaves the payee silent',
-        () {
+    test('garbled logo with no corroborated name leaves the payee silent', () {
       final d = BillDraft.draft(
         [
           garbled,
