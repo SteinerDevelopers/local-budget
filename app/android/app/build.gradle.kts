@@ -41,6 +41,13 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // AGP 9 (gradle 9.3 era) defaults shrinking ON, and R8 trips over
+            // ML Kit's optional language jars (referenced-but-absent classes)
+            // — the wall Steiner Vault hit on 2026-11-07 (no release build
+            // had ever run here either). Release-kit work re-enables with
+            // keep rules; permission merging does not depend on shrinking.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 

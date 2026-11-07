@@ -1,4 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- The promise law (owner 2026-11-07; ported from Steiner Vault e6
+         V-D26): the free release provably carries no INTERNET. The main
+         manifest never declares it; this overlay additionally REMOVEs
+         anything a plugin AAR merges in — a store promise must be
+         merge-proof, not plugin-manifest accident. CI manifest-guard
+         pins this exact line. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>
+
     <!-- E6 §3 (free flavor): the transfer surface. The permission is
          *signature*-level, so only an app signed with this same key —
          Steiner Budget Pro — can ever hold it; users see no dialog.

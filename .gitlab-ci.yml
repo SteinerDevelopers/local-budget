@@ -174,6 +174,24 @@ app-test:
 # the same image is what makes matchesGoldenFile stable.
 # The `ls` guard only covers the very first pipeline (harness committed before
 # any refs exist); afterwards a stale ref is a hard failure by design.
+manifest-guard:
+  stage: test
+  image: alpine
+  tags: [SteinerRunner]
+  script:
+    - |
+      set -e
+      free=app/android/app/src/free/AndroidManifest.xml
+      pro=app/android/app/src/pro/AndroidManifest.xml
+      main=app/android/app/src/main/AndroidManifest.xml
+      grep -q 'android.permission.INTERNET" tools:node="remove"' "$free" \
+        || { echo "the free flavor must REMOVE INTERNET (house promise law)"; exit 1; }
+      grep -q '<uses-permission android:name="android.permission.INTERNET" */>' "$pro" \
+        || { echo "pro must declare INTERNET explicitly (sync owns the network)"; exit 1; }
+      grep -q 'android.permission.INTERNET' "$main" \
+        && { echo "the main manifest may never declare INTERNET"; exit 1; }
+      echo "INTERNET law holds (free removes, pro declares, main is silent)"
+
 goldens:
   stage: test
   image: ghcr.io/cirruslabs/flutter:stable # same image as app-test: identical font rasterizer

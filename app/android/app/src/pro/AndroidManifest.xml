@@ -1,5 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- The promise law (ported from Steiner Vault e6 V-D26): the Pro
+         flavor owns the network — own-cloud sync is its one honest use —
+         so it declares INTERNET explicitly instead of inheriting it from
+         whichever plugin AAR happens to declare it. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- E6 §3 (pro flavor): hold the free app's signature permission so
          "Transfer from free app" can read its staged snapshot. Granted at
          install, silently — same signing key is the only requirement. -->
