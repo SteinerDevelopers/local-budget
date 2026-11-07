@@ -7,22 +7,24 @@
 /// nothing here rewrites stored data or skips the review sheet.
 library;
 
-/// #44 — the OCR tail-duplication: a rasterized logo trail read the
-/// merchant's final glyph twice, so `Walmart` scanned as `Walmartk` and
-/// shipped a second, almost-the-same merchant row (tester report
+/// #44 — the OCR tail appendage: a rasterized logo trail lent the
+/// merchant an extra final character, so `Walmart` scanned as `Walmartk`
+/// and shipped a second, almost-the-same merchant row (tester report
 /// 2026-11-06). When the ledger already holds the merchant under the
-/// un-doubled spelling, return the stored name.
+/// clean spelling, return the stored name.
 ///
-/// Deliberately narrower than fuzzy matching: the ONLY accepted edit is
-/// `stored + stored's own last character`, so genuinely different names
-/// (`Costco` vs `Costco Plus`, `Shell` vs `Shells Market`) can never be
-/// merged, and a real new merchant is never hijacked.
+/// The accepted edit is narrow — [scanned] must equal a stored name plus
+/// exactly ONE trailing character — so multi-word or clearly different
+/// names (`Costco` vs `Costco Plus`) can never merge. The honest trade
+/// (`Target` in the ledger swallows a scanned `Targets`) is deliberate:
+/// the review sheet keeps the field editable, while a silently-created
+/// near-duplicate merchant row costs the user forever.
 String? correctTailDuplication(String scanned, List<String> known) {
   final s = scanned.trim().toLowerCase();
   for (final k in known) {
     final n = k.trim().toLowerCase();
     if (n.length < 3 || s.length != n.length + 1) continue;
-    if (s == n + n[n.length - 1]) return k;
+    if (s.startsWith(n)) return k;
   }
   return null;
 }

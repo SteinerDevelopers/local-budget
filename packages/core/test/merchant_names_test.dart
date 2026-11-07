@@ -1,5 +1,6 @@
-// #44 — the tail-duplication corrector: only `stored + stored's last
-// character` is a misread; everything else must stay its own merchant.
+// #44 — the tail-appendage corrector: only stored name + ONE trailing
+// character is a misread; anything longer or shorter stays its own
+// merchant.
 import 'package:core/core.dart';
 import 'package:test/test.dart';
 
@@ -14,11 +15,18 @@ void main() {
       expect(
         correctTailDuplication('Costco Plus', ['Costco']),
         isNull,
-        reason: 'a space is not a duplicated glyph',
+        reason: 'one extra character means one character, not a word',
       );
       expect(correctTailDuplication('Shells', ['Shell Market']), isNull);
-      expect(correctTailDuplication('Chevys', ['Chevy']), isNull,
-          reason: "'y' doubled is 'yy', not 'ys'");
+      expect(correctTailDuplication('Walmar', ['Walmart']), isNull,
+          reason: 'truncation is not an appendage');
+    });
+
+    test('documented trade: Target in the ledger resolves a scanned Targets',
+        () {
+      // Deliberate (see doc comment): the review sheet keeps the field
+      // editable; a silent near-duplicate merchant row would not.
+      expect(correctTailDuplication('Targets', ['Target']), 'Target');
     });
 
     test('exact names and unknown names pass through as null', () {

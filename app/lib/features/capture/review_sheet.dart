@@ -159,13 +159,13 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
     if (draft?.merchant != null) _fixTailDup(draft!.merchant!);
   }
 
-  /// #44 — a rasterized logo trail can double the merchant's last glyph
-  /// (`Walmart` scanned as `Walmartk`, tester 2026-11-06) and mint a
-  /// near-duplicate merchant row. When the ledger already holds the
-  /// merchant under the un-doubled spelling, the prefill shows the stored
+  /// #44 — a rasterized logo trail can lend the merchant an extra final
+  /// character (`Walmart` scanned as `Walmartk`, tester 2026-11-06) and
+  /// mint a near-duplicate merchant row. When the ledger already holds the
+  /// merchant under the clean spelling, the prefill shows the stored
   /// name instead. The query is the stem (tail dropped); hits run through
-  /// the exact tail-duplication rule, and a field the user already typed
-  /// over is never touched.
+  /// the exact one-trailing-character rule, and a field the user already
+  /// typed over is never touched.
   void _fixTailDup(String scanned) {
     final lookup = widget.merchantLookup;
     if (lookup == null || scanned.trim().length < 4) return;
