@@ -87,6 +87,20 @@ class BillDraft {
           payeeConfidence = FieldConfidence.medium;
         }
       }
+      // The enhanced radiology scan (2026-11-06): line 1 garbled, line 2
+      // was the paper heading — guessMerchant stopped at the heading (it
+      // knows no sheet-title rule) and blanking it short-circuited the
+      // clutter guard above, which only speaks when a payee survived.
+      // The document may still prove its provider: a name printed twice
+      // carries its own corroboration, the same bar the clutter guard
+      // uses. With none, the field stays honestly empty.
+      if (payee == null) {
+        final alt = _firstCorroboratedName(lines);
+        if (alt != null) {
+          payee = alt;
+          payeeConfidence = FieldConfidence.medium;
+        }
+      }
     }
     // A card statement is a BILL about one number: the minimum payment
     // due. The receipt route prefilling the NEW BALANCE (e2 §3) made
