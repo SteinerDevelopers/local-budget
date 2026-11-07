@@ -24,6 +24,7 @@ Offline-first, zero-data receipt-scanning budget app. **Android launches publicl
 | 9 | **Launch paid pack:** own-cloud backup + widgets + analytics pack |
 | 10 | Design-first: prototype validated before build; usability gates at MVP & RC |
 | 11 | Build both platforms; defer heavy iOS testing/launch until "has legs" trigger |
+| 12 | **No F-Droid, source stays closed** — Android distribution is Google Play only; no open-source publication obligations (owner decision, 2026-11-07) |
 
 ## 3. Timeline & milestones
 
