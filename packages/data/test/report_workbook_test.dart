@@ -163,7 +163,10 @@ void main() {
         contains('name="Transactions" sheetId="4"'),
       );
       // Summary keeps its seven label rows; data sheets keep their headers.
-      expect(empty['xl/worksheets/sheet1.xml'], contains('Steiner Budget report'));
+      expect(
+        empty['xl/worksheets/sheet1.xml'],
+        contains('Steiner Budget report'),
+      );
       expect(empty['xl/worksheets/sheet2.xml'], contains('<row r="1">'));
       expect(empty['xl/worksheets/sheet2.xml'], isNot(contains('<row r="2">')));
       expect(empty['xl/worksheets/sheet2.xml'], contains('Month'));
