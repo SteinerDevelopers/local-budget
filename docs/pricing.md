@@ -21,8 +21,9 @@ tips the only IAP, nothing gated inside the free tier, no ads, ever.
 - Flagship value = own-cloud scheduled E2EE backup (unique at any price in the
   offline-first niche) + scan queue + widgets + analytics pack = three felt
   levers (safety / time / depth).
-- Payback math at $9.99 (net $8.49 after Play 15%): 177 copies clears the
-  $1,500 trademark spend; health gate ≥0.5% unlock conv at ≥8k installs.
+- Payback math at $9.99 (net $8.49 after Play 15%): ~247 copies clears the
+  $2,100 trademark spend (Jan-2025 USPTO schedule, 3 marks × 2 classes); health
+  gate ≥0.5% unlock conv at ≥8k installs.
 
 ## Experiment surface
 Play Console price tests are available at zero code cost — the ruling sets the
