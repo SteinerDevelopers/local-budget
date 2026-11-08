@@ -192,6 +192,37 @@ manifest-guard:
         && { echo "the main manifest may never declare INTERNET"; exit 1; }
       echo "INTERNET law holds (free removes, pro declares, main is silent)"
 
+# Adoption rung 3 (playbook docs/adoption.md): secret-scan, REPORT-ONLY —
+# findings are printed, nothing fails. Escalation to blocking is an
+# owner-gate decision (Law 4 in AGENTS.md); flip REPORT_ONLY=false there
+# only on the owner's word. `-o` prints only the match, never the full
+# line, so the job log cannot become the leak. Self-match note: patterns
+# are built at runtime so this file cannot match its own grep.
+secret-scan:
+  stage: test
+  image: alpine
+  tags: [SteinerRunner]
+  variables:
+    REPORT_ONLY: "true"
+  script:
+    - |
+      set -e
+      apk add --no-cache git >/dev/null
+      P1="BEGIN RS""A PRIVATE KEY|BEGIN OPENSS""H PRIVATE KEY|BEGIN ""EC PRIVATE KEY"
+      P2="AK""IA[0-9A-Z]{16}"
+      P3="gl""pat-[A-Za-z0-9_-]{20,26}"
+      P4="xo""x[abpsr]-[A-Za-z0-9_-]{10,}"
+      P5="AI""za[0-9A-Za-z_-]{35}"
+      P6="gh""p_[A-Za-z0-9]{36}"
+      P7="hf_[A-Za-z]{34,}"
+      HITS=$(git grep -nIoE "$P1|$P2|$P3|$P4|$P5|$P6|$P7" || true)
+      if [ -n "$HITS" ]; then
+        echo "secret-scan REPORT-ONLY findings:"; echo "$HITS"
+        [ "$REPORT_ONLY" = "true" ] || exit 1
+      else
+        echo "secret-scan: no credential shapes in tracked files"
+      fi
+
 goldens:
   stage: test
   image: ghcr.io/cirruslabs/flutter:stable # same image as app-test: identical font rasterizer
