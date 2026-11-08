@@ -1,4 +1,4 @@
-# Headless Android e2e image for LocalBudget CI (e2e-android stage).
+# Headless Android e2e image for Steiner Budget CI (e2e-android stage).
 #
 # Bake it ONCE on the runner VM; pull_policy = if-not-present means the runner
 # picks the locally-built tag straight from the host image store — no registry:

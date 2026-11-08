@@ -1,4 +1,4 @@
-# LocalBudget (working name)
+# Steiner Budget
 
 Offline-first, zero-data receipt-scanning budget app for Android (launch) and iOS (activated on traction — decision 11).
 

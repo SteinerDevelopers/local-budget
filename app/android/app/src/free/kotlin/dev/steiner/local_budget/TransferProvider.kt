@@ -12,7 +12,7 @@ import java.io.FileNotFoundException
 /**
  * The free flavor's read-only window onto its staged transfer snapshot
  * (design e6-monetization §3). Exported, but gated by a **signature**
- * permission: only a same-signed LocalBudget Pro can open it, and opening
+ * permission: only a same-signed Steiner Budget Pro can open it, and opening
  * it reveals nothing beyond bytes that snapshot already holds.
  *
  * Deliberately dumb — it never builds a backup (Dart stages the bytes via

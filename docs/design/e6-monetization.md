@@ -141,14 +141,14 @@ support rows on both:
     provider resolves; shows the staged snapshot's age, then runs §3 with the
     §6 error map.
 
-**Coffee sheet**: headline "Enjoying LocalBudget? Buy me a coffee ☕" + the
+**Coffee sheet**: headline "Enjoying Steiner Budget? Buy me a coffee ☕" + the
 honest line "Everything you use today stays free. Tips keep the lights on —
 they don't unlock anything." Three price chips from the catalog (fallback
 "store unavailable" per §6), tip button (pending spinner), thank-you state
 after success ("Thank you! ☕" + badge row of past tips). No purchase ever
 changes app behavior — visibly stated.
 
-**Get Pro page** (free flavor): headline "LocalBudget Pro — the same app, plus"
+**Get Pro page** (free flavor): headline "Steiner Budget Pro — the same app, plus"
 + trio demo cards (surviving v1 §5) + price chip + store button + "your data
 comes along, one tap, stays on your device" + fallback route note. No buy
 button exists here — buying happens on the store. (E7 replaces trio cards

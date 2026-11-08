@@ -57,7 +57,7 @@ class TransferBridge(private val context: Context) {
         }
     }
 
-    /** Does a LocalBudget transfer provider resolve on this device? (Pro
+    /** Does a Steiner Budget transfer provider resolve on this device? (Pro
      *  asks; same-key installs are the only way it can answer true.) */
     @Suppress("DEPRECATION") // PackageManager is still the direct metadata probe
     private fun freeAvailable(): Boolean =

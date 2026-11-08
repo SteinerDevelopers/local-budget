@@ -1,4 +1,4 @@
-Most budgeting apps want your bank login, your cloud, or your attention. Local Budget wants nothing. You type what you spent — or photograph the receipt and tap the numbers it found — and it all stays on your phone. No account. No analytics. No ads. Uninstalling removes every byte.
+Most budgeting apps want your bank login, your cloud, or your attention. Steiner Budget wants nothing. You type what you spent — or photograph the receipt and tap the numbers it found — and it all stays on your phone. No account. No analytics. No ads. Uninstalling removes every byte.
 
 Capture that respects your time
 · Quick-add a coffee in four taps, keypad first like a calculator
@@ -20,4 +20,4 @@ Built to be left alone
 
 One tap on "?" opens offline Help with an article for every screen — it even searches without internet.
 
-Local Budget is made by one person who answers email. Feature requests shape it more than dashboards do, because there are no dashboards.
+Steiner Budget is made by one person who answers email. Feature requests shape it more than dashboards do, because there are no dashboards.

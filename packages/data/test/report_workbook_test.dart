@@ -96,7 +96,7 @@ void main() {
 
     test('summary carries range, totals and the comparison block', () {
       final s = parts['xl/worksheets/sheet1.xml']!;
-      expect(s, contains('<t xml:space="preserve">LocalBudget report</t>'));
+      expect(s, contains('<t xml:space="preserve">Steiner Budget report</t>'));
       expect(s, contains('<t xml:space="preserve">Mar 2026</t>'));
       expect(s, contains('<t xml:space="preserve">2026-03-07T09:05</t>'));
       expect(s, contains('<t xml:space="preserve">USD</t>'));
@@ -163,7 +163,7 @@ void main() {
         contains('name="Transactions" sheetId="4"'),
       );
       // Summary keeps its seven label rows; data sheets keep their headers.
-      expect(empty['xl/worksheets/sheet1.xml'], contains('LocalBudget report'));
+      expect(empty['xl/worksheets/sheet1.xml'], contains('Steiner Budget report'));
       expect(empty['xl/worksheets/sheet2.xml'], contains('<row r="1">'));
       expect(empty['xl/worksheets/sheet2.xml'], isNot(contains('<row r="2">')));
       expect(empty['xl/worksheets/sheet2.xml'], contains('Month'));

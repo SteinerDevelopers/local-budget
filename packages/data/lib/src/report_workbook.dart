@@ -121,7 +121,7 @@ abstract final class ReportWorkbook {
   static List<XlsxSheet> sheets(ReportData d) {
     final cur = d.currency;
     final summary = <List<Object?>>[
-      ['Report', 'LocalBudget report'],
+      ['Report', 'Steiner Budget report'],
       ['Range', d.rangeLabel],
       ['Generated', isoDateTime(d.generatedAt)],
       ['Currency', cur.code],

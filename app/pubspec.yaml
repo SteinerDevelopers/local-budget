@@ -1,5 +1,5 @@
 name: local_budget
-description: "LocalBudget — privacy-first, on-device budgeting. Bills and receipts never leave the phone."
+description: "Steiner Budget — privacy-first, on-device budgeting. Bills and receipts never leave the phone."
 publish_to: 'none'
 
 version: 0.1.0+1

@@ -113,7 +113,7 @@ internal fun SubNote(text: String) {
 /** "No data yet" is honest; a stale month's numbers would be a lie. */
 @Composable
 internal fun EmptyBody() {
-    Title("LocalBudget")
+    Title("Steiner Budget")
     Headline("—")
     SubNote("Open the app to refresh")
 }
