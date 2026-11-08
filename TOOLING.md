@@ -2,6 +2,11 @@
 
 ## AI dev sandbox (where most code is written today)
 
+**Rule zero before anything below** (decision 15): every development cycle
+starts by pulling and consulting the shared agent playbook — see
+[AGENTS.md](AGENTS.md) at the repo root. It already knows most of what this
+file knows, plus the platform scars this file doesn't.
+
 Linux x86_64 container, no `/dev/kvm`, `/home/node` is read-only. Every shell is
 fresh, so **source the env file first** in every command:
 
