@@ -602,7 +602,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('import-pick-document')));
       await tester.pumpAndSettle();
-      expect(find.text('Add from a document'), findsOneWidget);
+      expect(find.text('Scan a bill or statement'), findsOneWidget);
       await tester.tap(find.text(rowLabel));
       await tester.pumpAndSettle();
     }

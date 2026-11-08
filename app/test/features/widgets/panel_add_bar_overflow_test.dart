@@ -122,7 +122,7 @@ void main() {
               secondary: TextButton.icon(
                 onPressed: () {},
                 icon: const Icon(Icons.document_scanner_outlined, size: 20),
-                label: const Text('Add from a document'),
+                label: const Text('Scan a receipt'),
               ),
             ),
           ),
@@ -131,10 +131,10 @@ void main() {
       await tester.pumpAndSettle();
       // FittedBox may shrink the glyphs, never hide a label.
       expect(find.text('Add bill'), findsOneWidget);
-      expect(find.text('Add from a document'), findsOneWidget);
+      expect(find.text('Scan a receipt'), findsOneWidget);
       // Both halves are inside the viewport, not pushed off-screen.
       expect(
-        tester.getRect(find.text('Add from a document')).right,
+        tester.getRect(find.text('Scan a receipt')).right,
         lessThanOrEqualTo(320),
       );
       expect(tester.takeException(), isNull);

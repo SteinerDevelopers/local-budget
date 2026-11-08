@@ -41,7 +41,7 @@ class BillsTab extends StatelessWidget {
   /// PDFs, but the document entry lived only in the import wizard — a
   /// scanned card statement went to the *receipt* scanner instead and came
   /// back as an expense. Where capture exists the Bills tab offers
-  /// "Add from a document" directly; where it doesn't the button is
+  /// "Scan a bill" directly; where it doesn't the button is
   /// *hidden*, never a dead end.
   final CaptureServices? capture;
 
@@ -207,7 +207,7 @@ class _AddFromDocumentButtonState extends State<_AddFromDocumentButton> {
     final choice = await showCaptureSourceSheet(
       context,
       showScreenshotRow: false,
-      title: 'Add from a document',
+      title: 'Scan a bill',
       subtitle:
           'A bill or a bank statement — you review before anything is saved.',
     );
@@ -279,7 +279,7 @@ class _AddFromDocumentButtonState extends State<_AddFromDocumentButton> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.document_scanner_outlined, size: 20),
-      label: Text(_reading ? 'Reading your document…' : 'Add from a document'),
+      label: Text(_reading ? 'Scanning…' : 'Scan a bill'),
       onPressed: _reading ? null : _run,
     );
   }

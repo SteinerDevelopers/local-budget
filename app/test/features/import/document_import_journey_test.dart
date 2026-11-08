@@ -1,5 +1,5 @@
 // E11 M4 — the owner's whole document journey in one test, from the ledger
-// tab to new rows in the database: Manage → Import → *Add from a document*
+// tab to new rows in the database: Manage → Import → *Photo or PDF*
 // → photo of a bank statement → Preview that flags the row already in the
 // account → commit → ledger +N. Only OCR and the photo picker are faked;
 // routing, parsing, dedupe, Preview, commit and the ledger query are the
@@ -102,7 +102,7 @@ void main() {
     // the rest. No column mapping: scanned lines arrive pre-parsed.
     await tester.tap(find.byKey(const Key('import-pick-document')));
     await tester.pumpAndSettle();
-    expect(find.text('Add from a document'), findsOneWidget);
+    expect(find.text('Scan a bill or statement'), findsOneWidget);
     await tester.tap(find.text('Photos'));
     await tester.pumpAndSettle();
 

@@ -670,7 +670,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               Icons.document_scanner_outlined,
                               size: 20,
                             ),
-                            label: const Text('Add from a document'),
+                            label: const Text('Scan a receipt'),
                             onPressed: _openCapture,
                           ),
                   ),

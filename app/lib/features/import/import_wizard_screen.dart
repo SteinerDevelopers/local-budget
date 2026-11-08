@@ -243,7 +243,7 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
     final choice = await showCaptureSourceSheet(
       context,
       showScreenshotRow: false,
-      title: 'Add from a document',
+      title: 'Scan a bill or statement',
       subtitle:
           'A bill or a bank statement — you review before anything is saved.',
     );

@@ -297,7 +297,7 @@ const List<HelpArticle> kHelpArticles = [
     paragraphs: [
       'Some paperwork is a photo or a scan rather than a file from your '
           'bank’s website. Manage → Import statement has a third row, '
-          'Add from a document: photograph (or pick) a bill or a '
+          '“Photo or PDF”: photograph (or pick) a bill or a '
           'statement — a PDF works too — and the app reads the text '
           'off it on your phone.',
       'A statement comes back as rows: the app finds the date, the '
@@ -313,7 +313,7 @@ const List<HelpArticle> kHelpArticles = [
           'due — the figure you actually pay each month — not the '
           'balance sitting on the page. The document alone '
           'never writes to your ledger or your bills.',
-      'In a hurry, the Bills tab has its own Add from a document '
+      'In a hurry, the Bills tab has its own “Scan a bill” '
           'button. It reads a bill the same way; if your photo turns '
           'out to be a full statement instead, it says so and points '
           'you at the import wizard, where you can review every '

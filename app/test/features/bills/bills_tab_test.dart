@@ -342,7 +342,7 @@ void main() {
       final (:db, :repo) = freshRepo();
       await openBillsTab(tester, repo);
       expect(find.byKey(const Key('bill-add-empty')), findsOneWidget);
-      expect(find.text('Add from a document'), findsNothing);
+      expect(find.text('Scan a bill'), findsNothing);
       await db.close();
     });
 
@@ -354,8 +354,8 @@ void main() {
       final food = await repo.addCategory('Food');
       expect(food, isNonZero);
       await openBillsTab(tester, repo, capture: docServices(lines: billLines));
-      expect(find.text('Add from a document'), findsOneWidget);
-      await tester.tap(find.text('Add from a document'));
+      expect(find.text('Scan a bill'), findsOneWidget);
+      await tester.tap(find.text('Scan a bill'));
       await settle(tester);
       await tester.tap(find.text('Photos'));
       await settle(tester);
@@ -397,7 +397,7 @@ void main() {
         repo,
         capture: docServices(lines: statementLines),
       );
-      await tester.tap(find.text('Add from a document'));
+      await tester.tap(find.text('Scan a bill'));
       await settle(tester);
       await tester.tap(find.text('Photos'));
       await settle(tester);
