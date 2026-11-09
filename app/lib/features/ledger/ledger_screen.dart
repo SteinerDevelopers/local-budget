@@ -764,12 +764,22 @@ class _MonthHeader extends StatelessWidget {
                   }
                 },
                 child: Center(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: Tokens.monthLabelSize, // §2.1 month-title
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.onSurface,
+                  // E3 (#52): the title's corridor is the icons' leftover —
+                  // no reflow room exists at 200%, so the text shrinks to
+                  // fit instead of losing its year. FittedBox sheds only
+                  // what the corridor lacks; at the default scale it is a
+                  // no-op and the §2.1 pixel budget is untouched.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: Tokens.monthLabelSize, // §2.1 month-title
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                   ),
                 ),

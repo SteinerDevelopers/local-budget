@@ -108,6 +108,45 @@ void main() {
     expect(memo.top, greaterThanOrEqualTo(row.top));
   });
 
+  testWidgets('200% text scale keeps the strip whole on a phone (#52)', (
+    tester,
+  ) async {
+    // Bench evidence (#52, Flip6 at font_scale 2.0): the 56 dp strip clipped
+    // every amount mid-glyph and the year vanished from the month title.
+    // The strip grows with the scale; amounts shrink only within their own
+    // column when that is not enough. Asserted at a real phone width — the
+    // default 800 dp test surface is wider than any phone's thirds.
+    await tester.pumpWidget(
+      _host(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 360,
+              child: BalanceStrip(
+                summary: BalanceSummary(
+                  income: _usd(240000),
+                  expenses: _usd(65733),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byType(BalanceStrip)).height, 112);
+    final strip = tester.getRect(find.byType(BalanceStrip));
+    for (final v in ['\$2,400.00', '\$657.33', '\$1,742.67']) {
+      final r = tester.getRect(find.text(v));
+      // Whole glyphs: the printed box sits inside the strip, no clip.
+      expect(r.bottom, lessThanOrEqualTo(strip.bottom), reason: v);
+      expect(r.top, greaterThanOrEqualTo(strip.top), reason: v);
+      expect(r.right, lessThanOrEqualTo(strip.right), reason: v);
+      expect(r.left, greaterThanOrEqualTo(strip.left), reason: v);
+    }
+  });
+
   testWidgets('TransactionRow income: +, primary color', (tester) async {
     await tester.pumpWidget(
       _host(

@@ -21,7 +21,9 @@ class BalanceStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: _height,
+      // E3 (#52, #48's precedent): the row grows with the OS text scale so
+      // label and amount paint whole. 1.0 scale keeps the §2.1 56 dp box.
+      height: _height * _heightScale(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
         child: Row(
@@ -76,24 +78,41 @@ class _Stat extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
-              const SizedBox(height: Tokens.space1),
-              Flexible(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Tokens.amount(context).copyWith(color: valueColor),
-                ),
+          child: SizedBox.expand(
+            // One shrink-fit box around the whole stat: the corridor is a
+            // phone third wide and the row grows with the scale, but beyond
+            // that (a wrapped "EXPENSES" at mid scales would not fit even
+            // the grown box) the stack sheds only the size it lacks —
+            // every digit and letter still prints, nothing clips (#52).
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
+                  const SizedBox(height: Tokens.space1),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: Tokens.amount(context).copyWith(color: valueColor),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// The strip's scale rule — #48's helper verbatim: 1.0 at the default font
+/// scale (the §2.1 56 dp box is untouched), the user's own scale above it.
+double _heightScale(BuildContext context) {
+  final scale = MediaQuery.textScalerOf(context).scale(1.0);
+  return scale < 1.0 ? 1.0 : scale;
 }
