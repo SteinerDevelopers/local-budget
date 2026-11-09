@@ -68,6 +68,7 @@ keep (shipping-ceremony law). Full texts: playbook
 | change CI, pipelines, signing, delivery jobs | `docs/ci-cd.md`, `docs/adoption.md` |
 | run the review lane | `docs/review-lane.md` |
 | walk a device | `docs/device-walk-laws.md`, `docs/flutter-test-laws.md` |
+| design or change any UI, user-facing copy, or permission ask | `docs/ux-ruleset.md` (decision 17: binding — audit mode gates releases, build mode binds design) |
 | call the GitLab API | `docs/gitlab-api.md` |
 | tester mail, kits by mail | `docs/mail-pipeline.md` |
 | DNS/stalwart/brand domains | `docs/stalwart-api.md`, `docs/web-search.md` |
