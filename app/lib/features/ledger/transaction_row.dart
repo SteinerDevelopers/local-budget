@@ -33,21 +33,18 @@ class TransactionRow extends StatelessWidget {
           '${tile.memo == null || tile.memo!.isEmpty ? '' : ', ${tile.memo}'}'
           ', ${tile.amountDisplay()}, ${DayLabel.of(tile.day)}'
           '${tile.missingRate ? ', no exchange rate' : ''}',
-      child: ConstrainedBox(
+      child: SizedBox(
         // #48 (E3 audit, bench Flip6 2026-11-09): a hard 64 dp box overflowed
-        // every row at 200 % font scale — the sub-label clipped away. minHeight
-        // keeps the compact rhythm at normal scales; the row now grows to fit
-        // whatever the user's text size demands. The centered Column keeps the
-        // old vertical alignment when there is slack to distribute.
-        constraints: const BoxConstraints(minHeight: Tokens.rowHeight),
-        child: Padding(
-          // Breathing room for grown rows so a scaled row never touches its
-          // neighbours; at normal scales it stays inside the 64 dp rhythm.
-          padding: const EdgeInsets.symmetric(vertical: Tokens.space1),
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+        // every row at 200 % font scale and clipped the merchant sub-label.
+        // The box is now scale-aware: exactly 64 dp at the default text size
+        // (the 64 dp rhythm contract holds), and proportionally taller as the
+        // user's text grows — a tight box that keeps everything the text
+        // needs. The centered Columns re-center inside the slack unchanged.
+        height: Tokens.rowHeight * _heightScale(context),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
             child: Row(
               children: [
                 Icon(tile.icon, size: 24, color: scheme.onSurfaceVariant),
@@ -102,10 +99,17 @@ class TransactionRow extends StatelessWidget {
                 ),
               ],
             ),
-            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// 1.0 at the default font scale, and the user's own scale above it, so the
+/// row box never outgrows its own text (#48). Below default the rhythm is
+/// deliberately kept — shrinking rows is not what a small-text request means.
+double _heightScale(BuildContext context) {
+  final scale = MediaQuery.textScalerOf(context).scale(1.0);
+  return scale < 1.0 ? 1.0 : scale;
 }

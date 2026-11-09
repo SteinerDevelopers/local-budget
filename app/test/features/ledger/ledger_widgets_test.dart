@@ -76,6 +76,38 @@ void main() {
     expect(tester.getSize(find.byType(TransactionRow)).height, 64);
   });
 
+  testWidgets('200% text scale grows the row instead of clipping it (#48)', (
+    tester,
+  ) async {
+    // Bench evidence (Flip6, 2026-11-09): at font_scale 2.0 the fixed 64 dp
+    // box overflowed every row by 10 px and clipped merchant sub-labels.
+    // The box is scale-aware now: double the text, double the room — and
+    // the sub-label stays inside the painted box.
+    await tester.pumpWidget(
+      _host(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+          child: TransactionRow(
+            tile: EntryTile(
+              id: 1,
+              icon: Icons.local_cafe_outlined,
+              title: 'Coffee',
+              memo: 'Blue Bottle',
+              amount: _usd(1240),
+              kind: EntryKind.expense,
+              day: DateTime(2026, 10, 29),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byType(TransactionRow)).height, 128);
+    final memo = tester.getRect(find.text('Blue Bottle'));
+    final row = tester.getRect(find.byType(TransactionRow));
+    expect(memo.bottom, lessThanOrEqualTo(row.bottom));
+    expect(memo.top, greaterThanOrEqualTo(row.top));
+  });
+
   testWidgets('TransactionRow income: +, primary color', (tester) async {
     await tester.pumpWidget(
       _host(
