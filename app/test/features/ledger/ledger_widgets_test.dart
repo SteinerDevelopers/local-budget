@@ -113,9 +113,11 @@ void main() {
   ) async {
     // Bench evidence (#52, Flip6 at font_scale 2.0): the 56 dp strip clipped
     // every amount mid-glyph and the year vanished from the month title.
-    // The strip grows with the scale; amounts shrink only within their own
-    // column when that is not enough. Asserted at a real phone width — the
-    // default 800 dp test surface is wider than any phone's thirds.
+    // The strip grows with the scale; above it the whole stat table takes
+    // one uniform shrink factor across fixed gutters (owner review: a
+    // lossless table with touching columns is still unreadable). Asserted
+    // at a real phone width — the default 800 dp test surface is wider
+    // than any phone.
     await tester.pumpWidget(
       _host(
         MediaQuery(
@@ -137,13 +139,29 @@ void main() {
     );
     expect(tester.getSize(find.byType(BalanceStrip)).height, 112);
     final strip = tester.getRect(find.byType(BalanceStrip));
-    for (final v in ['\$2,400.00', '\$657.33', '\$1,742.67']) {
-      final r = tester.getRect(find.text(v));
+    final rects = [
+      for (final v in ['\$2,400.00', '\$657.33', '\$1,742.67'])
+        tester.getRect(find.text(v)),
+    ];
+    for (var i = 0; i < rects.length; i++) {
+      final r = rects[i];
       // Whole glyphs: the printed box sits inside the strip, no clip.
-      expect(r.bottom, lessThanOrEqualTo(strip.bottom), reason: v);
-      expect(r.top, greaterThanOrEqualTo(strip.top), reason: v);
-      expect(r.right, lessThanOrEqualTo(strip.right), reason: v);
-      expect(r.left, greaterThanOrEqualTo(strip.left), reason: v);
+      expect(r.bottom, lessThanOrEqualTo(strip.bottom), reason: '$i');
+      expect(r.top, greaterThanOrEqualTo(strip.top), reason: '$i');
+      expect(r.right, lessThanOrEqualTo(strip.right), reason: '$i');
+      expect(r.left, greaterThanOrEqualTo(strip.left), reason: '$i');
+    }
+    // Owner review of #52: whole glyphs are not enough — the columns must
+    // read as a table. The old per-column fit filled the thirds at 200%
+    // and touched ('$2,400.00$657.33' scanned as one number); the whole
+    // table now takes one shrink factor across real gutters, so adjacent
+    // amounts keep provable air.
+    for (var i = 0; i + 1 < rects.length; i++) {
+      expect(
+        rects[i + 1].left - rects[i].right,
+        greaterThan(8),
+        reason: 'gutter between stat $i and ${i + 1}',
+      );
     }
   });
 
