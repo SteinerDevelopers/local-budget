@@ -153,3 +153,29 @@ curl -sS -X PUT -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
 
 After 2026-11-09 every change to this document reaches `main` through the gate it
 describes. That is deliberate: the rule is reviewed the way it is enforced.
+
+## State as applied
+
+Read back from the GET above on **2026-11-09**, the day the gate went on:
+
+| Setting | Live value |
+|---|---|
+| `main` direct push | **No one** |
+| `main` merge | Maintainers |
+| `main` force push | `false` |
+| pipeline must succeed | `true` |
+| discussions must resolve | `true` |
+
+**What each of those rows is actually proved by** — because a read-back and a
+refusal are different kinds of evidence, and the runbook should not blur them:
+
+- The table itself is what GitLab *reports*, read from the API.
+- The push row is also what GitLab *does*: `git push origin main` ends in
+  `! [remote rejected] main -> main (pre-receive hook declined)` and writes nothing
+  server-side. A setting nobody tried to violate is a belief, not a gate.
+- The two merge-side flags are **not** exercised by that probe. They will be proved
+  the first time a merge request is refused for a red pipeline or an open thread —
+  until then this doc states them as configured, not as observed.
+
+The probe commit was discarded and `main` was left exactly where it was. This
+document reached `main` the way everything else now must: as a merge request.
