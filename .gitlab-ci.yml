@@ -3,7 +3,7 @@
 # egress OK, /dev/kvm passed through, /dev/shm = 2 GiB, pull_policy=if-not-present.
 # Keep scripts in block scalars: plain YAML scalars containing ": " break job
 # parsing (learned the hard way).
-stages: [test, e2e, probe]
+stages: [test, e2e, probe, release]
 
 workflow:
   rules:
@@ -605,10 +605,20 @@ package-apk-free:
       flutter build apk --debug --flavor free --split-per-abi
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-arm64-v8a-free-debug.apk "$CI_PROJECT_DIR/out/"
+      # Hash the bytes this job produced, by name, before they leave the job. The
+      # filename carries the flavor because kit-release downloads BOTH jobs'
+      # artifacts into one workspace: two jobs writing one digest filename means
+      # the later download silently replaces the earlier, and the surviving file
+      # attests to one flavor while looking like it covers the pair (vault shipped
+      # exactly that in 989e35c3 and fixed it in 31d5cf7). `*.apk` is also the
+      # wrong subject: --split-per-abi leaves several ABIs in the build dir, and
+      # out/ holds the one arm64 ride this job is responsible for.
+      cd "$CI_PROJECT_DIR/out" && sha256sum app-arm64-v8a-free-debug.apk | tee KIT-SHA256SUMS-free.txt
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
       - out/app-arm64-v8a-free-debug.apk
+      - out/KIT-SHA256SUMS-free.txt
     expire_in: 4 weeks
 
 package-apk-pro:
@@ -638,10 +648,13 @@ package-apk-pro:
       flutter build apk --debug --flavor pro --dart-define=APP_FLAVOR=pro --split-per-abi
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-arm64-v8a-pro-debug.apk "$CI_PROJECT_DIR/out/"
+      # Per-flavor digest — see the note in package-apk-free.
+      cd "$CI_PROJECT_DIR/out" && sha256sum app-arm64-v8a-pro-debug.apk | tee KIT-SHA256SUMS-pro.txt
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
       - out/app-arm64-v8a-pro-debug.apk
+      - out/KIT-SHA256SUMS-pro.txt
     expire_in: 4 weeks
 
 # E9 (#47) · CLOSED BETA lane: signed FREE release bundle for the Play
@@ -743,3 +756,81 @@ bake-e2e-image-r2:
         'avdmanager list avd | grep -q "Name: ci" &&
          sdkmanager --list_installed | grep -q "platforms;android-36" &&
          flutter --version | head -1 && echo AVD-AND-SDK-OK'
+
+# ── kit-release — publish the kit pair, then prove it came back ───────────────
+# A kit that lives only as a 4-week job artifact cannot be verified after the
+# round it was mailed in; the 2026-11-09 process grade counted budget's kit
+# digests as "produced by the config: NONE", and the ten hand-made
+# localbudget-kit packages on this server carry an md5 file in 4 of 10 and a
+# sha256 in none. So the two kit jobs now hash their own APK (per-flavor file,
+# named by flavor — vault learned that the hard way in 31d5cf7) and this job
+# checks each APK against the number its own build printed before publishing
+# the pair plus one sums file covering both flavors to the generic package
+# registry, keyed by the commit that built them.
+#
+# Manual and protected, exactly like the packaging it depends on: publishing is
+# a release act, not a build act. `needs:` on BOTH kit jobs is what makes a
+# half-published release unreachable — GitLab keeps this job unplayable until
+# both flavors are green. `workflow: rules` above allows only
+# merge_request_event and $CI_COMMIT_BRANCH, so a tag creates no pipeline here:
+# the tag comes AFTER, cut by agent-playbook tools/cut-release, which refuses a
+# sha whose package does not exist.
+kit-release:
+  stage: release
+  image: alpine
+  tags: [SteinerRunner]
+  needs:
+    - job: package-apk-free
+      artifacts: true
+    - job: package-apk-pro
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED != "true"'
+      when: never
+    - when: manual
+  timeout: 15m
+  variables:
+    KIT_PACKAGE: localbudget-kit
+  script:
+    - |
+      set -e
+      apk add --no-cache curl >/dev/null
+      cd "$CI_PROJECT_DIR/out"
+      ls -l
+      # Each flavor against its own build's number, before anything is published:
+      # a truncated download or an overwritten artifact fails here rather than in
+      # a tester's hands. Missing file = the kit job that writes it did not run.
+      # Boundary, stated so nobody over-trusts it: this catches a digest that
+      # never arrived and bytes that no longer match. It cannot catch artifacts
+      # swapped in from another pipeline — that is GitLab's per-pipeline artifact
+      # binding (needs: downloads bind to this pipeline's job instances), not
+      # something a script in the job can enforce.
+      for f in KIT-SHA256SUMS-free.txt KIT-SHA256SUMS-pro.txt; do
+        [ -s "$f" ] || { echo "missing $f — the kit job that writes it did not run"; exit 1; }
+        sha256sum -c "$f"
+      done
+      # One sums file covering BOTH flavors — the standard two-line `sha256sum -c`
+      # format, NOT one hash over concatenated bytes, so a tester verifies the kit
+      # by running `sha256sum -c KIT-SHA256SUMS.txt` beside the two APKs.
+      rm -f KIT-SHA256SUMS.txt
+      sha256sum *.apk | tee KIT-SHA256SUMS.txt
+      N=$(wc -l < KIT-SHA256SUMS.txt)
+      [ "$N" = "2" ] || { echo "expected the free+pro pair, found $N apks"; exit 1; }
+      VER="$CI_COMMIT_SHORT_SHA"
+      BASE="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/$KIT_PACKAGE/$VER"
+      fail=0
+      for f in *.apk KIT-SHA256SUMS.txt; do
+        code=$(curl -s -o /tmp/up.out -w '%{http_code}' --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "$f" "$BASE/$f")
+        echo "PUBLISH $f -> http=$code $BASE/$f"
+        { [ "$code" = "201" ] || [ "$code" = "200" ]; } || fail=1
+      done
+      # A 201 that cannot be downloaded is a receipt, not a release channel.
+      for f in *.apk KIT-SHA256SUMS.txt; do
+        code=$(curl -s -o /dev/null -w '%{http_code}' --header "JOB-TOKEN: $CI_JOB_TOKEN" "$BASE/$f")
+        echo "READBACK $f -> http=$code"
+        [ "$code" = "200" ] || fail=1
+      done
+      sha256sum -c KIT-SHA256SUMS.txt
+      [ "$fail" = "0" ] || { echo "kit publish incomplete — read the http codes above"; exit 1; }
+      echo "kit published, immutable: $BASE"
+      echo "next: tools/cut-release --project Steiner-Bot/local-budget-app --sha $CI_COMMIT_SHA --package $KIT_PACKAGE --version 0.1.0 --venue beta"
