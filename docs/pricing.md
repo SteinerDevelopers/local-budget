@@ -9,7 +9,7 @@ tips the only IAP, nothing gated inside the free tier, no ads, ever.
 
 | Moment | Price (US storefront) | Notes |
 |---|---|---|
-| **v1.0 launch (M2, ~Dec 2026)** | **$9.99 one-time** | Regional pricing on; standard refund policy |
+| **v1.0 launch (M2, ~Dec 2026)** | **$9.99 one-time** | **US storefront only at launch** (owner ruling 2026-11-09 backlog item 5); translations + regional pricing tiers added later; standard refund policy |
 | **iOS activation (M4)** | **$11.99–$12.99** | iOS cohort pays more (Bluecoins+ $15.99 iOS precedent); Android listing rises with it |
 | Always | Existing Pro owners **grandfathered for life** | Never-charged-upgrade promise; pairs with the "more, never less" rule |
 
