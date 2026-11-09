@@ -34,7 +34,9 @@ comes to the owner. Full law: playbook `docs/review-lane.md`.
 Local gates before push (playbook `docs/ci-cd.md` gate table); CI passes or
 it didn't happen. No board verdicts and no issue closes without the
 owner's explicit word. Report-only gates stay report-only unless the owner
-escalates them (report-only law).
+escalates them (report-only law). A number quoted in a doc is emitted by a
+committed instrument, or carries the command that regenerates it; an empty API
+field means *undisclosed*, never *absent* (playbook `docs/measurement.md`).
 
 ## Law 4 — The owner-gate ledger
 
@@ -70,6 +72,7 @@ keep (shipping-ceremony law). Full texts: playbook
 | walk a device | `docs/device-walk-laws.md`, `docs/flutter-test-laws.md` |
 | design or change any UI, user-facing copy, or permission ask | `docs/ux-ruleset.md` (decision 17: binding — audit mode gates releases, build mode binds design) |
 | call the GitLab API | `docs/gitlab-api.md` |
+| assert a number, grade a process, or measure anything | `docs/measurement.md` |
 | tester mail, kits by mail | `docs/mail-pipeline.md` |
 | DNS/stalwart/brand domains | `docs/stalwart-api.md`, `docs/web-search.md` |
 | resume budget state (devices, issues, HEADs) | `docs/localbudget-state.md` |
