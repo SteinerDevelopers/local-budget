@@ -204,6 +204,11 @@ class BillNotifier {
     required int ruleId,
     required String name,
     required DateTime due,
+    // The permission ask belongs to a user's own action (F5, #49): save,
+    // paid, resume pass true. Background materialization — boot, app
+    // resume — schedules silently and asks nothing; a reminder the machine
+    // decided on never interrupts a person for consent.
+    bool askPermission = false,
   }) async {
     // A boot now races the first frame (see bootstrap): a bill added in
     // that window must not silently lose its reminder. Rides the
@@ -211,8 +216,9 @@ class BillNotifier {
     await _ensureReady();
     if (!active) return; // genuinely unavailable — the hint stays optional
     // First need for a reminder = first legitimate moment to ask (F5,
-    // issue #49). Once per install, marker-guarded; never delays the save.
-    unawaited(_requestPermission());
+    // issue #49) — but only when a person performed the action. Once per
+    // install, marker-guarded; never delays the save.
+    if (askPermission) unawaited(_requestPermission());
     try {
       final fire = tz.TZDateTime(
         tz.local,

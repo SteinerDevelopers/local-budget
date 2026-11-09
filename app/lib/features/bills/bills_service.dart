@@ -162,11 +162,12 @@ Future<DateTime> markBillPaid(
   await repo.updateRuleDue(id: r.id, nextDue: dayFromEpoch(nextEpoch));
   if (reschedule && r.notify) {
     // Inert until the app shell bootstraps BillNotifier — tests never
-    // reach a method channel.
+    // reach a method channel. 'Paid' is a tap: it may ask for reminders.
     await BillNotifier.schedule(
       ruleId: r.id,
       name: r.name,
       due: dayFromEpoch(nextEpoch),
+      askPermission: true,
     );
   }
   return line.due;
@@ -255,6 +256,8 @@ Future<MaterializeOutcome> materializeDueBills(
         nextDue: dayFromEpoch(occ.nextDueEpochDay),
       );
       if (r.notify) {
+        // Background materialization (boot/resume) schedules silently —
+        // a machine's decision never interrupts a person for consent (F5).
         await BillNotifier.schedule(
           ruleId: r.id,
           name: r.name,
@@ -291,10 +294,12 @@ Future<void> resumeBill(
   );
   await repo.updateRuleDue(id: r.id, nextDue: dayFromEpoch(next));
   if (r.notify) {
+    // Resume is a tap: it may ask for reminders (F5).
     await BillNotifier.schedule(
       ruleId: r.id,
       name: r.name,
       due: dayFromEpoch(next),
+      askPermission: true,
     );
   }
 }

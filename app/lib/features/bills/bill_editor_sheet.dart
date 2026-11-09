@@ -218,7 +218,7 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
       await BillNotifier.cancel(ruleId);
     }
     if (_notify) {
-      await BillNotifier.schedule(ruleId: ruleId, name: name, due: due);
+      await BillNotifier.schedule(ruleId: ruleId, name: name, due: due, askPermission: true);
     }
     if (mounted) Navigator.of(context).pop(true);
   }
