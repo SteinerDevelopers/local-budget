@@ -77,3 +77,9 @@ track, pipeline URL).
 - [ ] `shipped-versions.md` updated in the same release
 - [ ] FIND-ME.txt / registry path convention unchanged for debug kits
       (testers keep the debug lane until production is live)
+
+## Landing the change
+
+`main` is MR-only since 2026-11-09: branch → MR → green pipeline → someone else
+merges. Mechanics, the measured CE limits, and the owner-only break-glass for an
+artifact-upload outage: [`merge-gate.md`](merge-gate.md).

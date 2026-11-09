@@ -38,6 +38,16 @@ escalates them (report-only law). A number quoted in a doc is emitted by a
 committed instrument, or carries the command that regenerates it; an empty API
 field means *undisclosed*, never *absent* (playbook `docs/measurement.md`).
 
+**`main` is MR-only** (owner ruling, 2026-11-09; playbook `docs/process.md`): there
+is no direct push to `main`. Work lands as a merge request whose pipeline is green
+and whose review threads are resolved, the lane trailer goes in the MR description,
+and **an agent never merges its own MR**. GitLab CE cannot enforce that last part —
+`/approvals` is 404 and the bot holds merge rights — so it is law rather than
+platform, and the weekly self-merge count is the evidence it held. A refused push is
+the gate working: report it, and never un-protect a branch to keep moving.
+Mechanics, the outage coupling, and the owner-only break-glass:
+`docs/release/merge-gate.md`.
+
 ## Law 4 — The owner-gate ledger
 
 Agents never self-approve: crypto constants and iteration policy;
