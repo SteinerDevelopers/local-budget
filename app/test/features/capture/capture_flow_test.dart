@@ -71,6 +71,13 @@ class _NoIo implements Io {
     required Uint8List bytes,
     required String fileName,
   }) async {}
+
+  @override
+  Future<Uri?> saveFile({
+    required Uint8List bytes,
+    required String fileName,
+    String? dialogTitle,
+  }) async => Uri.parse('content://fake/saved/$fileName');
 }
 
 void main() {

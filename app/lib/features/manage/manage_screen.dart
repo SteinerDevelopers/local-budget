@@ -434,9 +434,24 @@ class _ManageScreenState extends State<ManageScreen> {
     if (!mounted) return;
     final name =
         'localbudget-backup-${DateTime.now().toIso8601String().substring(0, 10)}.lzb';
-    await widget.io.shareFile(bytes: bytes, fileName: name);
+    // #50 (C4): the destination is the user's, not ours. The OS save
+    // dialog hands them the pen; a cancelled dialog means nothing happened
+    // and the app must say exactly that — the cache copy the share sheet
+    // used to leave behind is gone from this flow.
+    final saved = await widget.io.saveFile(
+      bytes: bytes,
+      fileName: name,
+      dialogTitle: 'Save your backup',
+    );
     if (!mounted) return;
-    _snack('Backup ready to share as $name — store it somewhere you trust.');
+    if (saved == null) {
+      _snack('Backup cancelled — nothing was saved.');
+      return;
+    }
+    _snack(
+      'Saved $name to the location you picked — only its passphrase '
+      'opens it.',
+    );
   });
 
   Future<void> _restoreFromBackup() async {

@@ -32,6 +32,9 @@ class FakeIo implements Io {
 
   PickedFile? pickResult;
   final shared = <(Uint8List bytes, String name)>[];
+  final saved = <(Uint8List bytes, String name, String? title)>[];
+  bool cancelSave = false;
+  Object? saveThrows;
 
   @override
   Future<PickedFile?> pickFile({List<String>? extensions}) async => pickResult;
@@ -41,6 +44,17 @@ class FakeIo implements Io {
     required Uint8List bytes,
     required String fileName,
   }) async => shared.add((bytes, fileName));
+
+  @override
+  Future<Uri?> saveFile({
+    required Uint8List bytes,
+    required String fileName,
+    String? dialogTitle,
+  }) async {
+    if (saveThrows != null) throw saveThrows!;
+    saved.add((bytes, fileName, dialogTitle));
+    return cancelSave ? null : Uri.parse('content://fake/saved/$fileName');
+  }
 }
 
 /// E11 document-import seam: the intake hands back opaque bytes the
@@ -264,7 +278,7 @@ void main() {
   });
 
   group('back up now (§7)', () {
-    testWidgets('passphrase twice, then an LZBK1 file to share', (
+    testWidgets('passphrase twice, then an LZBK1 file to the user’s save target', (
       tester,
     ) async {
       final r = await liveDb();
@@ -280,14 +294,59 @@ void main() {
         );
         await enterPassphrase(tester, 'right horse battery', withConfirm: true);
 
-        expect(io.shared, hasLength(1));
-        final (bytes, name) = io.shared.single;
+        // #50/C4: the bytes go to the OS save dialog the user commands —
+        // never silently to a cache behind a share sheet.
+        expect(io.saved, hasLength(1));
+        final (bytes, name, title) = io.saved.single;
+        expect(title, 'Save your backup');
         expect(name, matches(r'^localbudget-backup-\d{4}-\d{2}-\d{2}\.lzb$'));
         expect(utf8.decode(bytes.sublist(0, 5)), 'LZBK1');
+        expect(io.shared, isEmpty);
         expect(
-          find.textContaining('Backup ready to share as $name'),
+          find.textContaining('Saved $name to the location you picked'),
           findsOneWidget,
         );
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+
+    testWidgets('a cancelled save dialog says nothing was saved', (
+      tester,
+    ) async {
+      final r = await liveDb();
+      final io = FakeIo()..cancelSave = true;
+      try {
+        await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
+
+        await tapRow(tester, 'back-up');
+        await tester.pumpAndSettle();
+        await enterPassphrase(tester, 'right horse battery', withConfirm: true);
+
+        expect(io.shared, isEmpty);
+        expect(
+          find.text('Backup cancelled — nothing was saved.'),
+          findsOneWidget,
+        );
+      } finally {
+        await tearDownDb(r);
+      }
+    });
+
+    testWidgets('a save that throws says it failed — never silent success', (
+      tester,
+    ) async {
+      final r = await liveDb();
+      final io = FakeIo()..saveThrows = StateError('storage gone');
+      try {
+        await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
+
+        await tapRow(tester, 'back-up');
+        await tester.pumpAndSettle();
+        await enterPassphrase(tester, 'right horse battery', withConfirm: true);
+
+        expect(io.saved, isEmpty);
+        expect(find.textContaining('That did not work'), findsOneWidget);
       } finally {
         await tearDownDb(r);
       }

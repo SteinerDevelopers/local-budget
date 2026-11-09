@@ -30,6 +30,13 @@ class FakeIo implements Io {
   }) async {
     shared.add((bytes, fileName));
   }
+
+  @override
+  Future<Uri?> saveFile({
+    required Uint8List bytes,
+    required String fileName,
+    String? dialogTitle,
+  }) async => Uri.parse('content://fake/saved/$fileName');
 }
 
 void main() {

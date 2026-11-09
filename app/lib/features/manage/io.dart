@@ -22,6 +22,17 @@ abstract interface class Io {
 
   /// Hands [bytes] to the OS share sheet under [fileName] (temp file first).
   Future<void> shareFile({required Uint8List bytes, required String fileName});
+
+  /// The user's save dialog (Android: create-document): the person picks the
+  /// destination and the bytes land there under [fileName]. Resolves to the
+  /// saved [Uri], or `null` when the dialog was cancelled. This is the C4
+  /// door (#50): a backup must have a target the user owns — a share sheet
+  /// or an evictable cache never counts as one.
+  Future<Uri?> saveFile({
+    required Uint8List bytes,
+    required String fileName,
+    String? dialogTitle,
+  });
 }
 
 /// Production wiring: file_picker 13.x (static pickFiles, empty list =
@@ -60,4 +71,16 @@ class RealIo implements Io {
       throw StateError('Sharing is not available on this device.');
     }
   }
+
+  @override
+  Future<Uri?> saveFile({
+    required Uint8List bytes,
+    required String fileName,
+    String? dialogTitle,
+  }) => FilePicker.saveFile(
+    fileName: fileName,
+    bytes: bytes,
+    dialogTitle: dialogTitle,
+    mimeType: 'application/octet-stream',
+  );
 }
