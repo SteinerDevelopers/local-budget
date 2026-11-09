@@ -398,7 +398,18 @@ e2e-android:
 # build of the same SHA.
 .package-apk-template: &package-apk-base
   stage: e2e
-  when: manual
+  # Packaging is a release act, not a build act. It must not be created at all
+  # on a ref that is not protected: the signing kit lives in CI variables that
+  # are now protected too, so an unprotected pipeline could only fail closed
+  # here — this makes it skip instead, and keeps "what can hold the keystore"
+  # answerable in one sentence. CI_COMMIT_REF_PROTECTED was verified on this
+  # instance (dsh-smoke-test): the rule created the job on protected main and
+  # dropped it on an unprotected branch. Test lanes are deliberately left
+  # ungated, so a branch still gets its full test verdict.
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED != "true"'
+      when: never
+    - when: manual
   needs: []
   image: localbudget-e2e:latest
   tags: [SteinerRunner]
