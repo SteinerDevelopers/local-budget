@@ -34,8 +34,14 @@ curl -sS -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
   (`ollamatest: reviewed`) goes in the **MR description**; the MR is the unit of
   review now, not the commit.
 - **An agent never merges its own MR.** GitLab CE cannot enforce this
-  (`/approvals` → **404**; approval fields absent from the project projection), and
-  the bot is a Maintainer with merge rights — so *being able to merge is not
+  approvals are **recorded** on CE — `GET /merge_requests/:iid/approvals` answers 200
+  with `approved_by` / `user_can_approve` — but cannot be **required**:
+  `approval_rules` and the project-level `/approvals` answer 404, and
+  `approvals_before_merge` is absent from the projection (measured here 2026-11-09).
+  `user_can_approve` came back **true on the author's own token**, so an approval record
+  is not a second reader — compare `approved_by[].user.id` against the author's. And the
+  bot is not a Maintainer: it holds **Owner (50)** on this project. So *being able to
+  merge is not
   permission to merge*. The weekly self-merge count from
   `deliverables/tools/mr-audit.mjs` is the only *machine-checkable* evidence that the rule held.
 - The release path is unchanged: `kit/*` and `v*` tags stay protected at
@@ -153,3 +159,29 @@ curl -sS -X PUT -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
 
 After 2026-11-09 every change to this document reaches `main` through the gate it
 describes. That is deliberate: the rule is reviewed the way it is enforced.
+
+## State as applied
+
+Read back from the GET above on **2026-11-09**, the day the gate went on:
+
+| Setting | Live value |
+|---|---|
+| `main` direct push | **No one** |
+| `main` merge | Maintainers |
+| `main` force push | `false` |
+| pipeline must succeed | `true` |
+| discussions must resolve | `true` |
+
+**What each of those rows is actually proved by** — because a read-back and a
+refusal are different kinds of evidence, and the runbook should not blur them:
+
+- The table itself is what GitLab *reports*, read from the API.
+- The push row is also what GitLab *does*: `git push origin main` ends in
+  `! [remote rejected] main -> main (pre-receive hook declined)` and writes nothing
+  server-side. A setting nobody tried to violate is a belief, not a gate.
+- The two merge-side flags are **not** exercised by that probe. They will be proved
+  the first time a merge request is refused for a red pipeline or an open thread —
+  until then this doc states them as configured, not as observed.
+
+The probe commit was discarded and `main` was left exactly where it was. This
+document reached `main` the way everything else now must: as a merge request.

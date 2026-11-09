@@ -42,7 +42,9 @@ field means *undisclosed*, never *absent* (playbook `docs/measurement.md`).
 is no direct push to `main`. Work lands as a merge request whose pipeline is green
 and whose review threads are resolved, the lane trailer goes in the MR description,
 and **an agent never merges its own MR**. GitLab CE cannot enforce that last part —
-`/approvals` is 404 and the bot holds merge rights — so it is law rather than
+approvals are recorded on CE but cannot be required (`merge_requests/:iid/approvals`
+→ 200; `approval_rules` and the project-level `/approvals` → 404), an agent may approve
+its own MR, and the bot holds **Owner (50)** merge rights — so it is law rather than
 platform, and the weekly self-merge count is the evidence it held. A refused push is
 the gate working: report it, and never un-protect a branch to keep moving.
 Mechanics, the outage coupling, and the owner-only break-glass:
