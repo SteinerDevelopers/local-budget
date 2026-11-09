@@ -330,9 +330,14 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
   Future<void> _auto(CloudDestination d) async {
     final hub = widget.hub;
     if (d.autoBackup) {
-      // Off means *off*: the backup key is scrubbed with the intent.
-      await hub.upsert(d.copyWith(autoBackup: false, autoFails: 0));
+      // Off means *off*: the key is scrubbed BEFORE the intent flips, so no
+      // observer can ever see a destination that is off yet still holds its
+      // backup key (#51). The half-failure direction this chooses is
+      // on-without-a-key — schedules fail quietly through the badge path and
+      // re-enrolment fixes it; the reverse (secret alive after 'off') has no
+      // such honest recovery.
       await hub.clearBackupKey(d);
+      await hub.upsert(d.copyWith(autoBackup: false, autoFails: 0));
       await hub.auto?.sync(
         destinations: hub.destinations(),
         docsDir: widget.docsDir?.path,

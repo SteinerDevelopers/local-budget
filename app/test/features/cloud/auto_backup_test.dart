@@ -285,7 +285,15 @@ void main() {
 
     await tapReal(tester, find.byKey(const Key('dest-nas1')));
     await tapReal(tester, find.byKey(const Key('cloud-auto'))); // off: no sheet
-    await waitReal(tester, () async => !dest().autoBackup);
+    // Wait for BOTH halves of the off-switch (#51): CI must not adjudicate
+    // a race between the flag flip and the key scrub. The lib scrubs before
+    // flipping, so this settles as one state change; the contract is
+    // "off means off" — no moment where off and key-alive coexist.
+    await waitReal(
+      tester,
+      () async =>
+          !dest().autoBackup && (await store.get('cloud-autokey-nas1')) == null,
+    );
 
     expect(await store.get('cloud-autokey-nas1'), isNull); // off means off
     expect(scheduler.syncs.last, isEmpty);
