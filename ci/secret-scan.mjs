@@ -23,6 +23,7 @@
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+
 import path from "node:path";
 
 const PATTERNS = [
@@ -140,7 +141,16 @@ function selftest() {
 }
 if (process.argv.includes("--selftest")) selftest();
 
-const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+// Probed, not assumed: node:22-alpine ships without git, and the first CI run proved it — an
+// uncaught spawnSync ENOENT from rev-parse, which looked like a scanner bug and was a missing
+// tool. A missing tool gets a named fault and exit 9, never a clean report.
+let root;
+try {
+  root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+} catch (e) {
+  console.log(`SECRET-SCAN|FAULT git is unavailable in this image (${e.code || e.message}) — cannot read history; reporting zero findings here would be a lie. Add \`apk add --no-cache git\`.`);
+  process.exit(9);
+}
 const SELF = path.relative(root, path.resolve(new URL(import.meta.url).pathname));
 const skip = (p) => SKIP.some((r) => r.test(p)) || p === SELF;
 

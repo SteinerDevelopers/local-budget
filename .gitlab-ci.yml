@@ -879,6 +879,10 @@ history-scan:
   allow_failure: true              # report-only; escalating is the owner's call
   variables:
     GIT_DEPTH: "0"                 # the removed value lives in history, not at the tip
+  before_script:
+    # node:22-alpine has no git (the first CI run of this job proved it). Install it, then assert
+    # it, so the job fails with a name instead of an uncaught ENOENT dump.
+    - apk add --no-cache git >/dev/null && git --version
   script:
     - node ci/secret-scan.mjs --selftest
     - node ci/secret-scan.mjs
