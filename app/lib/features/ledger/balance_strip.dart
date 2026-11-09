@@ -78,32 +78,57 @@ class _Stat extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
-          child: SizedBox.expand(
-            // One shrink-fit box around the whole stat: the corridor is a
-            // phone third wide and the row grows with the scale, but beyond
-            // that (a wrapped "EXPENSES" at mid scales would not fit even
-            // the grown box) the stack sheds only the size it lacks —
-            // every digit and letter still prints, nothing clips (#52).
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
-                  const SizedBox(height: Tokens.space1),
-                  Text(
-                    value,
-                    maxLines: 1,
-                    softWrap: false,
-                    style: Tokens.amount(context).copyWith(color: valueColor),
+          child: MediaQuery.textScalerOf(context).scale(1.0) <= 1.0
+              // §2.1 verbatim at the default scale (goldens byte-pinned;
+              // the ellipsis is design-blessed at 1.0, not a bug there).
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label.toUpperCase(), style: Tokens.labelCaps(context)),
+                    const SizedBox(height: Tokens.space1),
+                    Flexible(
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Tokens.amount(
+                          context,
+                        ).copyWith(color: valueColor),
+                      ),
+                    ),
+                  ],
+                )
+              // Above the default scale the whole stat becomes one
+              // shrink-fit box: the row already grew with the scale; the
+              // remaining gap (a phone third is only so wide) sheds size,
+              // never a glyph — no clip, no ellipsis (#52).
+              : SizedBox.expand(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label.toUpperCase(),
+                          style: Tokens.labelCaps(context),
+                        ),
+                        const SizedBox(height: Tokens.space1),
+                        Text(
+                          value,
+                          maxLines: 1,
+                          softWrap: false,
+                          style: Tokens.amount(
+                            context,
+                          ).copyWith(color: valueColor),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                ),
         ),
       ),
     );
