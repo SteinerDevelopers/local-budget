@@ -10,6 +10,21 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
 
+.test-junit-report: &test-junit
+  # Every test lane writes its JUnit XML to the same path at the project root,
+  # so one anchor carries the upload config for all of them. `when: always` is
+  # the point of the whole thing: a RED suite is exactly the run whose XML
+  # someone needs to read, and the default `on_success` would throw it away.
+  # Reports nest under artifacts here — this GitLab (19.5.3 CE) has no
+  # job-level `reports:` key at all.
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - junit.xml
+    reports:
+      junit: junit.xml
+
 variables:
   PUB_CACHE: "$CI_PROJECT_DIR/.pub-cache"
 
@@ -36,6 +51,7 @@ commit-lint:
       echo "commit subjects OK"
 
 core-test:
+  <<: *test-junit
   stage: test
   image: dart:stable
   tags: [SteinerRunner]
@@ -53,9 +69,23 @@ core-test:
       dart pub get
       dart analyze --fatal-infos
       dart format --output=none --set-exit-if-changed .
-      dart test --reporter compact
+      # JUnit for the pipeline's test widget: JSON in, XML out. The compact
+      # reporter goes away on purpose — the converter prints its own JUNIT:
+      # verdict line plus every failing test with its first error line, so the
+      # trace stays readable while GitLab gets a machine-readable copy of the
+      # SAME run. Report-only tier: the converter exits 0 even when tests
+      # failed. The job's verdict stays the test command's own exit code,
+      # re-raised below, so a suite can never be painted green by the reporter.
+      set +e
+      dart test --reporter json > "$CI_PROJECT_DIR/test-report.json"
+      TEST_RC=$?
+      set -e
+      dart ../../ci/dart_json_to_junit.dart "$CI_PROJECT_DIR/test-report.json" "$CI_PROJECT_DIR/junit.xml" \
+        || echo 'JUNIT-FAILED: no XML produced (report-only, never the verdict)'
+      exit $TEST_RC
 
 data-test:
+  <<: *test-junit
   stage: test
   image: dart:stable
   tags: [SteinerRunner]
@@ -76,9 +106,23 @@ data-test:
       dart pub get
       dart analyze --fatal-infos
       dart format --output=none --set-exit-if-changed .
-      dart test --reporter compact
+      # JUnit for the pipeline's test widget: JSON in, XML out. The compact
+      # reporter goes away on purpose — the converter prints its own JUNIT:
+      # verdict line plus every failing test with its first error line, so the
+      # trace stays readable while GitLab gets a machine-readable copy of the
+      # SAME run. Report-only tier: the converter exits 0 even when tests
+      # failed. The job's verdict stays the test command's own exit code,
+      # re-raised below, so a suite can never be painted green by the reporter.
+      set +e
+      dart test --reporter json > "$CI_PROJECT_DIR/test-report.json"
+      TEST_RC=$?
+      set -e
+      dart ../../ci/dart_json_to_junit.dart "$CI_PROJECT_DIR/test-report.json" "$CI_PROJECT_DIR/junit.xml" \
+        || echo 'JUNIT-FAILED: no XML produced (report-only, never the verdict)'
+      exit $TEST_RC
 
 capture-test:
+  <<: *test-junit
   stage: test
   image: dart:stable
   tags: [SteinerRunner]
@@ -95,9 +139,23 @@ capture-test:
       dart pub get
       dart analyze --fatal-infos
       dart format --output=none --set-exit-if-changed .
-      dart test --reporter compact
+      # JUnit for the pipeline's test widget: JSON in, XML out. The compact
+      # reporter goes away on purpose — the converter prints its own JUNIT:
+      # verdict line plus every failing test with its first error line, so the
+      # trace stays readable while GitLab gets a machine-readable copy of the
+      # SAME run. Report-only tier: the converter exits 0 even when tests
+      # failed. The job's verdict stays the test command's own exit code,
+      # re-raised below, so a suite can never be painted green by the reporter.
+      set +e
+      dart test --reporter json > "$CI_PROJECT_DIR/test-report.json"
+      TEST_RC=$?
+      set -e
+      dart ../../ci/dart_json_to_junit.dart "$CI_PROJECT_DIR/test-report.json" "$CI_PROJECT_DIR/junit.xml" \
+        || echo 'JUNIT-FAILED: no XML produced (report-only, never the verdict)'
+      exit $TEST_RC
 
 budget-test:
+  <<: *test-junit
   stage: test
   image: dart:stable
   tags: [SteinerRunner]
@@ -114,9 +172,23 @@ budget-test:
       dart pub get
       dart analyze --fatal-infos
       dart format --output=none --set-exit-if-changed .
-      dart test --reporter compact
+      # JUnit for the pipeline's test widget: JSON in, XML out. The compact
+      # reporter goes away on purpose — the converter prints its own JUNIT:
+      # verdict line plus every failing test with its first error line, so the
+      # trace stays readable while GitLab gets a machine-readable copy of the
+      # SAME run. Report-only tier: the converter exits 0 even when tests
+      # failed. The job's verdict stays the test command's own exit code,
+      # re-raised below, so a suite can never be painted green by the reporter.
+      set +e
+      dart test --reporter json > "$CI_PROJECT_DIR/test-report.json"
+      TEST_RC=$?
+      set -e
+      dart ../../ci/dart_json_to_junit.dart "$CI_PROJECT_DIR/test-report.json" "$CI_PROJECT_DIR/junit.xml" \
+        || echo 'JUNIT-FAILED: no XML produced (report-only, never the verdict)'
+      exit $TEST_RC
 
 billing-test:
+  <<: *test-junit
   stage: test
   image: dart:stable
   tags: [SteinerRunner]
@@ -133,7 +205,20 @@ billing-test:
       dart pub get
       dart analyze --fatal-infos
       dart format --output=none --set-exit-if-changed .
-      dart test --reporter compact
+      # JUnit for the pipeline's test widget: JSON in, XML out. The compact
+      # reporter goes away on purpose — the converter prints its own JUNIT:
+      # verdict line plus every failing test with its first error line, so the
+      # trace stays readable while GitLab gets a machine-readable copy of the
+      # SAME run. Report-only tier: the converter exits 0 even when tests
+      # failed. The job's verdict stays the test command's own exit code,
+      # re-raised below, so a suite can never be painted green by the reporter.
+      set +e
+      dart test --reporter json > "$CI_PROJECT_DIR/test-report.json"
+      TEST_RC=$?
+      set -e
+      dart ../../ci/dart_json_to_junit.dart "$CI_PROJECT_DIR/test-report.json" "$CI_PROJECT_DIR/junit.xml" \
+        || echo 'JUNIT-FAILED: no XML produced (report-only, never the verdict)'
+      exit $TEST_RC
 
 app-test:
   stage: test
@@ -166,7 +251,27 @@ app-test:
       for f in $(grep -rl "features/cloud/" lib --include='*.dart' | grep -v '^lib/features/cloud/'); do
         grep -q 'FeatureFlags.proTrio' "$f" || { echo "ungated cloud import: $f"; exit 1; }
       done
-      flutter test --reporter compact
+      # JUnit for the pipeline's test widget: JSON in, XML out. The compact
+      # reporter goes away on purpose — the converter prints its own JUNIT:
+      # verdict line plus every failing test with its first error line, so the
+      # trace stays readable while GitLab gets a machine-readable copy of the
+      # SAME run. Report-only tier: the converter exits 0 even when tests
+      # failed. The job's verdict stays the test command's own exit code,
+      # re-raised below, so a suite can never be painted green by the reporter.
+      set +e
+      flutter test --reporter json --coverage > "$CI_PROJECT_DIR/test-report.json"
+      TEST_RC=$?
+      set -e
+      dart ../ci/dart_json_to_junit.dart "$CI_PROJECT_DIR/test-report.json" "$CI_PROJECT_DIR/junit.xml" \
+        || echo 'JUNIT-FAILED: no XML produced (report-only, never the verdict)'
+      # Guarded for the same reason as the junit converter: this line runs
+      # BEFORE the verdict re-raise, and a suite that dies early can leave
+      # coverage/lcov.info unwritten. Without the guard `set -e` would abort
+      # here and the job would report the coverage converter's exit code
+      # instead of the suite's own — red for the wrong reason.
+      dart ../ci/lcov_to_cobertura.dart coverage/lcov.info coverage/cobertura.xml \
+        || echo 'COVERAGE-FAILED: no cobertura written (report-only, never the verdict)'
+      exit $TEST_RC
 
 # Pixel-comparison of the §6 golden set. Refs live in app/test_goldens/goldens/
 # and are generated BY CI (goldens:generate job below) so light/dark rendering
@@ -174,6 +279,19 @@ app-test:
 # the same image is what makes matchesGoldenFile stable.
 # The `ls` guard only covers the very first pipeline (harness committed before
 # any refs exist); afterwards a stale ref is a hard failure by design.
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - junit.xml
+      - app/coverage/lcov.info
+      - app/coverage/cobertura.xml
+    reports:
+      junit: junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: app/coverage/cobertura.xml
+  coverage: '/COVERAGE TOTAL: (\d+(?:\.\d+)?)%/'
 manifest-guard:
   stage: test
   image: alpine
