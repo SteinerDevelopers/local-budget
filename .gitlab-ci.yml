@@ -3,6 +3,29 @@
 # egress OK, /dev/kvm passed through, /dev/shm = 2 GiB, pull_policy=if-not-present.
 # Keep scripts in block scalars: plain YAML scalars containing ": " break job
 # parsing (learned the hard way).
+# ── failure evidence that survives a retry (metric item 2/3, owner-approved 2026-11-09) ────────
+# A retried job replaces its own attempt: pass 4 sampled 12 red pipelines and the parsed report
+# retained no failure for 12 of them, so the change-failure rate was whatever the platform still
+# admitted to. after_script runs on the failing attempt as well, so each attempt files its own
+# record and uploads it BEFORE a retry can overwrite it. Job metadata only — no log content, no
+# secret, one small JSON per job, and only ever uploaded on failure.
+# Known tail, stated rather than discovered later: a job defining its own after_script (the two
+# device-lane jobs, which collect emu.log/e2e logs and whose artifact contract the device laws
+# depend on) overrides this default, so it contributes logs but not this JSON. Rewriting that
+# contract is not this change's to rewrite.
+default:
+  after_script:
+    - |
+      mkdir -p cf-evidence
+      printf '{"ts":"%s","pipeline":"%s","job":"%s","job_id":"%s","stage":"%s","sha":"%s","ref":"%s","status":"%s"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$CI_PIPELINE_ID" "$CI_JOB_NAME" "$CI_JOB_ID" "$CI_JOB_STAGE" \
+        "$CI_COMMIT_SHORT_SHA" "$CI_COMMIT_REF_NAME" "$CI_JOB_STATUS" > "cf-evidence/$CI_JOB_NAME.json"
+  artifacts:
+    when: on_failure
+    expire_in: 4 weeks
+    paths:
+      - cf-evidence
+
 stages: [test, e2e, probe, release]
 
 workflow:
@@ -834,3 +857,34 @@ kit-release:
       [ "$fail" = "0" ] || { echo "kit publish incomplete — read the http codes above"; exit 1; }
       echo "kit published, immutable: $BASE"
       echo "next: tools/cut-release --project Steiner-Bot/local-budget-app --sha $CI_COMMIT_SHA --package $KIT_PACKAGE --version 0.1.0 --venue beta"
+
+# ── history scan, observational (metric item 3/3) ─────────────────────────────────────────────
+# What is already here, and why this is not a third scanner: budget's `secret-scan` greps tracked
+# files for key shapes (report-only) and vault's runs gitleaks with --no-git. Both read the
+# WORKING TREE, so a value that was committed and later removed is invisible to both — and "a
+# token arrived somewhere it should not have, then was cleaned up" is the exact incident class this
+# fleet has experience of. This job reads the history (`git log -p --all`), which no existing gate
+# covers, and nothing else.
+# Report-only by law 3: allow_failure stays true until the owner escalates it with the first count
+# in hand (law 4: escalating a report-only gate is an owner decision). Committed script rather than
+# a scanner image because an image whose tag could not be resolved from this network would turn the
+# pipeline red for reasons unrelated to the code — the same reasoning that made ci/dep-audit.mjs
+# hand-roll its OSV client. The script self-tests: every rule must fire on a synthetic sample and
+# score zero on clean text, or the job exits 9 rather than reporting a clean repo.
+history-scan:
+  stage: test
+  image: node:22-alpine            # proven pullable: dep-audit runs in this image
+  tags: [SteinerRunner]
+  needs: []
+  allow_failure: true              # report-only; escalating is the owner's call
+  variables:
+    GIT_DEPTH: "0"                 # the removed value lives in history, not at the tip
+  script:
+    - node ci/secret-scan.mjs --selftest
+    - node ci/secret-scan.mjs
+  artifacts:
+    when: always
+    paths:
+      - secret-scan.json
+    expire_in: 4 weeks
+
