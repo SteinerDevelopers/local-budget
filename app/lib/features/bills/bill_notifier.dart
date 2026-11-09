@@ -55,11 +55,12 @@ class BillNotifier {
   /// attempt lands. If the orphaned inner future still completes, [active]
   /// flips on for later schedules.
   ///
-  /// The Android 13+ permission prompt deliberately rides *outside* the
-  /// cap's await (field test, Coosea SL219A / Android 14: a budget phone
-  /// renders the dialog slower than any sane cap, and a user still reading
-  /// it is not a reason to kill reminders for the session). A denial
-  /// changes nothing else — §5 again.
+  /// Bootstrapping never asks for the notification permission (F5, issue
+  /// #49 — measured fresh-install ambush on the bench, 2026-11-09); the
+  /// ask rides on [schedule], the user's first recurring-bill save. The
+  /// field-test lesson still governs that ask: a budget phone renders the
+  /// dialog slower than any sane cap (Coosea SL219A / Android 14), so it
+  /// stays unawaited and a denial changes nothing else — §5 again.
   static Future<void> bootstrap() {
     if (active) return Future.value();
     return _inFlight ??= _cappedBootstrap();
@@ -134,9 +135,11 @@ class BillNotifier {
       // Flip on only once the tz + channel are genuinely usable — schedule
       // computes its fire time against tz.local.
       active = true;
-      // The permission prompt rides outside every await in here: it can
-      // sit on screen for as long as the user likes.
-      unawaited(_requestPermission());
+      // The permission prompt is NOT asked here (F5, issue #49): a fresh
+      // install must earn the ask first. It rides on schedule() instead —
+      // the moment the user saves a recurring bill and the reminder is
+      // genuinely needed. The field-test lesson stands: whenever it does
+      // appear it stays unawaited, so a slow dialog never stalls a save.
       if ((launch?.didNotificationLaunchApp ?? false) && payload != null) {
         _openPayload(payload);
       }
@@ -207,6 +210,9 @@ class BillNotifier {
     // in-flight bootstrap if one is running; never starts one itself.
     await _ensureReady();
     if (!active) return; // genuinely unavailable — the hint stays optional
+    // First need for a reminder = first legitimate moment to ask (F5,
+    // issue #49). Once per install, marker-guarded; never delays the save.
+    unawaited(_requestPermission());
     try {
       final fire = tz.TZDateTime(
         tz.local,
