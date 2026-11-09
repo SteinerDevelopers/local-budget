@@ -33,12 +33,21 @@ class TransactionRow extends StatelessWidget {
           '${tile.memo == null || tile.memo!.isEmpty ? '' : ', ${tile.memo}'}'
           ', ${tile.amountDisplay()}, ${DayLabel.of(tile.day)}'
           '${tile.missingRate ? ', no exchange rate' : ''}',
-      child: SizedBox(
-        height: Tokens.rowHeight,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
+      child: ConstrainedBox(
+        // #48 (E3 audit, bench Flip6 2026-11-09): a hard 64 dp box overflowed
+        // every row at 200 % font scale — the sub-label clipped away. minHeight
+        // keeps the compact rhythm at normal scales; the row now grows to fit
+        // whatever the user's text size demands. The centered Column keeps the
+        // old vertical alignment when there is slack to distribute.
+        constraints: const BoxConstraints(minHeight: Tokens.rowHeight),
+        child: Padding(
+          // Breathing room for grown rows so a scaled row never touches its
+          // neighbours; at normal scales it stays inside the 64 dp rhythm.
+          padding: const EdgeInsets.symmetric(vertical: Tokens.space1),
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Tokens.space4),
             child: Row(
               children: [
                 Icon(tile.icon, size: 24, color: scheme.onSurfaceVariant),
@@ -92,6 +101,7 @@ class TransactionRow extends StatelessWidget {
                   ],
                 ),
               ],
+            ),
             ),
           ),
         ),
