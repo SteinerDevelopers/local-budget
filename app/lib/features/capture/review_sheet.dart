@@ -170,18 +170,18 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
     final lookup = widget.merchantLookup;
     if (lookup == null || scanned.trim().length < 4) return;
     unawaited(
-      lookup(scanned.trim().substring(0, scanned.trim().length - 1)).then(
-        (found) {
-          if (!mounted || _merchantEdited || found.isEmpty) return;
-          final fix = correctTailDuplication(scanned, found);
-          if (fix == null) return;
-          if (_merchant.text.trim().toLowerCase() !=
-              scanned.trim().toLowerCase()) {
-            return; // the user (or a hint chip) got there first
-          }
-          setState(() => _merchant.text = fix);
-        },
-      ),
+      lookup(scanned.trim().substring(0, scanned.trim().length - 1)).then((
+        found,
+      ) {
+        if (!mounted || _merchantEdited || found.isEmpty) return;
+        final fix = correctTailDuplication(scanned, found);
+        if (fix == null) return;
+        if (_merchant.text.trim().toLowerCase() !=
+            scanned.trim().toLowerCase()) {
+          return; // the user (or a hint chip) got there first
+        }
+        setState(() => _merchant.text = fix);
+      }),
     );
   }
 
@@ -320,10 +320,23 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
   Widget _portrait() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _strip(),
-      const SizedBox(height: Tokens.space2),
-      // Fields appear as extraction lands (§2.3, §6: 150 ms fade).
-      _fields(),
+      // Font-scale escape, QuickAdd pattern (device feedback 2026-11-04):
+      // at 2.0× the strip + fields grew past the 92 % sheet and the fixed
+      // stack spilled 104 px (CI guard, review_manual_path_test). The
+      // growing region scrolls; keypad, chips, toggle and Save stay
+      // pinned — this screen is used, not glanced at (§2.3).
+      Flexible(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _strip(),
+              const SizedBox(height: Tokens.space2),
+              _fields(),
+            ],
+          ),
+        ),
+      ),
       Expanded(
         // Same font-scale escape as QuickAdd (2026-11-04): below
         // 4×touch-min the pad scrolls instead of crushing the sheet.

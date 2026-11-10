@@ -582,12 +582,11 @@ void main() {
           await r.db.close();
         }
       },
-      // KNOWN-FAILING, parked: the device-measured clip on both bench
-      // phones 2026-11-10 — the $0 hero overflows the right edge and the
-      // 3rd category chip clips at 2.0 (MR !5 bank, Finding 2 + committed
-      // screenshots). Un-skip together with the layout fix — rc-polish
-      // work item 2 — so the fix lands with its guard already written.
-      skip: true,
+      // Guard, NOT a known bug: the overnight "Finding 2" (hero clip at
+      // 2.0) was re-adjudicated against the banked pixels with the same
+      // method and REVERSED — $0 is intact (the edge pixels were the
+      // scrollbar thumb) and the partial 3rd chip is the horizontal
+      // ListView's scroll affordance. This test passes; keep it green.
     );
   });
 }
