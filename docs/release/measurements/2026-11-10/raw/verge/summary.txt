@@ -1,0 +1,29 @@
+== battery verge on 192.168.1.226:41283 start 2026-11-10T06:48:39Z
+coldstart1 MISS ms
+coldstart2 MISS ms
+coldstart3 MISS ms
+coldstart4 MISS ms
+coldstart5 MISS ms
+Total frames rendered: 147
+Janky frames: 5 (3.40%)
+Janky frames (legacy): 5 (3.40%)
+font restored to 1.0
+talkback_installed=1
+talkback disabled again
+== done 2026-11-10T07:08:18Z
+tb_pkg=com.google.android.marvin.talkback
+tb2 disabled 2026-11-10T07:38:35Z
+l7 done 2026-11-10T07:40:03Z
+tb-after: 'null' enabled=0
+dump-restored
+tb-dialog-seen
+png-ok tbc-home-shot
+tb-off: enabled='0' svcs='null'
+== v7 verge start 2026-11-10T08:10:52Z
+== v7 verge done 2026-11-10T08:12:53Z
+== v8 start 2026-11-10T08:17:17Z
+== v8 start 2026-11-10T08:22:00Z
+== v8 done 2026-11-10T08:31:15Z
+== v8 start 2026-11-10T08:33:23Z
+== v8 done 2026-11-10T08:52:39Z
+verge cleanup deleted=26 2026-11-10T09:22:12Z

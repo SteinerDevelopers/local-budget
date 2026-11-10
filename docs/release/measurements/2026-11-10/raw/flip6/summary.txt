@@ -1,0 +1,28 @@
+== battery flip6 on 192.168.1.50:41055 start 2026-11-10T06:48:36Z
+coldstart1 1309 ms
+coldstart2 1255 ms
+coldstart3 1323 ms
+coldstart4 1286 ms
+coldstart5 1304 ms
+Total frames rendered: 145
+Janky frames: 31 (21.38%)
+Janky frames (legacy): 30 (20.69%)
+camera1 5263 ms preview-ok
+camera2 5205 ms preview-ok
+camera3 5170 ms preview-ok
+camera4 5153 ms preview-ok
+camera5 5172 ms preview-ok
+font restored to 1.0
+talkback_installed=2
+talkback disabled again
+== done 2026-11-10T07:05:39Z
+l7 done 2026-11-10T07:44:04Z
+PNG-CORRUPT tbc-home-shot
+tb-off: enabled='0' svcs='null'
+font_scale restored: 1.0
+l7 done 2026-11-10T08:04:42Z
+png-ok c2-home-2x
+png-ok c2-quickadd-2x
+png-ok c2-scanmenu-2x
+png-ok c2-pick-2x
+l5c done 2026-11-10T08:12:32Z font=1.0 timeout=600000
