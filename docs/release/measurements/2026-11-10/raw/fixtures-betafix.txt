@@ -1,0 +1,13 @@
+# scan fixtures: the 10 corpus images pushed to /sdcard/Pictures/betafix/ as scan_0..9.png (both phones, md5 identical);
+# corpus glob latin_*.png holds 24 files; these 10 (mixed 720p/1080p/1440p, light+dark) were used:
+scan_0.png  md5=794c5c67c8b91cee620cded6abcf0fd6  =  latin_1080p_light_0.png
+scan_1.png  md5=79c1ad681a73e58ed990d5ada2bc683c  =  latin_1080p_light_1.png
+scan_2.png  md5=7fb662223a002480bed7e4a94a932c1c  =  latin_1080p_light_2.png
+scan_3.png  md5=37dd53f1946d9b09f45c9f16e2852e12  =  latin_1080p_light_3.png
+scan_4.png  md5=3c45f50a949c0bb713aa4b84f0ac16b9  =  latin_1440p_light_0.png
+scan_5.png  md5=5b56e5ee097b7d30040e9cc2eb42929b  =  latin_1440p_light_1.png
+scan_6.png  md5=6cca60b70b6d351f871062fc1587b939  =  latin_1080p_dark_0.png
+scan_7.png  md5=5877c7bfdf32d22cc6d085e7bf986786  =  latin_1080p_dark_1.png
+scan_8.png  md5=23185eee30b29807583693afc92a234a  =  latin_1440p_dark_0.png
+scan_9.png  md5=a3695154f7614e46b55053646196c529  =  latin_1080p_dark_2.png
+# regenerate: for i in 0..9: adb -s <serial> push packages/capture/tool/corpus/<name_$i> /sdcard/Pictures/betafix/scan_$i.png && adb -s <serial> shell content call --uri content://media/external/file --method scan_file  # or: am broadcast MEDIA_SCANNER_SCAN_FILE

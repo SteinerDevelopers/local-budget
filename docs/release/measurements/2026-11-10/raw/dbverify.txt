@@ -1,0 +1,5 @@
+# ledger sentinel recount (regenerate: adb -s <serial> exec-out run-as dev.steiner.local_budget cat app_flutter/localbudget.sqlite > db, then the sqlite3/python count shown per phone)
+## flip6 (192.168.1.50:41055)  2026-11-10T09:46:25Z  cmd: sqlite3 /tmp/dv-flip6.db "select count(*) from transactions where amount_minor in (1225,1234); select count(*) from transactions;"
+sentinels(1225,1234)=0  total_txns=12  by_source=[('camera_scan', 2), ('manual', 10)]
+## verge (192.168.1.226:41283)  2026-11-10T09:46:25Z  cmd: sqlite3 /tmp/dv-verge.db "select count(*) from transactions where amount_minor in (1225,1234); select count(*) from transactions;"
+sentinels(1225,1234)=0  total_txns=32  by_source=[('camera_scan', 2), ('manual', 30)]

@@ -1,0 +1,13 @@
+# post-run hygiene snapshot 2026-11-10T09:45Z (device state after measurement day, before teardown of harness extras)
+## flip6 (192.168.1.50:41055)
+font_scale=1.0
+accessibility_enabled=0
+enabled_accessibility_services=null
+     Bound services:{}
+screen_off_timeout=600000
+## verge (192.168.1.226:41283)
+font_scale=1.0
+accessibility_enabled=0
+enabled_accessibility_services=null
+     Bound services:{}
+screen_off_timeout=600000  # 2026-11-10T09:47Z correction: night had raised to 1800000; pre-run value was not captured, restored to the stock 600000
