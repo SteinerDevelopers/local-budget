@@ -317,45 +317,58 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
     );
   }
 
-  Widget _portrait() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      // Font-scale escape, QuickAdd pattern (device feedback 2026-11-04):
-      // at 2.0× the strip + fields grew past the 92 % sheet and the fixed
-      // stack spilled 104 px (CI guard, review_manual_path_test). The
-      // growing region scrolls; keypad, chips, toggle and Save stay
-      // pinned — this screen is used, not glanced at (§2.3).
-      Flexible(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _strip(),
-              const SizedBox(height: Tokens.space2),
-              _fields(),
-            ],
-          ),
-        ),
-      ),
-      Expanded(
-        // Same font-scale escape as QuickAdd (2026-11-04): below
-        // 4×touch-min the pad scrolls instead of crushing the sheet.
-        child: LayoutBuilder(
-          builder: (context, box) => SingleChildScrollView(
-            child: SizedBox(
-              height: math.max(box.maxHeight, 4 * Tokens.touchMin),
-              child: _keypad(),
+  Widget _portrait() {
+    // Font-scale escape, QuickAdd pattern (device feedback 2026-11-04):
+    // at 2.0× the strip + fields grew past the 92 % sheet and the fixed
+    // stack spilled 104 px (CI guard, review_manual_path_test). The
+    // growing region scrolls only once text outgrows what the fixed
+    // stack was designed for — below that the tree is pixel-for-pixel
+    // the goldens' tree (an always-on Flexible shifted the 1.0× keypad
+    // and the goldens caught exactly that, pipeline 500). 1.35 sits
+    // between the highest scale the fixed stack is proven to hold (1.3,
+    // overflow suite) and the first scale measured to spill it (2.0,
+    // CI guard): the escape never fires where the old tree already fits.
+    final grow = MediaQuery.textScalerOf(context).scale(1) > 1.35;
+    final growing = <Widget>[
+      _strip(),
+      const SizedBox(height: Tokens.space2),
+      // Fields appear as extraction lands (§2.3, §6: 150 ms fade).
+      _fields(),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (grow)
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: growing,
+              ),
+            ),
+          )
+        else
+          ...growing,
+        Expanded(
+          // Same font-scale escape as QuickAdd (2026-11-04): below
+          // 4×touch-min the pad scrolls instead of crushing the sheet.
+          child: LayoutBuilder(
+            builder: (context, box) => SingleChildScrollView(
+              child: SizedBox(
+                height: math.max(box.maxHeight, 4 * Tokens.touchMin),
+                child: _keypad(),
+              ),
             ),
           ),
         ),
-      ),
-      _chips(),
-      const SizedBox(height: Tokens.space2),
-      _kindToggle(),
-      const SizedBox(height: Tokens.space2),
-      _saveRow(),
-    ],
-  );
+        _chips(),
+        const SizedBox(height: Tokens.space2),
+        _kindToggle(),
+        const SizedBox(height: Tokens.space2),
+        _saveRow(),
+      ],
+    );
+  }
 
   Widget _landscape() => Row(
     crossAxisAlignment: CrossAxisAlignment.stretch,
