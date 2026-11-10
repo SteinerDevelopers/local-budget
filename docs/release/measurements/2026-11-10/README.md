@@ -28,8 +28,8 @@ artifact on both phones. `git merge-base --is-ancestor` proved the kit commit is
 
 | leg | Flip6 | VERGE | grade |
 |---|---|---|---|
-| 10-scan median (§4.5: < 30 s), photo path | ready 7.3 s med (saved runs); manual-entry **32.9 s med (n=8)**; one auto-save observed **15.0 s (n=1)**; 9/10 saved | ready 14.0 s med; manual-entry **45.1 s med (n=9)**; one auto-save observed **25.7 s (n=1)**; 10/10 saved | ⚠ see Findings 1–3 |
-| Cold start ×5 | **1304 ms** median (`am start -W TotalTime`, COLD) | **4496 ms** median wall-clock (home interactive); `coldstart_e.csv` holds a 6th row `cold0=18334` — a v9 warm-up probe, not a cold sample, excluded | measured — §4.5 states no cold-start bar, so no grade (VERGE drawn-signal gap: Finding 6) |
+| Scan → review → save (§4.5 bar: *10-scan median* < 30 s), photo path — per-path medians, n stated per cell | ready 7.3 s med (saved runs); manual-entry **32.9 s med (n=8)**; one auto-save observed **15.0 s (n=1)**; 9/10 saved | ready 14.0 s med; manual-entry **45.1 s med (n=9)**; one auto-save observed **25.7 s (n=1)**; 10/10 saved | ⚠ see Findings 1–3 |
+| Cold start ×5 | **1304 ms** median (n=5, `am start -W TotalTime`, COLD) | **4496 ms** median wall-clock (home interactive, n=5); `coldstart_e.csv` holds a 6th row `cold0=18334` — a v9 warm-up probe, not a cold sample, excluded | measured — §4.5 states no cold-start bar, so no grade (VERGE drawn-signal gap: Finding 6) |
 | Camera launch ×5 (§4.5: < 1 s) | 5.15–5.26 s | 7.7–8.1 s (3/5 clean) | ⚠ instrument + ML Kit (Finding 4) |
 | gfxinfo, QuickAdd×8 + ledger swipe ×12 (§4.5: < 1% >16 ms) | **21.4%** (31/145) | **3.4%** (5/147) | ❌ on the bench numbers (Finding 5) |
 | TalkBack pass | all screens semantic: **0 clickable-unlabeled** in Home / Bills / Budgets / Goals / QuickAdd / scan-chooser dumps | same (service enable/disable lifecycle verified; teardown proven `Bound services:{}` — captured in [`raw/hygiene-post-run.txt`](raw/hygiene-post-run.txt)) | ✅ (voice audio itself not machine-verifiable) |
