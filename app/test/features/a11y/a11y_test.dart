@@ -530,4 +530,64 @@ void main() {
       }
     });
   });
+
+  group('§5 text scale at 2.0 — bench-measured findings (2026-11-10)', () {
+    // Font sweep on Flip6+VERGE (docs/release/measurements/2026-11-10/,
+    // MR !5): ledger/home and the capture chooser render clean at 2.0 on
+    // BOTH phones; QuickAdd clips ($0 hero overflows the right edge, 3rd
+    // category chip cut). The suite used to stop at 1.3x, which is how that
+    // shipped — this group is rc-polish work item 2 pinned to the device.
+    Future<void> scaleUp2(WidgetTester tester, {double dp = 320}) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      tester.view.physicalSize = Size(dp, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    testWidgets('ledger at 320 dp / 2.0 renders without overflow', (
+      tester,
+    ) async {
+      final r = freshRepo();
+      try {
+        await scaleUp2(tester);
+        await r.repo.ensureDefaults();
+        await r.repo.addEntry(
+          date: DateTime.now(),
+          amount: usd(1240),
+          isIncome: false,
+          categoryId: await categoryId(r.repo),
+          note: 'Device-sweep seed row',
+        );
+        await pumpApp(tester, r.repo);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await r.db.close();
+      }
+    });
+
+    testWidgets(
+      'QuickAdd sheet at 320 dp / 2.0 renders without overflow',
+      (tester) async {
+        final r = freshRepo();
+        try {
+          await scaleUp2(tester);
+          await r.repo.ensureDefaults();
+          await pumpApp(tester, r.repo);
+          await openQuickAdd(tester);
+          await tapKeys(tester, '12.34');
+          expect(tester.takeException(), isNull);
+        } finally {
+          await r.db.close();
+        }
+      },
+      // KNOWN-FAILING, parked: the device-measured clip on both bench
+      // phones 2026-11-10 — the $0 hero overflows the right edge and the
+      // 3rd category chip clips at 2.0 (MR !5 bank, Finding 2 + committed
+      // screenshots). Un-skip together with the layout fix — rc-polish
+      // work item 2 — so the fix lands with its guard already written.
+      skip: true,
+    );
+  });
 }
