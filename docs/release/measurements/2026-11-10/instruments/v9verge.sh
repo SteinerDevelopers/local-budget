@@ -1,5 +1,5 @@
 #!/bin/bash
-# v8 verge: THE proven manual polling pattern. One dump per poll, 1.5s cadence.
+ # v9 verge: THE proven manual polling pattern. One dump per poll, 1.5s cadence.
 set -u
 ADB=/workspace/Workspace/tools/android-sdk/platform-tools/adb
 export HOME=/workspace/Workspace/tools/home
