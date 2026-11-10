@@ -47,9 +47,19 @@ class CaptureSourceSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Same frame rule as QuickAdd (§2.1): 48 % with a 480 dp floor so rows
-    // keep full touch height on short screens.
-    final height = math.max(480.0, MediaQuery.sizeOf(context).height * 0.48);
+    // Frame rule as QuickAdd (§2.1): 48 % with a 480 dp floor so rows keep
+    // full touch height on short screens — and the same font-scale budget
+    // (device feedback 2026-11-04; the CI guard of 2026-11-10 caught this
+    // sheet missing it): at 2.0× the title and subtitle grow and spilled
+    // the fixed Column (160 px in CI). Height tracks the scale, capped at
+    // 92 %; the body scrolls so even the route's smaller initial frame
+    // overflows nothing.
+    final size = MediaQuery.sizeOf(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final height = math.min(
+      size.height * 0.92,
+      math.max(480.0, size.height * 0.48) * math.max(1.0, textScale),
+    );
     final scheme = Theme.of(context).colorScheme;
 
     return SizedBox(
@@ -61,35 +71,46 @@ class CaptureSourceSheet extends StatelessWidget {
           Tokens.space4,
           Tokens.space4,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w500),
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: ConstrainedBox(
+              // Stretch to the viewport like the old Spacer did: rows sit
+              // top-aligned and the leftover stays empty below them.
+              constraints: BoxConstraints(minHeight: box.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: Tokens.space1),
+                  // Decision 5, made audible at the front door.
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: Tokens.space3),
+                  for (final choice in CaptureChoice.values)
+                    if (choice == CaptureChoice.screenshot &&
+                        !showScreenshotRow)
+                      const SizedBox.shrink()
+                    else
+                      _SourceRow(
+                        choice: choice,
+                        icon: _icons[choice]!,
+                        onTap: () => Navigator.pop(context, choice),
+                      ),
+                  const SizedBox(height: Tokens.space4),
+                ],
+              ),
             ),
-            const SizedBox(height: Tokens.space1),
-            // Decision 5, made audible at the front door.
-            Text(
-              subtitle,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: Tokens.space3),
-            for (final choice in CaptureChoice.values)
-              if (choice == CaptureChoice.screenshot && !showScreenshotRow)
-                const SizedBox.shrink()
-              else
-                _SourceRow(
-                  choice: choice,
-                  icon: _icons[choice]!,
-                  onTap: () => Navigator.pop(context, choice),
-                ),
-            const Spacer(),
-          ],
+          ),
         ),
       ),
     );
@@ -120,9 +141,20 @@ class _SourceRow extends StatelessWidget {
           children: [
             Icon(icon, color: scheme.onSurfaceVariant),
             const SizedBox(width: Tokens.space4),
-            Text(
-              choice.label,
-              style: const TextStyle(fontSize: Tokens.bodySize),
+            Expanded(
+              // §5 scaleDown precedent (AmountDisplay): a long label at
+              // 2.0× shrank to fit instead of spilling the Row past the
+              // sheet ('Recent screenshot' overflowed by 260 px in CI).
+              // Row stays 56 dp — scaling the row instead would push the
+              // sheet body past its own height.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  choice.label,
+                  style: const TextStyle(fontSize: Tokens.bodySize),
+                ),
+              ),
             ),
           ],
         ),

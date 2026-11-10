@@ -198,12 +198,14 @@ void main() {
   });
 
   group('capture sheets at 2.0 text scale (device-measured 2026-11-10)', () {
-    // VERGE+Flip6 font sweep (MR !5 bank): both phones rendered the chooser
-    // clean at 2.0 — but the screenshots prove WHY: the conditional
-    // 'Recent screenshot' row was hidden on the bench (no recent screenshot
-    // on either device). With the row present, 2.0 overflows the fixed
-    // _SourceRow Row: a finding the bench structurally could not see, and
-    // the argument for this suite existing.
+    // Origin story (2026-11-10): the overnight "Finding 2" claimed the
+    // QuickAdd sheet clipped at 2.0 on both phones — re-adjudication
+    // against the same banked pixels REVERSED it (intact $0, scrollbar
+    // thumb misread as the cut, partial chip = scroll affordance). What
+    // these guards did surface were two real layout bugs the widget
+    // suite caught and no bench leg could: the conditional 'Recent
+    // screenshot' row (hidden on bench devices) and the review sheet's
+    // missing font-scale escape. Both fixed in this MR.
     Future<void> scaleUp2(WidgetTester tester) async {
       tester.platformDispatcher.textScaleFactorTestValue = 2.0;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -227,12 +229,10 @@ void main() {
           await ctx.db.close();
         }
       },
-      // KNOWN-FAILING, parked: with the 'Recent screenshot' row present its
-      // label overflows the fixed-height Row horizontally at 2.0
-      // (capture_source_sheet.dart:119). Bench missed it only because the
-      // row hides without a recent screenshot. Un-skip with the work-item-2
-      // layout fix: wrap the label in Expanded (same family as QuickAdd).
-      skip: true,
+      // Real CI-found bug (never device-observable on the bench — the row
+      // hides without a recent screenshot): the 17-char label spilled the
+      // fixed Row by 260 px at 2.0. Fixed with the scaleDown precedent
+      // (Expanded + FittedBox, AmountDisplay §5 pattern) in this MR.
     );
 
     testWidgets(
@@ -250,14 +250,11 @@ void main() {
           await ctx.db.close();
         }
       },
-      // KNOWN-FAILING, parked: at 2.0 the sheet's content Column exceeds
-      // the DraggableScrollableSheet's fixed initial viewport (448 px at
-      // the 800-tall test; same math on a 640 dp phone) by 104 px at the
-      // bottom. The review sheet was device-swept only at 1.0/1.3 — the
-      // 2.0 bench attempt never reached review (scan flow, MR !5 Finding 2
-      // context). Same work-item-2 family as QuickAdd; un-skip with the
-      // layout fix.
-      skip: true,
+      // Real CI-found bug: the fixed portrait stack (strip + fields +
+      // keypad-min + chips + toggle + Save) spilled the 92 % sheet by
+      // 104 px at 2.0 — the sheet had no font-scale escape (QuickAdd got
+      // one 2026-11-04; review missed the family fix). Fixed here: strip
+      // + fields became the scrollable region; controls stay pinned.
     );
   });
 }

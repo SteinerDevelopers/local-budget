@@ -33,7 +33,7 @@ artifact on both phones. `git merge-base --is-ancestor` proved the kit commit is
 | Camera launch ×5 (§4.5: < 1 s) | 5.15–5.26 s | 7.7–8.1 s (3/5 clean) | ⚠ instrument + ML Kit (Finding 4) |
 | gfxinfo, QuickAdd×8 + ledger swipe ×12 (§4.5: < 1% >16 ms) | **21.4%** (31/145) | **3.4%** (5/147) | ❌ on the bench numbers (Finding 5) |
 | TalkBack pass | all screens semantic: **0 clickable-unlabeled** in Home / Bills / Budgets / Goals / QuickAdd / scan-chooser dumps | same (service enable/disable lifecycle verified; teardown proven `Bound services:{}` — captured in [`raw/hygiene-post-run.txt`](raw/hygiene-post-run.txt)) | ✅ (voice audio itself not machine-verifiable) |
-| Font scale 2.0 | Home ✅, scan chooser ✅, picker ✅, **QuickAdd ✗** | same: **QuickAdd ✗** | ❌ Finding 2 |
+| Font scale 2.0 | Home ✅, scan chooser ✅, picker ✅, QuickAdd ✅ | same: QuickAdd ✅ | ✅ — was Finding 2, reversed pm (see below) |
 
 ## Findings
 
@@ -47,13 +47,18 @@ artifact on both phones. `git merge-base --is-ancestor` proved the kit commit is
    manual-vs-auto delta on that common basis is ≈ +18 s (Flip6) / +19 s (VERGE).
    `Save` is gated by `_canSave = money>0 && category!=null` — instruments and users
    must pick a category chip before the keypad alone enables it.
-2. **QuickAdd clips at font 2.0 on both devices.** Screenshot-adjudicated, evidence
-   committed: `raw/flip6/c2-quickadd-2x.png` (l5c.sh leg) and
-   `raw/verge/e3-quickadd-2x.png` (inline font leg; this device needed the
-   front-verified relaunch below). The `$0` amount overflows the right edge (glyph
-   cut), the 3rd category chip clips (`Trans…`), keypad rows balloon with dead
-   space. Home/Bills/scan-chooser are clean at 2×. The overflow suite covers
-   1.0×/1.3× @320 dp only — add a 2.0× QuickAdd case.
+2. **[CORRECTED the same afternoon — this finding is REVERSED.]**
+   ~~QuickAdd clips at font 2.0 on both devices~~. Re-adjudication of the SAME
+   committed pixels with pixel-exact crops: the `$0` hero is intact on BOTH
+   devices (Flip6 right edge at x≈1045 < 1080; the bright pixels at x=1079 are
+   the sheet's SCROLLBAR THUMB, which was misread as a cut edge); the partial
+   3rd category chip (`Trans…`) is the horizontal `ListView`'s scroll
+   affordance (`CategoryChips` `chip-row`), not a clip; keypad "ballooning" is
+   the Expanded-region layout choice. QuickAdd at 2.0 is clean on both phones.
+   Lesson: a screenshot read by eye at scale is still an eyeball — measure
+   extents before declaring a clip. (The widget suite that was written to
+   chase this found two REAL overflow bugs elsewhere — source-sheet
+   'Recent screenshot' row, review-sheet font escape — fixed separately.)
 3. The scan-leg outlier is on **Flip6**: scan9 (`raw/flip6/scan_c.csv`) never
    reached the review sheet inside the window (ready 67.1 s, saved=0) — ML Kit
    retry-storm on that fixture. VERGE's scan9 is a clean 45.0 s save. All medians
