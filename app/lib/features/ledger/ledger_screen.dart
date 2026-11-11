@@ -22,6 +22,7 @@ import '../import/import_wizard_screen.dart';
 import '../manage/icon_registry.dart';
 import '../manage/io.dart';
 import '../manage/manage_screen.dart';
+import '../quickadd/quick_add_draft.dart';
 import '../quickadd/quick_add_sheet.dart';
 import '../reports/reports_screen.dart';
 import '../support/fully_drawn.dart';
@@ -210,6 +211,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
   EntryKind _warmKind = EntryKind.expense;
   int? _warmCategoryId;
 
+  // Ruling 2 (owner 2026-11-11): QuickAdd drafts survive process death.
+  // Debounced writes; the last emission is kept in memory so the sheet's
+  // pop can flush past the debounce — death must not eat the last
+  // 400 ms of typing ("nothing ever lost" taken literally).
+  static const _quickAddDraftKey = 'quickadd_draft';
+  QuickAddDraft? _pendingDraft;
+  Timer? _draftTimer;
+
   /// Device base currency (decision 6); 'USD' until the setting resolves.
   Currency _currency = Currency.resolve('USD');
 
@@ -271,11 +280,31 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _reviewPick(picks.first, fromShare: true);
   }
 
+  /// Persist a sheet emission after a short debounce (typing bursts write
+  /// once; the pop flush is the caller's job in _openQuickAdd).
+  void _stageDraft(QuickAddDraft draft) {
+    _pendingDraft = draft;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 400), () async {
+      // Drafts are convenience state: a failed write (disk pressure —
+      // which would doom the real save too) is swallowed here, never a
+      // zone error after the sheet may already be gone.
+      try {
+        if (draft.hasContent) {
+          await widget.repository.setSetting(_quickAddDraftKey, draft.encode());
+        } else {
+          await widget.repository.deleteSetting(_quickAddDraftKey);
+        }
+      } catch (_) {}
+    });
+  }
+
   @override
   void dispose() {
     if (LedgerScreen.onOpenCapture == _openCapture) {
       LedgerScreen.onOpenCapture = null;
     }
+    _draftTimer?.cancel();
     _shareSub?.cancel();
     _pages.dispose();
     super.dispose();
@@ -300,6 +329,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _openQuickAdd() async {
     final cats = await widget.repository.categories();
     if (!mounted) return;
+    final stored = QuickAddDraft.decode(
+      await widget.repository.setting(_quickAddDraftKey),
+    );
+    if (!mounted) return;
+    // Categories can be deleted between process death and reopen; a draft
+    // pointing at a gone category restores unselected, never a ghost chip.
+    final draft = stored != null &&
+            stored.hasContent &&
+            (stored.categoryId == null ||
+                cats.any((c) => c.id == stored.categoryId))
+        ? stored
+        : null;
     final entry = await showQuickAdd(
       context,
       categories: [
@@ -309,9 +350,32 @@ class _LedgerScreenState extends State<LedgerScreen> {
       currency: _currency,
       initialKind: _warmKind,
       initialCategoryId: _warmCategoryId,
+      draft: draft,
+      onDraftChanged: _stageDraft,
       // §2.4: the sheet's Manage chip pops it and lands here.
       onManageCategories: _openManage,
     );
+    // Draft bookkeeping before any mounted-exit: the repository outlives
+    // this state. Save clears; dismiss flushes whatever is pending (an
+    // emptied draft deletes itself — cold open next time).
+    _draftTimer?.cancel();
+    final pending = _pendingDraft;
+    _pendingDraft = null;
+    try {
+      if (entry != null) {
+        await widget.repository.deleteSetting(_quickAddDraftKey);
+      } else if (pending != null) {
+        if (pending.hasContent) {
+          await widget.repository.setSetting(_quickAddDraftKey, pending.encode());
+        } else {
+          await widget.repository.deleteSetting(_quickAddDraftKey);
+        }
+      }
+    } catch (_) {
+      // Same convenience-state doctrine as _stageDraft: a failed cleanup
+      // leaves at worst a draft that restores one more time — never a
+      // zone error at the FAB.
+    }
     if (entry == null || !mounted) return;
     // E5 §6: a foreign-currency save snapshots the device-base rate at
     // insert time. The lookup is bounded (2 s) and never throws — a null

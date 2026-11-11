@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_budget/design/theme.dart';
 import 'package:local_budget/features/ledger/view_models.dart';
+import 'package:local_budget/features/quickadd/quick_add_draft.dart';
 import 'package:local_budget/features/quickadd/quick_add_sheet.dart';
 
 const _cats = [
@@ -21,6 +22,8 @@ void main() {
     WidgetTester tester, {
     EntryKind initialKind = EntryKind.expense,
     int? initialCategoryId,
+    QuickAddDraft? draft,
+    void Function(QuickAddDraft)? onDraft,
   }) async {
     result = null;
     manageTaps = 0;
@@ -37,6 +40,8 @@ void main() {
                   currency: _usd,
                   initialKind: initialKind,
                   initialCategoryId: initialCategoryId,
+                  draft: draft,
+                  onDraftChanged: onDraft,
                   onManageCategories: () => manageTaps++,
                 );
               },
@@ -328,6 +333,87 @@ void main() {
       final rect = tester.getRect(save);
       expect(rect.top, greaterThanOrEqualTo(0));
       expect(rect.bottom, lessThanOrEqualTo(360 + 0.5));
+    });
+  });
+
+  group('draft restore + emit (ruling 2, owner 2026-11-11)', () {
+    testWidgets('half-typed entry comes back and completes', (tester) async {
+      await openSheet(
+        tester,
+        draft: QuickAddDraft(
+          amount: '12.34',
+          currencyCode: 'USD',
+          kind: EntryKind.income,
+          categoryId: 2,
+          day: DateTime(2026, 11, 9),
+          note: 'cafe',
+        ),
+      );
+      expect(amountText(tester), '12.34');
+      // The note stays active (it had content); kind+category restored —
+      // the proof is the completed save.
+      expect(find.text('cafe'), findsOneWidget);
+      final save = find.widgetWithText(FilledButton, 'Save');
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(result!.amount.minorUnits, 1234);
+      expect(result!.kind, EntryKind.income);
+      expect(result!.categoryId, 2);
+      expect(result!.note, 'cafe');
+      expect(result!.day, DateTime(2026, 11, 9));
+    });
+
+    testWidgets('draft outranks the warm defaults', (tester) async {
+      await openSheet(
+        tester,
+        initialKind: EntryKind.income,
+        initialCategoryId: 2,
+        draft: QuickAddDraft(
+          amount: '5',
+          currencyCode: 'USD',
+          kind: EntryKind.expense,
+          categoryId: 1,
+          day: DateTime(2026, 11, 10),
+        ),
+      );
+      final save = find.widgetWithText(FilledButton, 'Save');
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(result!.kind, EntryKind.expense);
+      expect(result!.categoryId, 1);
+    });
+
+    testWidgets('every edit emits the current draft', (tester) async {
+      final emitted = <QuickAddDraft>[];
+      await openSheet(tester, onDraft: emitted.add);
+      await press(tester, '7');
+      await press(tester, '5');
+      expect(emitted.last.amount, '75');
+      await press(tester, 'back');
+      await press(tester, 'back');
+      expect(emitted.last.amount, '');
+      // The last state before death is all a caller needs to persist.
+      expect(emitted.last.currencyCode, 'USD');
+    });
+
+    testWidgets('damaged buffer cold-opens instead of lying', (tester) async {
+      await openSheet(
+        tester,
+        draft: QuickAddDraft(
+          amount: '1a.2.3',
+          currencyCode: 'USD',
+          kind: EntryKind.expense,
+          categoryId: 1,
+          day: DateTime(2026, 11, 10),
+        ),
+      );
+      expect(amountText(tester), '0');
+      final save = find.widgetWithText(FilledButton, 'Save');
+      expect(tester.widget<FilledButton>(save).onPressed, isNull);
     });
   });
 }
