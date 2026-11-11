@@ -29,7 +29,7 @@ HOURS=${1:-72}
 GAP=${2:-1800}
 END=$(( $(date +%s) + HOURS * 3600 ))
 mkdir -p "$OUT/logs"
-DEVS=("192.168.1.123:40589|tablet" "192.168.1.226:41283|verge")
+DEVS=("192.168.1.123:33725|tablet" "192.168.1.226:33051|verge")  # 2026-11-11 re-pair (TLS): owners toggled wireless debugging; ports below are the post-pair listeners
 
 jline() { # $1 dev  $2 payload-without-ts/dev
   printf '{"ts":"%s","dev":"%s"%s}\n' "$(date -u +%FT%TZ)" "$1" "$2" \
@@ -40,6 +40,30 @@ crashes() { adb -s "$1" logcat -b crash -d 2>/dev/null | grep -c "FATAL EXCEPTIO
 pss() { adb -s "$1" shell dumpsys meminfo "$PKG" 2>/dev/null | awk '/^TOTAL/{print $2; exit}' | tr -d '\r'; }
 batt() { adb -s "$1" shell dumpsys battery 2>/dev/null | awk -F': ' '/level/{print $2; exit}' | tr -d '\r'; }
 num() { [ -z "$1" ] && echo null || echo "$1"; }
+
+resolve() { # serial dev -> live serial on stdout; port rotation since
+  # the 2026-11-11 wireless-debugging dropouts: the listener mints a new
+  # ephemeral port while the device stays on the LAN, so before declaring
+  # a bench device down, sweep the host's ephemeral range, probe which
+  # port is really adbd, and adopt it (logged as serial-rotated). Only a
+  # device that is unreachable OR un-pairable counts as down.
+  local s=$1 d=$2 ip=${1%%:*} p
+  dev_live "$s" && { echo "$s"; return 0; }
+  adb connect "$s" >/dev/null 2>&1 && dev_live "$s" && { echo "$s"; return 0; }
+  ping -c1 -W2 "$ip" >/dev/null 2>&1 \
+    || { jline "$d" ',"event":"device-down"'; return 1; }
+  for p in $(seq 32768 61000 | xargs -P 300 -I{} \
+      sh -c "timeout 0.4 bash -c \"echo >/dev/tcp/$ip/{}\" 2>/dev/null && echo {}" \
+      2>/dev/null | sort -n); do
+    adb connect "$ip:$p" >/dev/null 2>&1
+    if [ "$(adb -s "$ip:$p" get-state 2>/dev/null | tr -d '\r')" = device ]; then
+      [ "$ip:$p" != "$s" ] \
+        && jline "$d" ",\"event\":\"serial-rotated\",\"from\":\"$s\",\"to\":\"$ip:$p\""
+      echo "$ip:$p"; return 0
+    fi
+  done
+  jline "$d" ',"event":"device-down"'; return 1
+}
 
 drive() { # serial apk target logfile -> prints exit code
   # --keep-app-running is the modern form of the device law (--no-uninstall
@@ -54,12 +78,11 @@ drive() { # serial apk target logfile -> prints exit code
 }
 
 while [ "$(date +%s)" -lt "$END" ]; do
-  for entry in "${DEVS[@]}"; do
+  for i in "${!DEVS[@]}"; do
+    entry=${DEVS[$i]}
     serial=${entry%%|*}; dev=${entry##*|}
-    if ! dev_live "$serial"; then
-      adb connect "$serial" >/dev/null 2>&1
-      dev_live "$serial" || { jline "$dev" ',"event":"device-down"'; continue; }
-    fi
+    if ! serial=$(resolve "$serial" "$dev"); then continue; fi
+    DEVS[$i]="$serial|$dev"
     c0=$(crashes "$serial")
     ts=$(date +%Y%m%dT%H%M%SZ)
 
