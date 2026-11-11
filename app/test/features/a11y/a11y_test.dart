@@ -13,6 +13,9 @@ import 'package:core/core.dart';
 import 'package:data/data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:local_budget/design/theme.dart';
+import 'package:local_budget/features/help/help_articles.dart';
+import 'package:local_budget/features/help/help_screen.dart';
 import 'package:local_budget/features/ledger/balance_strip.dart';
 import 'package:local_budget/features/ledger/transaction_row.dart';
 import 'package:local_budget/features/ledger/view_models.dart';
@@ -529,6 +532,28 @@ void main() {
         await r.db.close();
       }
     });
+
+    testWidgets('Help — list, search states, articles at 360 dp / 1.3×', (
+      tester,
+    ) async {
+      // Gap closed 2026-11-10: Help was the only surface never pumped at
+      // any scale. Structurally safe (everything in Expanded/ListView),
+      // now pinned, not asserted from reading.
+      await scaleUp(tester);
+      await pumpHelpAtScale(tester, const HelpScreen());
+      expect(tester.takeException(), isNull);
+      await tester.enterText(find.byType(TextField), 'PDF');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.enterText(find.byType(TextField), 'zzzz');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Nothing found'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      for (final a in kHelpArticles.take(3)) {
+        await pumpHelpAtScale(tester, HelpArticlePage(article: a));
+        expect(tester.takeException(), isNull, reason: a.title);
+      }
+    });
   });
 
   group('§5 text scale at 2.0 — bench-measured findings (2026-11-10)', () {
@@ -588,5 +613,33 @@ void main() {
       // scrollbar thumb) and the partial 3rd chip is the horizontal
       // ListView's scroll affordance. This test passes; keep it green.
     );
+
+    testWidgets('Help — every article page + states at 320 dp / 2.0', (
+      tester,
+    ) async {
+      // Same gap closed at the bench worst-case: the full article set and
+      // both search states render exception-free; titles wrap (ListTile)
+      // and paragraphs flow (ListView), so nothing clips at 2.0×.
+      await scaleUp2(tester);
+      await pumpHelpAtScale(tester, const HelpScreen());
+      await tester.enterText(find.byType(TextField), 'PDF');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.enterText(find.byType(TextField), 'zzzz');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Nothing found'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      for (final a in kHelpArticles) {
+        await pumpHelpAtScale(tester, HelpArticlePage(article: a));
+        expect(tester.takeException(), isNull, reason: a.title);
+      }
+    });
   });
+}
+
+/// Help renders from static articles — no repo/db; pump it standalone.
+/// The viewport and scale come from scaleUp()/scaleUp2() already applied.
+Future<void> pumpHelpAtScale(WidgetTester tester, Widget home) async {
+  await tester.pumpWidget(MaterialApp(theme: AppTheme.light(), home: home));
+  await tester.pumpAndSettle();
 }
