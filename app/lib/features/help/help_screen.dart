@@ -84,24 +84,33 @@ class HelpArticlePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(article.title)),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          children: [
-            Icon(
-              article.icon,
-              size: 32,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            for (final paragraph in article.paragraphs)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Text(
-                  paragraph,
-                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+        // Reading measure on wide surfaces (T2, tablet audit 2026-11-10:
+        // at sw800 the paragraphs ran past 110 characters a line). The
+        // body caps at 640 dp and centers; phone columns never reach
+        // the cap, so they paint exactly as before.
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              children: [
+                Icon(
+                  article.icon,
+                  size: 32,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-              ),
-          ],
+                const SizedBox(height: 16),
+                for (final paragraph in article.paragraphs)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Text(
+                      paragraph,
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

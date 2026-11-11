@@ -20,6 +20,7 @@ import 'package:local_budget/features/budgets/budgets_sheet.dart';
 import 'package:local_budget/features/budgets/budgets_service.dart';
 import 'package:local_budget/features/budgets/budgets_tab.dart' show BudgetsTab;
 import 'package:local_budget/features/budgets/limit_editor_sheet.dart';
+import 'package:local_budget/features/capture/capture_source_sheet.dart';
 import 'package:local_budget/features/goals/goal_detail_sheet.dart';
 import 'package:local_budget/features/goals/goal_editor_sheet.dart';
 import 'package:local_budget/features/goals/goals_service.dart';
@@ -383,6 +384,41 @@ void main() {
       } finally {
         await r.db.close();
       }
+    });
+
+    // T2 (tablet audit 2026-11-10): the source sheet's `× textScale` frame
+    // grew for text that grew a fraction of it — a dead lower half at 2.0×.
+    // The frame must FIT the content; the §2.1 frame must not move at 1.0×.
+    testWidgets('source sheet: 2.0× fits content, no dead half', (
+      tester,
+    ) async {
+      phoneView(tester, w: 800, h: 1280, scale: 2.0); // tablet portrait
+      await open(
+        tester,
+        (context) =>
+            showCaptureSourceSheet(context, showScreenshotRow: true),
+      );
+      expect(tester.takeException(), isNull);
+      final h = tester.getSize(find.byType(CaptureSourceSheet)).height;
+      // Old formula: 1280×0.48×2 = 1228 dp of frame for ~450 dp of
+      // content; a content-fit frame must stay well inside the cap.
+      expect(h, lessThan(820));
+      expect(find.byKey(const Key('capture-camera')), findsOneWidget);
+      expect(find.byKey(const Key('capture-pdf')), findsOneWidget);
+    });
+
+    testWidgets('source sheet: §2.1 frame unchanged at 1.0×', (tester) async {
+      phoneView(tester, w: 800, h: 1280);
+      await open(
+        tester,
+        (context) =>
+            showCaptureSourceSheet(context, showScreenshotRow: true),
+      );
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(CaptureSourceSheet)).height,
+        closeTo(614.4, 0.01),
+      );
     });
   });
 }

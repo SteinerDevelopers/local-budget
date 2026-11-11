@@ -130,6 +130,24 @@ void main() {
     expect(find.text('Scanning receipts'), findsOneWidget);
   });
 
+  testWidgets('a wide article reads at a measure, not wall to wall', (
+    tester,
+  ) async {
+    // T2 (tablet audit 2026-11-10): sw800 paragraphs ran >110 characters.
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.light(),
+        home: HelpArticlePage(article: kHelpArticles.first),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(ListView)).width, lessThanOrEqualTo(640));
+  });
+
   testWidgets('the About & help sheet links to all topics', (tester) async {
     late final BuildContext context;
     await tester.pumpWidget(
