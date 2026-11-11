@@ -6,20 +6,24 @@
 // the window layer, no BLAST child in --list), and media.performance and
 // gameinfo services are absent from the build. So the instrument is
 // Flutter's own FrameTiming pipeline: build/raster durations for every
-// frame the engine really renders, collected on-device, reported by the
-// local probe invocation it is:
+// frame the engine really renders, collected on-device. Run it with:
 //
-//   flutter test integration_test/jank_probe_test.dart --profile \
-//     -d <bench-tablet>
+//   flutter drive --profile --flavor free -d <bench-tablet> \
+//     --driver integration_test/driver.dart \
+//     --target integration_test/jank_probe_test.dart
+//
+// (`flutter drive`, not `flutter test`: this SDK's `flutter test` has no
+// --profile flag -- measured 2026-11-10, the first run failed on it.)
 //
 // Profile build on purpose: release-like AOT, same rendering pipeline,
 // none of the debug VM's frame tax. The window drives the same QuickAdd
 // save loop and ledger flings the bench walks use. Percentiles print as
 // one `JANK …` line; thresholds are quoted at both 60 Hz (the bench's
 // original > 16 ms law) and the tablet's real 90 Hz panel (≈11.1 ms).
-// Frames outside the recorded vsync window are excluded, so idle frames
-// cannot dilute the verdict — and too few frames aborts loudly instead
-// of lying with a zero.
+// Launch frames are drained before the window opens (FrameTiming's epoch
+// is monotonic, not DateTime-aligned, so the window is the collector
+// queue, not a wall-clock slice) — and too few frames aborts loudly
+// instead of lying with a zero.
 
 import 'dart:ui' show FrameTiming;
 
