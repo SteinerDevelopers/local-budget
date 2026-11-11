@@ -11,6 +11,7 @@ import 'amount_pad.dart';
 import 'category_chips.dart';
 import 'currency_choice_sheet.dart';
 import 'keypad.dart';
+import 'quick_add_draft.dart';
 
 /// A category as QuickAdd renders it (icon + label). #18 sources these from
 /// drift; the sheet only consumes the list.
@@ -43,12 +44,18 @@ class NewEntry {
 /// Opens QuickAdd (design §2.2). Cold opens default to Expense/no category;
 /// pass the previous save's kind+categoryId to reopen "warm" — rapid second
 /// entry is a §2.2 requirement, and the Ledger (#17) owns that memory.
+/// [draft] (ruling 2, owner 2026-11-11) restores a half-typed entry that
+/// survived process death — it overrides the warm defaults;
+/// [onDraftChanged] receives every edit so the caller can persist (the
+/// sheet itself stays storage-free).
 Future<NewEntry?> showQuickAdd(
   BuildContext context, {
   required List<CategoryOption> categories,
   required Currency currency,
   EntryKind initialKind = EntryKind.expense,
   int? initialCategoryId,
+  QuickAddDraft? draft,
+  void Function(QuickAddDraft draft)? onDraftChanged,
   VoidCallback? onManageCategories,
 }) => showModalBottomSheet<NewEntry>(
   context: context,
@@ -59,6 +66,8 @@ Future<NewEntry?> showQuickAdd(
     currency: currency,
     initialKind: initialKind,
     initialCategoryId: initialCategoryId,
+    draft: draft,
+    onDraftChanged: onDraftChanged,
     onManageCategories: onManageCategories,
   ),
 );
@@ -70,6 +79,8 @@ class _QuickAddSheet extends StatefulWidget {
     required this.initialKind,
     required this.initialCategoryId,
     required this.onManageCategories,
+    this.draft,
+    this.onDraftChanged,
   });
 
   final List<CategoryOption> categories;
@@ -77,6 +88,8 @@ class _QuickAddSheet extends StatefulWidget {
   final EntryKind initialKind;
   final int? initialCategoryId;
   final VoidCallback? onManageCategories;
+  final QuickAddDraft? draft;
+  final void Function(QuickAddDraft draft)? onDraftChanged;
 
   @override
   State<_QuickAddSheet> createState() => _QuickAddSheetState();
@@ -100,6 +113,26 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   void initState() {
     super.initState();
     _pad = AmountPad(currency: widget.currency);
+    // Ruling 2: a persisted draft outranks the warm defaults. Currency
+    // first (decimal shape decides what digits survive), then the buffer
+    // verbatim; a damaged currency code just keeps the base currency.
+    final draft = widget.draft;
+    if (draft != null && draft.hasContent) {
+      if (draft.currencyCode != widget.currency.code) {
+        _pad.setCurrency(Currency.resolve(draft.currencyCode));
+      }
+      _pad.restore(draft.amount);
+      _kind = draft.kind;
+      _categoryId = draft.categoryId;
+      _day = draft.day;
+      if (draft.note.isNotEmpty) {
+        _note.text = draft.note;
+        _noteActive = true;
+      }
+    }
+    // Every edit re-emits the draft; the caller debounces and owns storage.
+    _pad.addListener(_emitDraft);
+    _note.addListener(_emitDraft);
     _noteFocus.addListener(() {
       // §2.2: note entry borrows the system keyboard and gives it back on
       // blur — an empty note collapses, a written one stays.
@@ -108,6 +141,17 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       }
     });
   }
+
+  QuickAddDraft _currentDraft() => QuickAddDraft(
+    amount: _pad.buffer,
+    currencyCode: _pad.currency.code,
+    kind: _kind,
+    categoryId: _categoryId,
+    day: _day,
+    note: _note.text,
+  );
+
+  void _emitDraft() => widget.onDraftChanged?.call(_currentDraft());
 
   @override
   void dispose() {

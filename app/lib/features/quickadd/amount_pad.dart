@@ -32,6 +32,10 @@ final class AmountPad extends ChangeNotifier {
   String get display => _buffer.isEmpty ? '0' : _buffer;
   bool get isPlaceholder => _buffer.isEmpty;
 
+  /// Raw keypad buffer (draft persistence — display shows a placeholder,
+  /// the draft needs what was actually typed, including the empty state).
+  String get buffer => _buffer;
+
   int get _decimals => currency.minorUnits;
 
   void digit(String d) {
@@ -72,6 +76,27 @@ final class AmountPad extends ChangeNotifier {
   void clear() {
     if (_buffer.isEmpty) return;
     _buffer = '';
+    notifyListeners();
+  }
+
+  /// Draft restore (ruling 2): a persisted keypad buffer returns verbatim,
+  /// including mid-typed states like `0.` that [fill] cannot express.
+  /// Anything that is not keypad-legal is ignored as damaged — the pad
+  /// then cold-opens rather than showing a lie.
+  void restore(String buffer) {
+    if (buffer.isNotEmpty &&
+        !RegExp(r'^[0-9]+(\.[0-9]*)?$|^\.[0-9]+$|^[0-9]*\.$')
+            .hasMatch(buffer)) {
+      return;
+    }
+    final dot = buffer.indexOf('.');
+    if (dot >= 0 &&
+        (buffer.length - dot - 1 > _decimals ||
+            buffer.substring(0, dot).length > maxIntegerDigits)) {
+      return;
+    }
+    if (dot < 0 && buffer.length > maxIntegerDigits) return;
+    _buffer = buffer;
     notifyListeners();
   }
 

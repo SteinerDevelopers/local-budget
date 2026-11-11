@@ -121,5 +121,34 @@ void main() {
         expect(pad.isPlaceholder, isTrue);
       },
     );
+
+    group('restore (draft persistence, ruling 2)', () {
+      test('mid-typed states come back verbatim', () {
+        expect((AmountPad(currency: usd)..restore('0.')).display, '0.');
+        expect(
+            (AmountPad(currency: usd)..restore('12.30')).money.minorUnits,
+            1230);
+        expect((AmountPad(currency: usd)..restore('.5')).money.minorUnits, 50);
+        expect((AmountPad(currency: usd)..restore('')).isPlaceholder, isTrue);
+      });
+
+      test('damaged buffers are refused; pad keeps its state', () {
+        final pad = AmountPad(currency: usd)..restore('1a.2');
+        expect(pad.display, '0');
+        pad.restore('12.3');
+        pad.restore('12.3.4'); // second dot: refused, keeps 12.3
+        expect(pad.display, '12.3');
+        pad.restore('12.345'); // USD fraction full
+        expect(pad.display, '12.3');
+        pad.restore('1234567890'); // > maxIntegerDigits
+        expect(pad.display, '12.3');
+      });
+
+      test('decimal cap follows the restored currency shape', () {
+        final jpy = Currency.resolve('JPY');
+        expect((AmountPad(currency: jpy)..restore('12.')).display, '12.');
+        expect((AmountPad(currency: jpy)..restore('12.5')).display, '0');
+      });
+    });
   });
 }
