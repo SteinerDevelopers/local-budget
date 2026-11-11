@@ -332,6 +332,17 @@ manifest-guard:
       grep -q 'android.permission.INTERNET' "$main" \
         && { echo "the main manifest may never declare INTERNET"; exit 1; }
       echo "INTERNET law holds (free removes, pro declares, main is silent)"
+      rules=app/android/app/src/main/res/xml/data_extraction_rules.xml
+      grep -q 'android:allowBackup="false"' "$main" \
+        || { echo "the ledger never rides OS backup paths (allowBackup must be false)"; exit 1; }
+      grep -q 'android:dataExtractionRules="@xml/data_extraction_rules"' "$main" \
+        || { echo "device-transfer rules must be pinned (API 31+ D2D path)"; exit 1; }
+      test -f "$rules" || { echo "data_extraction_rules.xml missing"; exit 1; }
+      grep -q '<include' "$rules" \
+        && { echo "data extraction rules are total-exclusion; an <include> reopens a path"; exit 1; }
+      [ "$(grep -c '<exclude' "$rules")" -ge 10 ] \
+        || { echo "every domain must stay excluded in BOTH cloud-backup and device-transfer"; exit 1; }
+      echo "backup-lock law holds (no OS copy path carries the ledger)"
 
 # Adoption rung 3 (playbook docs/adoption.md): secret-scan, REPORT-ONLY —
 # findings are printed, nothing fails. Escalation to blocking is an
