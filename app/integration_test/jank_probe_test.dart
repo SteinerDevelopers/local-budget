@@ -16,10 +16,13 @@
 // --profile flag -- measured 2026-11-10, the first run failed on it.)
 //
 // Profile build on purpose: release-like AOT, same rendering pipeline,
-// none of the debug VM's frame tax. The window drives the same QuickAdd
-// save loop and ledger flings the bench walks use. Percentiles print as
-// one `JANK …` line; thresholds are quoted at both 60 Hz (the bench's
-// original > 16 ms law) and the tablet's real 90 Hz panel (≈11.1 ms).
+// none of the debug VM's frame tax. The window drives eight QuickAdd
+// saves with a TYPED amount (12.49 — five keystrokes; a one-key window
+// proved unable to exercise keystroke cost at all, 2026-11-10) and
+// twelve ledger flings. Percentiles print as one `JANK …` line plus
+// `JANK-SHEET`/`JANK-FLING` phase lines that localize the tail;
+// thresholds are quoted at both 60 Hz (the bench's original > 16 ms
+// law) and the tablet's real 90 Hz panel (≈11.1 ms).
 // Launch frames are drained before the window opens (FrameTiming's epoch
 // is monotonic, not DateTime-aligned, so the window is the collector
 // queue, not a wall-clock slice) — and too few frames aborts loudly
@@ -57,8 +60,19 @@ void main() {
       await tester.ensureVisible(add);
       await tester.tap(add);
       await _settle(tester);
-      await tester.tap(find.byKey(const Key('keypad-5')));
-      await tester.pump();
+      // Realistic entry: "12.49" — five keystrokes, the way a typed
+      // amount actually arrives (bench 2026-11-10, after the single-
+      // digit window proved unable to exercise keystroke cost at all).
+      for (final k in [
+        'keypad-1',
+        'keypad-2',
+        'keypad-dot',
+        'keypad-4',
+        'keypad-9',
+      ]) {
+        await tester.tap(find.byKey(Key(k)));
+        await tester.pump();
+      }
       final food = find.widgetWithText(FilterChip, 'Food');
       await tester.ensureVisible(food);
       await tester.tap(food);
@@ -68,6 +82,8 @@ void main() {
       await tester.tap(save);
       await _settle(tester);
     }
+
+    final sheetMark = timings.length;
 
     // Twelve ledger flings — list build cost at real velocity.
     final list = find.byType(Scrollable).first;
@@ -89,6 +105,26 @@ void main() {
       debugPrint('JANK ABORT: only ${total.length} frames in window — the '
           'probe drove no real frames; treat as void, never as zero.');
       return;
+    }
+    // Local phase split (this run only): where does the tail live?
+    List<Duration> slice(int from, int to) => [
+          for (final t in timings.sublist(
+            from.clamp(0, timings.length),
+            to.clamp(0, timings.length),
+          ))
+            t.buildDuration + t.rasterDuration,
+        ]..sort();
+    for (final (name, a, b) in [
+      ('SHEET', 0, sheetMark),
+      ('FLING', sheetMark, timings.length),
+    ]) {
+      final v = slice(a, b);
+      if (v.length > 4) {
+        debugPrint('JANK-$name frames=${v.length} '
+            'p90=${v[(v.length * 0.9).floor().clamp(0, v.length - 1)].inMilliseconds}ms '
+            'p99=${v[(v.length * 0.99).floor().clamp(0, v.length - 1)].inMilliseconds}ms '
+            'over16_7=${v.where((d) => d > const Duration(milliseconds: 17)).length}');
+      }
     }
     Duration at(double q) =>
         total[(total.length * q).floor().clamp(0, total.length - 1)];

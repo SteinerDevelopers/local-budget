@@ -83,7 +83,10 @@ class _QuickAddSheet extends StatefulWidget {
 }
 
 class _QuickAddSheetState extends State<_QuickAddSheet> {
-  late final AmountPad _pad = AmountPad(currency: widget.currency);
+  // Assigned in initState (needs widget.currency), so dispose can always
+  // reach it — AmountPad is a ChangeNotifier now (keystroke scope, bench
+  // 2026-11-10) and must be disposed exactly once.
+  late final AmountPad _pad;
   late EntryKind _kind = widget.initialKind;
   late int? _categoryId = widget.initialCategoryId;
   DateTime _day = DateTime.now();
@@ -96,6 +99,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   @override
   void initState() {
     super.initState();
+    _pad = AmountPad(currency: widget.currency);
     _noteFocus.addListener(() {
       // §2.2: note entry borrows the system keyboard and gives it back on
       // blur — an empty note collapses, a written one stays.
@@ -107,6 +111,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   @override
   void dispose() {
+    _pad.dispose();
     _note.dispose();
     _noteFocus.dispose();
     super.dispose();
@@ -213,7 +218,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       // font instead of clipping it (device feedback 2026-11-04).
       _kindToggle(),
       const SizedBox(height: Tokens.space2),
-      AmountDisplay(pad: _pad, currency: _pad.currency),
+      _amountDisplay(),
       const SizedBox(height: Tokens.space2),
       Expanded(
         // Extreme font scales keep every key tappable: below
@@ -247,7 +252,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
             children: [
               _kindToggle(),
               const SizedBox(height: Tokens.space2),
-              AmountDisplay(pad: _pad, currency: _pad.currency),
+              _amountDisplay(),
               const SizedBox(height: Tokens.space2),
               _chips(),
               const SizedBox(height: Tokens.space2),
@@ -277,9 +282,11 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   );
 
   Widget _keypad() => Keypad(
-    onDigit: (d) => setState(() => _pad.digit(d)),
-    onDot: () => setState(_pad.dot),
-    onBackspace: () => setState(_pad.back),
+    // No setState: the pad notifies its own listeners, and only the
+    // amount display + Save gate subscribe (bench 2026-11-10).
+    onDigit: _pad.digit,
+    onDot: _pad.dot,
+    onBackspace: _pad.back,
     dotEnabled: _pad.currency.minorUnits > 0,
   );
 
@@ -310,12 +317,24 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
     }),
   );
 
-  Widget _saveButton() => SizedBox(
-    height: Tokens.touchMin,
-    child: FilledButton(
-      // M3 FilledButton renders its own disabled state (§2.2).
-      onPressed: _canSave ? _save : null,
-      child: const Text('Save'),
+  // The two regions a digit or currency change actually touches. They
+  // subscribe to the pad directly, so a keystroke never rebuilds the
+  // keypad grid, chips, toggle or optional row (bench 2026-11-10 sheet-
+  // phase tail: 20 of 21 over-budget frames lived in this sheet).
+  Widget _amountDisplay() => ListenableBuilder(
+    listenable: _pad,
+    builder: (_, _) => AmountDisplay(pad: _pad, currency: _pad.currency),
+  );
+
+  Widget _saveButton() => ListenableBuilder(
+    listenable: _pad,
+    builder: (_, _) => SizedBox(
+      height: Tokens.touchMin,
+      child: FilledButton(
+        // M3 FilledButton renders its own disabled state (§2.2).
+        onPressed: _canSave ? _save : null,
+        child: const Text('Save'),
+      ),
     ),
   );
 

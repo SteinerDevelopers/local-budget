@@ -58,6 +58,12 @@ class _LimitEditorSheet extends StatefulWidget {
 
 class _LimitEditorSheetState extends State<_LimitEditorSheet> {
   late final AmountPad _pad = AmountPad(currency: widget.snapshot.currency);
+
+  @override
+  void dispose() {
+    _pad.dispose();
+    super.dispose();
+  }
   late BudgetPeriodType _type = widget.line == null
       ? BudgetPeriodType.monthly
       : BudgetPeriodType.fromStorage(widget.line!.row.periodType);

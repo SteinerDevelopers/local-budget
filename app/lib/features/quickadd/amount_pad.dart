@@ -1,12 +1,18 @@
 import 'package:core/core.dart';
+import 'package:flutter/foundation.dart';
 
 /// Input buffer for the QuickAdd keypad (design §2.2).
 ///
-/// Pure logic, no Flutter: the sheet keeps one of these, the keypad calls
-/// [digit]/[dot]/[back], and [money] is the exact minor-unit result — built
-/// from string parts so floating point never touches a typed amount
-/// (core's invariant, carried through the UI layer).
-final class AmountPad {
+/// Pure logic + change notification, no widgets: the sheet keeps one of
+/// these, the keypad calls [digit]/[dot]/[back], and [money] is the exact
+/// minor-unit result — built from string parts so floating point never
+/// touches a typed amount (core's invariant, carried through the UI
+/// layer). It notifies on every real change so the sheet can rebuild
+/// exactly the amount-dependent widgets (bench 2026-11-10: a keystroke
+/// `setState` rebuilt the whole sheet — 25 % of sheet-phase frames went
+/// over the 16.7 ms budget; the display and the Save gate are the only
+/// things a digit actually changes).
+final class AmountPad extends ChangeNotifier {
   AmountPad({required this.currency});
 
   /// Live currency — E5 §6 lets QuickAdd switch the entry currency; the
@@ -37,35 +43,37 @@ final class AmountPad {
       // buffer never grows '00' or '007' into the 40 pt display.
       if (_buffer == '0') {
         _buffer = d;
+        notifyListeners();
         return;
       }
       if (_buffer.length >= maxIntegerDigits) return;
       _buffer += d;
+      notifyListeners();
     } else {
       if (_buffer.length - dot - 1 >= _decimals) return; // fraction full
       _buffer += d;
+      notifyListeners();
     }
   }
 
   void dot() {
     if (_decimals == 0 || _buffer.contains('.')) return;
-    if (_buffer.isEmpty) {
-      _buffer = '0.';
-      return;
-    }
-    // A lone leading zero absorbs the dot: "0." not "00.".
-    if (_buffer == '0') {
-      _buffer = '0.';
-      return;
-    }
-    _buffer += '.';
+    // A lone leading zero absorbs the dot: "0." not "00.". Empty types it.
+    _buffer = (_buffer.isEmpty || _buffer == '0') ? '0.' : '$_buffer.';
+    notifyListeners();
   }
 
   void back() {
-    if (_buffer.isNotEmpty) _buffer = _buffer.substring(0, _buffer.length - 1);
+    if (_buffer.isEmpty) return;
+    _buffer = _buffer.substring(0, _buffer.length - 1);
+    notifyListeners();
   }
 
-  void clear() => _buffer = '';
+  void clear() {
+    if (_buffer.isEmpty) return;
+    _buffer = '';
+    notifyListeners();
+  }
 
   /// E5 §6: switch entry currency. Typed digits carry over between same-
   /// decimal currencies; a fraction the new currency cannot hold (`12.34`
@@ -74,6 +82,7 @@ final class AmountPad {
     if (next.code == currency.code) return;
     if (currency.minorUnits != next.minorUnits) _buffer = '';
     currency = next;
+    notifyListeners();
   }
 
   /// Prefill from an extracted total (E2 Review sheet): the same buffer the
@@ -83,20 +92,21 @@ final class AmountPad {
   void fill(Money m) {
     final units = m.minorUnits;
     if (units <= 0) {
-      _buffer = '';
+      clear();
       return;
     }
     final major = units ~/ currency.pow10;
     final frac = units % currency.pow10;
     if (_decimals == 0 || frac == 0) {
       _buffer = '$major';
-      return;
+    } else {
+      var f = frac.toString().padLeft(_decimals, '0');
+      while (f.endsWith('0')) {
+        f = f.substring(0, f.length - 1);
+      }
+      _buffer = '$major.$f';
     }
-    var f = frac.toString().padLeft(_decimals, '0');
-    while (f.endsWith('0')) {
-      f = f.substring(0, f.length - 1);
-    }
-    _buffer = '$major.$f';
+    notifyListeners();
   }
 
   /// Exact minor-unit value of the buffer; 0 while empty. The padded-fraction
