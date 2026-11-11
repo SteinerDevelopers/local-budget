@@ -48,17 +48,22 @@ class CaptureSourceSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Frame rule as QuickAdd (§2.1): 48 % with a 480 dp floor so rows keep
-    // full touch height on short screens — and the same font-scale budget
-    // (device feedback 2026-11-04; the CI guard of 2026-11-10 caught this
-    // sheet missing it): at 2.0× the title and subtitle grow and spilled
-    // the fixed Column (160 px in CI). Height tracks the scale, capped at
-    // 92 %; the body scrolls so even the route's smaller initial frame
-    // overflows nothing.
+    // full touch height on short screens, capped at 92 %; the body scrolls
+    // so even the route's smaller initial frame overflows nothing (device
+    // feedback 2026-11-04; CI guard 2026-11-10). The frame now FITS the
+    // content instead of scaling with it: only title and subtitle grow
+    // with the text scale — the §2.1 rows stay 56 dp by law (FittedBox
+    // overflow guard, 2026-11-10). The old `× textScale` grew the whole
+    // frame for the text that grew a fraction of it: at 2.0× that was a
+    // dead lower half (T2, tablet audit 2026-11-10).
+    // Budget: 32 pad + 32 gaps + 24 slack + (28 title + 2×20 subtitle)·
+    // scale + 4×56 rows. At 1.0× the §2.1 frame still governs everywhere.
     final size = MediaQuery.sizeOf(context);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final content = 88 + 68 * textScale + 4 * 56.0;
     final height = math.min(
       size.height * 0.92,
-      math.max(480.0, size.height * 0.48) * math.max(1.0, textScale),
+      math.max(math.max(480.0, size.height * 0.48), content),
     );
     final scheme = Theme.of(context).colorScheme;
 
