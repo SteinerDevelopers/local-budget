@@ -24,6 +24,7 @@ import '../manage/io.dart';
 import '../manage/manage_screen.dart';
 import '../quickadd/quick_add_sheet.dart';
 import '../reports/reports_screen.dart';
+import '../support/fully_drawn.dart';
 import '../support/transfer.dart';
 import 'balance_strip.dart';
 import 'day_label.dart';
@@ -862,12 +863,26 @@ class _MonthPageState extends State<_MonthPage> {
     yearMonthOf(_monthStart(widget.index)),
   );
 
+  /// The fully-drawn report is per *launch*, not per page build (see
+  /// support/fully_drawn.dart); adjacent months must not double-report.
+  bool _fullyDrawnReported = false;
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<LedgerEntryData>>(
       stream: _rows,
-      initialData: const [],
+      // No initialData on purpose: null rows render the same zeros an
+      // empty first event would, so snapshot.hasData becomes the exact
+      // "first real data from watchMonth" signal below.
       builder: (context, snapshot) {
+        if (!_fullyDrawnReported && snapshot.hasData) {
+          _fullyDrawnReported = true;
+          // Report after this data-bearing frame paints — that paint is
+          // the moment the user came for.
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => reportFullyDrawnOnce(),
+          );
+        }
         final rows = snapshot.data ?? const <LedgerEntryData>[];
         return Column(
           children: [

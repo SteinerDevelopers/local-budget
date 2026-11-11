@@ -72,6 +72,22 @@ class MainActivity : FlutterActivity() {
         // plumbing); only the pro manifest gives it widgets to talk to.
         widgetBridge = WidgetBridge(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         consumeWidgetRoute()
+        // Honest cold-start timing (bench §4.5 follow-up): the platform's
+        // Displayed line stops at the first frame, which for this app is
+        // the ledger's zero-strip. Dart calls in once the first real month
+        // rows have painted; from the platform's own docs, later calls are
+        // no-ops, so the Dart-side one-shot is belt, this line is braces.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LIFECYCLE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "reportFullyDrawn" -> {
+                        reportFullyDrawn()
+                        result.success(null)
+                    }
+
+                    else -> result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -432,6 +448,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "localbudget/capture"
+        private const val LIFECYCLE_CHANNEL = "localbudget/lifecycle"
         private const val REQ_OPEN_DOCUMENT = 0x4305
         private const val NANO_MAX_TOKENS = 400
     }
