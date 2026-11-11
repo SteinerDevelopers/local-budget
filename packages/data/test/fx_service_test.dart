@@ -67,6 +67,8 @@ void main() {
     test('fetches, caches, and asks the exact spec URL', () async {
       final (service, calls) = fx((_) async => ok('EUR', 0.93));
       addTearDown(service.close);
+      // Opt-in arms the network (owner ruling 2026-11-11: default off).
+      await service.setLiveRatesEnabled(true);
 
       expect(await service.lookup('USD', 'EUR'), 0.93);
       expect(calls, hasLength(1));
@@ -81,6 +83,7 @@ void main() {
     test('fresh same-day cache answers without any network', () async {
       final (first, _) = fx((_) async => ok('EUR', 0.93));
       addTearDown(first.close);
+      await first.setLiveRatesEnabled(true);
       await first.lookup('USD', 'EUR');
 
       final (second, calls) = fx((_) async => ok('EUR', 9.99));
@@ -92,10 +95,11 @@ void main() {
     test('toggle off blocks the fetch but keeps the local cache', () async {
       final (warmed, _) = fx((_) async => ok('EUR', 0.93));
       addTearDown(warmed.close);
+      await warmed.setLiveRatesEnabled(true);
       await warmed.lookup('USD', 'EUR');
       await warmed.setLiveRatesEnabled(false);
 
-      // Default is on; explicit off is what disables.
+      // Explicit off is stored as such (default when absent is also off).
       expect(await repo.setting(FxService.settingLiveFxRates), 'off');
 
       final (service, calls) = fx((_) async => ok('EUR', 9.99));
@@ -105,13 +109,21 @@ void main() {
       expect(calls, isEmpty);
     });
 
-    test('default is on with no stored row', () async {
-      final (service, calls) = fx((_) async => ok('EUR', 0.9));
-      addTearDown(service.close);
-      expect(await service.liveRatesEnabled(), isTrue);
-      expect(await service.lookup('USD', 'EUR'), 0.9);
-      expect(calls, hasLength(1));
-    });
+    test(
+      'default is off with no stored row (opt-in, owner 2026-11-11)',
+      () async {
+        final (service, calls) = fx((_) async => ok('EUR', 0.9));
+        addTearDown(service.close);
+        expect(await service.liveRatesEnabled(), isFalse);
+        expect(await service.lookup('USD', 'EUR'), isNull);
+        expect(calls, isEmpty);
+        // Opting in is what arms the network path.
+        await service.setLiveRatesEnabled(true);
+        expect(await service.liveRatesEnabled(), isTrue);
+        expect(await service.lookup('USD', 'EUR'), 0.9);
+        expect(calls, hasLength(1));
+      },
+    );
 
     test('same currency is 1.0 without touching settings or network', () async {
       final (service, calls) = fx((_) async => ok('EUR', 0.9));
@@ -123,6 +135,7 @@ void main() {
     test('rateForDeviceBase is the reciprocal the row layer stamps', () async {
       final (service, calls) = fx((_) async => ok('EUR', 0.93));
       addTearDown(service.close);
+      await service.setLiveRatesEnabled(true);
       // 1 unit of EUR in USD: the inverse of the provider's own quote.
       expect(await service.rateForDeviceBase('EUR'), closeTo(1 / 0.93, 1e-9));
       // The cache keeps the provider's direction (spec §6).
@@ -146,6 +159,8 @@ void main() {
     test('every failure mode answers null and saves nothing', () async {
       final (a, _) = fx((_) async => throw http.ClientException('offline'));
       addTearDown(a.close);
+      // Opt-in once: the setting row is shared, b/c/d inherit it.
+      await a.setLiveRatesEnabled(true);
       expect(await a.lookup('USD', 'EUR'), isNull);
 
       final (b, _) = fx((_) async => http.Response('nope', 503));
@@ -170,6 +185,7 @@ void main() {
         return ok('EUR', 0.93);
       }, budget: const Duration(milliseconds: 15));
       addTearDown(service.close);
+      await service.setLiveRatesEnabled(true);
       expect(await service.lookup('USD', 'EUR'), isNull);
     });
   });
@@ -206,6 +222,7 @@ void main() {
 
       final (service, _) = fx((_) async => ok('EUR', 0.93));
       addTearDown(service.close);
+      await service.setLiveRatesEnabled(true);
       expect(await service.lookup('USD', 'EUR'), 0.93);
 
       final rows = await db.select(db.transactions).get();
@@ -229,6 +246,7 @@ void main() {
 
       final (service, _) = fx((_) async => ok('EUR', 0.93));
       addTearDown(service.close);
+      await service.setLiveRatesEnabled(true);
       // A USD→EUR fetch succeeds while this device lives in GBP.
       expect(await service.lookup('USD', 'EUR'), 0.93);
 
@@ -245,6 +263,7 @@ void main() {
 
       final (service, _) = fx((_) async => ok('EUR', 0.93));
       addTearDown(service.close);
+      await service.setLiveRatesEnabled(true);
       await service.lookup('USD', 'EUR');
 
       expect(await repo.setting('fx.USD-GBP.$today'), '0.77');

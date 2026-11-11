@@ -46,7 +46,8 @@ class ManageScreen extends StatefulWidget {
 
   final LedgerRepository repository;
 
-  /// E5 §6: hosts the *Live FX rates* toggle (default-on, per-device).
+  /// E5 §6: hosts the *Live FX rates* toggle (default-off, per-device;
+  /// opt-in per owner ruling 2026-11-11).
   final FxService? fx;
 
   /// E5 §7: boot-time integrity report; null or unset ⇒ no banner, ever.
@@ -144,7 +145,38 @@ class _ManageScreenState extends State<ManageScreen> {
   }
 
   Future<void> _setLiveFx(bool on) async {
-    setState(() => _liveFx = on); // immediate flip — settings catch up
+    if (on) {
+      // Turning ON the app's only outbound fetch is a trust event: the
+      // dialog says exactly who gets called and what the call carries
+      // (ux-ruleset F5: explained at first need, never ambushed).
+      final agreed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          key: const Key('livefx-consent'),
+          title: const Text('Fetch exchange rates?'),
+          content: const Text(
+            'With this on, the app downloads rates from frankfurter.dev '
+            'when an entry needs a conversion. The request carries only '
+            'the two currency codes (for example EUR and USD) — never '
+            'amounts, names, or device identifiers. Turning it off stops '
+            'all network use; nothing else in the app ever connects.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const Key('livefx-consent-go'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Turn on'),
+            ),
+          ],
+        ),
+      );
+      if (agreed != true || !mounted) return; // switch never left off
+    }
+    setState(() => _liveFx = on);
     await widget.fx?.setLiveRatesEnabled(on);
   }
 

@@ -372,9 +372,11 @@ const List<HelpArticle> kHelpArticles = [
           'in your home currency alongside, so nothing is changed '
           'behind your back.',
       'The “Live FX rates” switch in Manage decides where exchange '
-          'rates come from. With it on, the app looks up current rates '
-          'when there is internet; with it off, nothing is ever looked '
-          'up and entries use the rates the app already has. Either way '
+          'rates come from. It starts off: until you turn it on, nothing '
+          'is ever looked up and entries use the rates the app already '
+          'has. Turning it on asks first and says what it does: the app '
+          'looks up current rates from frankfurter.dev when there is '
+          'internet, carrying only the two currency codes. Either way '
           'the choice is remembered on this phone.',
       'A converted amount is the app’s best help, not a bank '
           'statement: if one looks off, edit the entry and type the '

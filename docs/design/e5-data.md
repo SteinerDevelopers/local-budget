@@ -98,7 +98,8 @@ document picker on iOS, per feasibility §5 file-handling decision) in `app`.
 
 ## 6. FX lookup — the one network touch, and its offline twin
 
-- Toggle in Manage (*Live FX rates*, default on, per-device, no account).
+- Toggle in Manage (*Live FX rates*, default **off** — opt-in per owner
+  ruling 2026-11-11 — per-device, no account).
 - Provider: **frankfurter.dev** (ECB reference rates; no key, no account,
   plain GET `https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR`,
   verified live 2026-11-02 — the older `.app` host 301s and must not be
