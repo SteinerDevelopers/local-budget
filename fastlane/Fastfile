@@ -42,4 +42,25 @@ platform :android do
       skip_upload_screenshots: true
     )
   end
+
+  desc "Beta: free release AAB -> Play INTERNAL track. OWNER-RUN only " \
+       "(store rails are owner-word law); needs credentials/play.json. " \
+       "Steps, rollback, exit criteria: docs/release/beta-runbook.md"
+  lane :internal do
+    UI.user_error!("needs credentials/play.json (git-ignored) — runbook step 0") \
+      unless File.exist?("credentials/play.json")
+    code = ENV["VERSION_CODE"]
+    UI.user_error!("VERSION_CODE unset — see docs/release/versioning.md rule 2") \
+      if code.nil? || code.empty?
+    release_bundle
+    supply(
+      package_name: "dev.steiner.local_budget",
+      track: "internal",
+      json_key: "credentials/play.json",
+      aab: "../build/app/outputs/bundle/freeRelease/app-free-release.aab",
+      upload_existing: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
 end
