@@ -521,14 +521,38 @@ void main() {
       await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
       // Pro adds paid-pack rows above; mount the tile before reading it.
       await revealRow(tester, 'live-fx');
-      // Default is off (opt-in, owner ruling 2026-11-11), so a tap means on.
+      // Default is off (opt-in, owner ruling 2026-11-11): a tap asks
+      // first — the consent dialog names the endpoint and its payload.
       expect(
         tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
         isFalse,
       );
       await tapRow(tester, 'live-fx');
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('livefx-consent')), findsOneWidget);
+      expect(find.textContaining('frankfurter.dev'), findsOneWidget);
+      // A dialog still on screen has armed nothing.
+      expect(await r.repo.setting(FxService.settingLiveFxRates), isNull);
+
+      // Cancel: the switch never leaves off.
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
+        isFalse,
+      );
+      expect(await r.repo.setting(FxService.settingLiveFxRates), isNull);
+
+      // Turn on: consented, armed, persisted.
+      await tapRow(tester, 'live-fx');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('livefx-consent-go')));
+      await tester.pumpAndSettle();
       expect(await r.repo.setting(FxService.settingLiveFxRates), 'on');
+      expect(
+        tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
+        isTrue,
+      );
 
       await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
       await revealRow(tester, 'live-fx');
@@ -536,6 +560,11 @@ void main() {
         tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
         isTrue,
       );
+      // Turning OFF needs no dialog — it only removes a permission.
+      await tapRow(tester, 'live-fx');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('livefx-consent')), findsNothing);
+      expect(await r.repo.setting(FxService.settingLiveFxRates), 'off');
     } finally {
       await tearDownDb(r);
     }
