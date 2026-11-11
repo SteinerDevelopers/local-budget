@@ -80,6 +80,28 @@ artifact on both phones. `git merge-base --is-ancestor` proved the kit commit is
    (no-idle). Instruments must retry dumps; product side, consider
    `reportFullyDrawn()` after first ledger paint.
 
+## Follow-through 2026-11-11 — Finding 4 re-measure (Tab A9+, kit c08254a7, debug)
+
+The ML Kit confounder Finding 4 suspected is now directly characterized on the
+Tab A9+ (dialog dismissed, model provisioned):
+
+| leg | clean measurement | note |
+|---|---|---|
+| Camera row -> viewfinder | **1.02 s / 1.45 s** (n=2, pixel probe of the shutter ring) | debug kit; the 2026-11-10 5-8 s figures rode the ML Kit download/dialog |
+| docscan activity open | `Displayed … docscan.ui.DocumentScanningActivity: +340 ms` (logcat) | Google's own UI cost, not app compute |
+| Next -> our Review sheet | **0.55 s** (window-focus probe) | recognition finishes inside the gms activity before hand-back |
+
+First-run reality check: with no provisioned model the very first Camera tap
+opens Play-services full-screen "Downloading updates…" for ~3.5 min — any
+camera number taken around a device's first scan measures provisioning, not
+the app. Also structural: the current docscan flow inserts **two** confirmation
+screens (Adjust corners, Enhance) between shutter and our Review sheet — two
+extra taps ride inside the §4.5 30-s scan bar and belong to the E discussion.
+Edge-hunt caveat: shutter->corners ran >30 s on a pitch-dark frame (ML Kit
+searching for a document edge that is not there) — content-dependent, not an
+app cost. The Review sheet re-verified its honest "No total found — type it
+in." state with Save disabled; nothing was saved, bench DB untouched.
+
 ## Instrumentation notes (why some earlier files show failures)
 
 - `instruments/battery.sh` first VERGE cold-start leg is INVALID (`MISS`/HOT lines: the
