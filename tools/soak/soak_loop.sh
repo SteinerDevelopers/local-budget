@@ -74,7 +74,7 @@ while [ "$(date +%s)" -lt "$END" ]; do
         -d "$serial" \
         --use-application-binary "$KIT/kit-d1.apk" \
         --driver integration_test/driver.dart \
-        --target integration_test/draft_phase1_test.dart ) > "$d1" 2>&1 &
+        --target drill/draft_phase1_test.dart ) > "$d1" 2>&1 &
     dp=$!
     ready=0
     for _ in $(seq 1 75); do
