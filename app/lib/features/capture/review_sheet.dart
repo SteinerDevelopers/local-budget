@@ -187,6 +187,7 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
 
   @override
   void dispose() {
+    _pad.dispose();
     _merchant.dispose();
     super.dispose();
   }

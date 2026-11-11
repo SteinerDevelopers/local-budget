@@ -158,6 +158,7 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
 
   @override
   void dispose() {
+    _pad.dispose();
     _name.dispose();
     super.dispose();
   }

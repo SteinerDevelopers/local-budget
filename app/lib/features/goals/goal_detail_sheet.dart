@@ -331,6 +331,12 @@ class _AmountSheetState extends State<_AmountSheet> {
   late final AmountPad _pad = AmountPad(currency: widget.currency);
 
   @override
+  void dispose() {
+    _pad.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),

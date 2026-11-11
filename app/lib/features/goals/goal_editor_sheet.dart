@@ -96,11 +96,13 @@ class _GoalEditorSheetState extends State<_GoalEditorSheet> {
       }
     }
     _currency = currency;
+    _pad?.dispose();  // ChangeNotifier since the keystroke-scope pass
     _pad = pad;
   }
 
   @override
   void dispose() {
+    _pad?.dispose();
     _name.dispose();
     _note.dispose();
     super.dispose();
