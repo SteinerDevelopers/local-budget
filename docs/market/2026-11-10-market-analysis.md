@@ -207,6 +207,8 @@ Reading, honestly:
 
 ## 6. Where we actually win (recommendations — owner gates marked)
 
+_Monetization-specific levers, ranked, are §7._
+
 1. **Ship-readiness first, features none.** Close #44–46 merchant quality,
    the manual-median and jank re-runs, E8 store content, RC usability gate,
    and **#54 (financial-features declaration)** before any date talk. In a
@@ -234,7 +236,118 @@ Reading, honestly:
    scenarios' value is the shape; recalibrate the curves against real
    Play Console aggregates (the only instruments we have or want).
 
-## 7. Corrections to our own record (from this sweep)
+## 7. Monetization upside inside the ethos
+
+Every lever below passes all five tests: zero data collection stays
+literal; free stays feature-complete; **paid only ever adds**; no ads, no
+subscription; nothing that was free becomes paid. None requires an owner
+reversal; a few need an owner ruling (marked). These are options, ranked
+by expected value per unit of effort.
+
+### A. Conversion, same installs (§5's curves untouched)
+
+1. **Sell the promise on the Pro listing.** "One purchase. Yours forever —
+   every future paid feature included, no upgrade ever. No subscription,
+   no ads, nothing collected." The grandfathering + "more, never less"
+   promises already exist ([pricing.md](../pricing.md),
+   e6); they currently aren't the *pitch*. This is the only durable answer
+   to free FOSS rivals: they can be cheaper, they cannot make a
+   forever-promise with a signed receipt. Zero cost, listing-copy only (E8).
+2. **Demo, don't gate.** The feasibility doc's own rule (§3.4: "the
+   paywall page should *demo* the value"): free-app Settings carries an
+   honest, non-nagging "What Pro adds" page — live widget previews on the
+   user's own screen, a backup dry-run to their own storage, a sample
+   YoY report. No locks, no countdown, no telemetry. A sibling listing
+   converts on felt value the free app can now show.
+3. **Make the handoff a selling point, not a footnote.** The
+   signature-level ContentProvider transfer (e6 §3) is rare-craft: "tap
+   *Transfer* in Pro — your data moves, nothing leaves the phone."
+   Purchase anxiety for a data-heavy app *is* the objection; answer it on
+   both listings with the mechanism, screen-illustrated.
+4. **Launch into January.** Budget-search demand spikes in the first
+   weeks of January (New Year's money behavior — the entire
+   r/personalfinance cycle is seasonal); the migration gate may land
+   there anyway (§5). If paperwork permits, first public week = first
+   week of January 2027. Free, ethical, and plausibly the largest
+   single install lever this side of the community-event lottery.
+5. **Run the legal experiment loop.** Zero telemetry forbids in-app
+   funnels, **not Play Console**: store-listing A/B experiments, price
+   tests ($5.99/7.99/9.99 — the instrument's §5 sensitivity says lower
+   never loses at launch trust levels; [Law 4 — owner rules the
+   default]), and country rollouts all stay owner-side aggregates.
+   (Precision for the skeptical reader: the zero-data promise governs
+   *app-side* collection — the app ships no collectors of any kind;
+   Play's own store-side listing reports exist for every developer
+   before any install and leave the literal "data is not collected"
+   answer true.)
+   Monthly Console ritual: listing views→installs, sibling ratio, refund
+   reason — the only instruments we have, and they are enough.
+6. **Reviews are the instrument — earn them at launch.** Closed-testing
+   testers (org account, runbook Phase 3) convert to day-one reviews by
+   being asked honestly, once, in-product at a success moment. Review
+   velocity feeds ranking; quality feeds conversion; both feed the spike
+   lottery's landing page.
+
+### B. The paid-pack flywheel (the promise as a growth mechanism)
+
+7. **Ship fast-follow Pro rows on a drumbeat** (#12 menu: scan queue →
+   multi-profile → tags/bulk → themes/icons). Every new paid feature
+   *simultaneously*: adds a purchase reason (grandfathering means
+   "buy now, get the queue free later" is a **real** urgency that FOSS
+   can't counter), justifies the ruling's planned price step at iOS
+   activation ($11.99–12.99 with Android rising — new buyers only,
+   existing owners pay nothing ever again), and demonstrates "more,
+   never less" instead of asserting it. Scan queue first: its buyer
+   (landlord, freelancer, side-hustler) is the one who pays without
+   convincing.
+8. **Themes/icons/accents as the content factory** (§3.4's cheap row):
+   lowest dev-week cost per new purchase reason, doubles as listicle
+   bait ("the offline budget app that doesn't look like a spreadsheet"),
+   and never touches a free promise because cosmetics were never free
+   to begin with.
+9. **Line-items (v2) stays paid-first** — the §3.4 reservation already
+   reserves it; hold that line exactly as written.
+
+### C. Trust artifacts that market themselves
+
+10. **Publish the receipts.** A "How we measure" page: the bank README's
+    public cousin — device names, dated screenshots, the *reversed
+    Finding 2* story told as process virtue. Closed source pays its trust
+    tax with auditable honesty; privacy-audience buyers convert on
+    receipts, and both listings can link it.
+11. **Manifest as marketing:** "The free app has no internet permission
+    — enforced at build." CI-guarded (`manifest-guard`), verifiable by
+    the user in their own permission screen. Nothing else on the Play
+    finance shelf can say this; say it in the first three lines of
+    copy.
+12. **Honest-comparison page** (Steiner vs subscription incumbents vs
+    FOSS analogues — including what Leftovers does better: free, FOSS).
+    Naming the FOSS rival honestly is exactly the tone the audience
+    rewards, and pre-empts the one objection that kills Pro conversion.
+
+### D. Small mechanics, flagged for completeness
+
+13. **Coffee tips via Play cost 15 %;** a US storefront BMC link-out
+    currently keeps 100 % ([feasibility §3.2](feasibility.md), post-2025
+    rules) but carries review-risk flux — keep IAP tips at launch
+    (e6 tiers), reconsider link-out only if tips ever exceed the
+    trivial band. [Law 4 — promise copy.]
+14. **Refunds (8 % assumed) shrink with expectation-setting:** the demo
+    page (A2) and transfer page (A3) are also refund preventers.
+
+### Not monetization plays — the guard list
+
+For the record, these all raise the modeled numbers and are **rejected on
+ethos**, so a future session doesn't re-litigate them: subscriptions or
+"Pro+" tiers above existing Pro (breaks grandfathering); moving anything
+free behind Pro (breaks the headline promise); any paid feature that
+expires; nag screens/first-run paywalls (the free app is the advert, not
+the funnel); telemetry-gated funnels or A/B beyond Play's own console;
+ad SDK "just for attribution"; F-Droid/sideload channels (decision 12 —
+owner-gated, and the only listed item here where the owner's *yes* would
+change anything).
+
+## 8. Corrections to our own record (from this sweep)
 
 - `docs/pricing.md` measured-basis line: "**Bluecoins+ … ~$7–10 Android**"
   — measured now: **Android Bluecoins is free + one-time in-app Premium
@@ -245,7 +358,7 @@ Reading, honestly:
 - The sibling-ratio inputs here use the corrected picture (full-free app
   with zero in-app prompt → low end of 0.5–2 %).
 
-## 8. Bottom line
+## 9. Bottom line
 
 Demand for exactly this app is real and rising (subscription fatigue +
 privacy backlash + aggregator instability). The competitive slot is
