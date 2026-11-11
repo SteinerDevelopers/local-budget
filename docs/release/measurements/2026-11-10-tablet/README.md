@@ -36,7 +36,7 @@ bill photo (no shape evidence to fix the missed $36 Amount-Due).
 | ledger empty/one-row | `01-launch-portrait.png` ok | `L01–L02-ledger.png` ok | `F201-ledger.png` ok (row grows — #48 fix holds) |
 | source sheet | `21-source-sheet.png` ok | — | — |
 | SAF picker (system) | `22-picker.png` ok | — | — |
-| scan review sheet | `23/24` ok | — | not re-shot (phone guards cover) |
+| scan review sheet | `23/24` ok | — | `F204-review.png` ok — the 2.0 escape gate holds at wide width, every control in view, rescue still auto-resolved the payee |
 | entry detail | `27-detail-payee.png` ok | `L01` (survived rotation) | — |
 | QuickAdd | — | `L03-quickadd.png` — adapts to centered dialog ✓ | `F202-quickadd.png` ok, chip row scrolls |
 | Manage | — | `L04-manage.png` ok | — |
