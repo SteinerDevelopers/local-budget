@@ -278,38 +278,49 @@ void main() {
   });
 
   group('back up now (§7)', () {
-    testWidgets('passphrase twice, then an LZBK1 file to the user’s save target', (
-      tester,
-    ) async {
-      final r = await liveDb();
-      final io = FakeIo();
-      try {
-        await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, io: io);
+    testWidgets(
+      'passphrase twice, then an LZBK1 file to the user’s save target',
+      (tester) async {
+        final r = await liveDb();
+        final io = FakeIo();
+        try {
+          await pumpManage(
+            tester,
+            repo: r.repo,
+            db: r.db,
+            docs: r.docs,
+            io: io,
+          );
 
-        await tapRow(tester, 'back-up');
-        await tester.pumpAndSettle();
-        expect(
-          find.text('Choose a passphrase for this backup'),
-          findsOneWidget,
-        );
-        await enterPassphrase(tester, 'right horse battery', withConfirm: true);
+          await tapRow(tester, 'back-up');
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Choose a passphrase for this backup'),
+            findsOneWidget,
+          );
+          await enterPassphrase(
+            tester,
+            'right horse battery',
+            withConfirm: true,
+          );
 
-        // #50/C4: the bytes go to the OS save dialog the user commands —
-        // never silently to a cache behind a share sheet.
-        expect(io.saved, hasLength(1));
-        final (bytes, name, title) = io.saved.single;
-        expect(title, 'Save your backup');
-        expect(name, matches(r'^localbudget-backup-\d{4}-\d{2}-\d{2}\.lzb$'));
-        expect(utf8.decode(bytes.sublist(0, 5)), 'LZBK1');
-        expect(io.shared, isEmpty);
-        expect(
-          find.textContaining('Saved $name to the location you picked'),
-          findsOneWidget,
-        );
-      } finally {
-        await tearDownDb(r);
-      }
-    });
+          // #50/C4: the bytes go to the OS save dialog the user commands —
+          // never silently to a cache behind a share sheet.
+          expect(io.saved, hasLength(1));
+          final (bytes, name, title) = io.saved.single;
+          expect(title, 'Save your backup');
+          expect(name, matches(r'^localbudget-backup-\d{4}-\d{2}-\d{2}\.lzb$'));
+          expect(utf8.decode(bytes.sublist(0, 5)), 'LZBK1');
+          expect(io.shared, isEmpty);
+          expect(
+            find.textContaining('Saved $name to the location you picked'),
+            findsOneWidget,
+          );
+        } finally {
+          await tearDownDb(r);
+        }
+      },
+    );
 
     testWidgets('a cancelled save dialog says nothing was saved', (
       tester,
@@ -498,7 +509,9 @@ void main() {
     });
   });
 
-  testWidgets('the Live FX toggle persists its off state (§6)', (tester) async {
+  testWidgets('the Live FX toggle starts off and persists its state (§6)', (
+    tester,
+  ) async {
     final r = await liveDb();
     final fx = FxService(
       r.db,
@@ -508,20 +521,20 @@ void main() {
       await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
       // Pro adds paid-pack rows above; mount the tile before reading it.
       await revealRow(tester, 'live-fx');
-      // Default is on (§6), so a tap means off.
+      // Default is off (opt-in, owner ruling 2026-11-11), so a tap means on.
       expect(
         tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
-        isTrue,
+        isFalse,
       );
       await tapRow(tester, 'live-fx');
       await tester.pumpAndSettle();
-      expect(await r.repo.setting(FxService.settingLiveFxRates), 'off');
+      expect(await r.repo.setting(FxService.settingLiveFxRates), 'on');
 
       await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
       await revealRow(tester, 'live-fx');
       expect(
         tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
-        isFalse,
+        isTrue,
       );
     } finally {
       await tearDownDb(r);
@@ -885,6 +898,7 @@ void main() {
           );
         }),
       );
+      await fx.setLiveRatesEnabled(true); // opt-in arms the fetch (§6)
       try {
         await tester.pumpWidget(
           LocalBudgetApp(repository: r.repo, db: r.db, fx: fx),

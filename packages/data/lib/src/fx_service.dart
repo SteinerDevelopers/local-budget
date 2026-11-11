@@ -9,7 +9,8 @@ import 'ledger_repository.dart';
 
 /// E5 §6 — the one network touch in the app, and its offline twin.
 ///
-/// Live FX rates are a per-device toggle (default **on**); turning it off
+/// Live FX rates are a per-device toggle (default **off** — installs inert
+/// until the user opts in, owner ruling 2026-11-11); turning it off
 /// collapses the app to pure offline behaviour without touching the
 /// ledger. Rates come from frankfurter.dev (ECB reference rates, no key);
 /// the request carries nothing but the two ISO codes. Responses are
@@ -29,7 +30,9 @@ class FxService {
        _ownsClient = client == null,
        _budget = budget;
 
-  /// Manage-screen toggle (E5 §6); absent row means ON — the default.
+  /// Manage-screen toggle (E5 §6); absent row means OFF — the opt-in
+  /// default (owner ruling 2026-11-11: nothing reaches the network that
+  /// the user has not explicitly switched on).
   /// Named without the `fx.` cache prefix so the daily purge can't eat it.
   static const settingLiveFxRates = 'live_fx_rates';
 
@@ -57,7 +60,7 @@ class FxService {
   }
 
   Future<bool> liveRatesEnabled() async =>
-      await _repo.setting(settingLiveFxRates) != 'off';
+      await _repo.setting(settingLiveFxRates) == 'on';
 
   Future<void> setLiveRatesEnabled(bool enabled) =>
       _repo.setSetting(settingLiveFxRates, enabled ? 'on' : 'off');

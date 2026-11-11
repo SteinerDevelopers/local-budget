@@ -46,7 +46,8 @@ class ManageScreen extends StatefulWidget {
 
   final LedgerRepository repository;
 
-  /// E5 §6: hosts the *Live FX rates* toggle (default-on, per-device).
+  /// E5 §6: hosts the *Live FX rates* toggle (default-off, per-device;
+  /// opt-in per owner ruling 2026-11-11).
   final FxService? fx;
 
   /// E5 §7: boot-time integrity report; null or unset ⇒ no banner, ever.
