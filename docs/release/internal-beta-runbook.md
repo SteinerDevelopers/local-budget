@@ -101,6 +101,12 @@ Play App Signing does not rotate on transfer).
 - [ ] Pro products created here, first time; then closed testing →
       production (organization accounts are exempt from the personal
       12×14 gate).
+- [ ] Financial features declaration (Policy and programs > App content):
+      declare **Other — offline personal money management**; no licenses
+      or docs are triggered by anything we offer. Full determination and
+      source quotes: `financial-declaration-determination.md` (#54).
+      Re-read the Console screen at filing; verify the declaration
+      migrated intact after the account transfer.
 
 ## Abort / hold notes
 

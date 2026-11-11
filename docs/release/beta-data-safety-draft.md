@@ -1,5 +1,9 @@
 # Beta data-safety + privacy DRAFT (grounded, not published)
 
+_See also `financial-declaration-determination.md` — the #54 financial-
+features declaration determination (declare "Other: offline money
+management"; no license docs triggered)._
+
 _DRAFT — no sentence here is a published promise until the owner approves
 it (Law 4: promise sentences are owner-only). Every answer below is
 backed by instrumented code state with a pointer, per the measurement
