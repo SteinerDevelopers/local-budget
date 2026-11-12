@@ -77,6 +77,7 @@ keep (shipping-ceremony law). Full texts: playbook
 |---|---|
 | sandbox paths, env, toolchain facts | `docs/environment.md` |
 | run an issue chain, milestone, verdict, kit delivery | `docs/process.md` |
+| stage a decision for the owner or rule on one (rollup, default-on-silence, queues) | `docs/decision-economy.md` |
 | produce or refresh an outward-facing artifact (deck, submission, kit, store copy) | `docs/version-discipline.md` |
 | harness/tool quirks (adb, artifacts, sandbox, git) | `docs/agent-tooling.md` |
 | change CI, pipelines, signing, delivery jobs | `docs/ci-cd.md`, `docs/adoption.md` |
