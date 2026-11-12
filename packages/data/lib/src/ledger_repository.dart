@@ -792,28 +792,42 @@ extension LedgerE1 on LedgerRepository {
           // balance strip sums these rows, so it is excluded there too.
           ..where(tx.goalId.isNull())
           ..orderBy([OrderingTerm.desc(tx.dateDays), OrderingTerm.desc(tx.id)]);
+    // Bench ruling-B (2026-11-12): the SHEET tail is build-side (FrameTiming
+    // split: verge br99=92 ms vs rr99=25 ms at n=460; the same work costs the
+    // tablet 25 ms — a CPU-speed ratio, not a GPU one). The dominant cost is
+    // this map re-running for the WHOLE month on every write: per row it paid
+    // eight readTable lookups and two DateTime rebuilds. One hoisted read and
+    // one memoized day conversion; semantics identical.
+    final dayMemo = <int, DateTime>{};
     return q.watch().map(
       (rows) => [
         for (final row in rows)
-          LedgerEntryData(
-            id: row.readTable(tx).id,
-            // Epoch days are calendar days: rebuild local wall-clock so day
-            // headers never shift across time zones (negative offsets!).
-            day: _localDay(dateFromEpochDay(row.readTable(tx).dateDays)),
-            amountMinor: row.readTable(tx).amountMinor,
-            currencyCode: row.readTable(tx).currencyCode,
-            baseAmountMinor: row.readTable(tx).baseAmountMinor,
-            fxRate: row.readTable(tx).fxRate,
-            isIncome: row.readTable(tx).isIncome,
-            categoryId: row.readTable(tx).categoryId,
-            // Outer-joined: null category must not throw.
-            categoryName: row.read(db.categories.name),
-            categoryIcon: row.read(db.categories.icon),
-            // Outer-joined, same rule: a row without a merchant is normal.
-            merchant: row.read(db.merchants.name),
-            note: row.readTable(tx).note,
-            imageRef: row.readTable(tx).imageRef,
-          ),
+          () {
+            final t = row.readTable(tx);  // one lookup, not eight
+            return LedgerEntryData(
+              id: t.id,
+              // Epoch days are calendar days: rebuild local wall-clock so day
+              // headers never shift across time zones (negative offsets!).
+              // A month spans at most 31 distinct days — memoize the pair.
+              day: dayMemo.putIfAbsent(
+                t.dateDays,
+                () => _localDay(dateFromEpochDay(t.dateDays)),
+              ),
+              amountMinor: t.amountMinor,
+              currencyCode: t.currencyCode,
+              baseAmountMinor: t.baseAmountMinor,
+              fxRate: t.fxRate,
+              isIncome: t.isIncome,
+              categoryId: t.categoryId,
+              // Outer-joined: null category must not throw.
+              categoryName: row.read(db.categories.name),
+              categoryIcon: row.read(db.categories.icon),
+              // Outer-joined, same rule: a row without a merchant is normal.
+              merchant: row.read(db.merchants.name),
+              note: t.note,
+              imageRef: t.imageRef,
+            );
+          }(),
       ],
     );
   }
