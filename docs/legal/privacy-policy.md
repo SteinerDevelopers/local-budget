@@ -1,7 +1,7 @@
 # Privacy policy — Steiner Budget
 
 _Covered app: Steiner Budget (and Steiner Budget Pro), Android.
-Version 1.0 — 2026-11-03._
+Version 1.1 — 2026-11-12 (uninstall scope; WebDAV-only destination — Drive is a planned follow-up, not a promise; wording now matches the live site and store copy verbatim in substance)._
 
 ## The short version
 
@@ -9,7 +9,7 @@ Version 1.0 — 2026-11-03._
 server of ours, no analytics, no advertising SDK, no tracking. Your
 transactions, balances, categories and receipt images are stored only
 in the app's private storage on your device. Uninstalling the app
-removes every byte it ever stored. If this policy ever reads
+removes every byte it wrote on your device (your own backups stay where you put them — they are yours, on storage you control). If this policy ever reads
 differently than the app does, the app is wrong and we want to hear
 about it.
 
@@ -34,7 +34,7 @@ about it.
    data — only which currency pair you asked about. Turn it off and
    entries simply use the manual rate you give them.
 2. **Pro cloud backup — to your storage, not ours.** If you buy Pro
-   and configure your own WebDAV/Drive destination, the app uploads
+   and configure your own WebDAV destination, the app uploads
    an **encrypted** snapshot of your ledger to the server **you**
    host or rent, encrypted with a passphrase **you** choose. We have
    no access to that server, and the encryption is real: a lost
