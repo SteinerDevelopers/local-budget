@@ -100,3 +100,17 @@ dart run tool/benchmark.dart --corpus corpus --backend gold \
 - Not a sandbox CI gate (needs corpus-sized disk + no value without devices);
   on the KVM runner the sidecar backend is the device OCR gate.
 
+
+
+## Kit builds (integration-test APK trios)
+
+    source tools/env.sh                      # JAVA_HOME, flutter, adb PATH
+    export ANDROID_HOME=<sdk> HOME=<tools/home>
+    flutter build apk --profile --flavor free -t integration_test/<x>_test.dart
+
+Hardening (stale-artifact incident 2026-11-12, #55 note): wipe
+build/app/outputs/flutter-apk BEFORE and AFTER each build; copy with &&
+so a failed build can never harvest leftovers; record md5+timestamp per
+apk into KIT-IDENTITY.txt. Device perfetto is old-gen: trace configs
+must use nested `data_sources { config { ... } }` TRACE_CONFIG format,
+not the colon text format (probe.sh carries the working example).
