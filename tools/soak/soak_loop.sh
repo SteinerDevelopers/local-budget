@@ -29,7 +29,7 @@ HOURS=${1:-72}
 GAP=${2:-1800}
 END=$(( $(date +%s) + HOURS * 3600 ))
 mkdir -p "$OUT/logs"
-DEVS=("192.168.1.123:33725|tablet" "192.168.1.226:33051|verge")  # 2026-11-11 re-pair (TLS): owners toggled wireless debugging; ports below are the post-pair listeners
+DEVS=("192.168.1.123:5555|tablet" "192.168.1.226:5555|verge")  # 2026-11-11T19:3xZ fixed-port 5555 (laptop keeper runs adb tcpip 5555 on wave) — no more ephemeral-port roulette
 
 jline() { # $1 dev  $2 payload-without-ts/dev
   printf '{"ts":"%s","dev":"%s"%s}\n' "$(date -u +%FT%TZ)" "$1" "$2" \
@@ -49,13 +49,13 @@ resolve() { # serial dev -> live serial on stdout; port rotation since
   # device that is unreachable OR un-pairable counts as down.
   local s=$1 d=$2 ip=${1%%:*} p
   dev_live "$s" && { echo "$s"; return 0; }
-  adb connect "$s" >/dev/null 2>&1 && dev_live "$s" && { echo "$s"; return 0; }
+  timeout 20 adb connect "$s" >/dev/null 2>&1 && dev_live "$s" && { echo "$s"; return 0; }
   ping -c1 -W2 "$ip" >/dev/null 2>&1 \
     || { jline "$d" ',"event":"device-down"'; return 1; }
   for p in $(seq 32768 61000 | xargs -P 300 -I{} \
       sh -c "timeout 0.4 bash -c \"echo >/dev/tcp/$ip/{}\" 2>/dev/null && echo {}" \
       2>/dev/null | sort -n); do
-    adb connect "$ip:$p" >/dev/null 2>&1
+    timeout 20 adb connect "$ip:$p" >/dev/null 2>&1
     if [ "$(adb -s "$ip:$p" get-state 2>/dev/null | tr -d '\r')" = device ]; then
       [ "$ip:$p" != "$s" ] \
         && jline "$d" ",\"event\":\"serial-rotated\",\"from\":\"$s\",\"to\":\"$ip:$p\""
