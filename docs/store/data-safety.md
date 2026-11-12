@@ -27,17 +27,18 @@ Play Console Data Safety form._
   collected." (Feasibility §3.1 zero-data stance; matches the
   pre-filled form in `docs/store/listing.md`.)
 
-> **Release blocker found while writing this (2026-11-05):** the
-> release manifest does **not** declare `INTERNET` — it only appears in
-> debug kits via `src/debug/AndroidManifest.xml`. Today the FX rate
-> fetch and WebDAV sync are user-initiated features whose code ships in
-> release; without `INTERNET` they would fail (gracefully — FxService
-> swallows socket errors — but silently, which is worse). The E9
-> release prep must add `<uses-permission android:name=
-> "android.permission.INTERNET"/>` to `src/main/AndroidManifest.xml`
-> with a purpose comment, and re-run this audit. (Alternative — strip
-> the features from release — contradicts decisions 7/9; not on the
-> table.) This document is the record of why the permission exists.
+> **Release blocker (2026-11-05) — RESOLVED 2026-11-12, owner ruling D.**
+> The concern was real: release shipped FX-fetch and WebDAV-sync code
+> while `INTERNET` lived only in the debug overlay. The fix that
+> actually shipped (V-D26) is stronger than the one this note proposed:
+> `src/main` still carries **no** INTERNET; `src/free/AndroidManifest.xml`
+> declares `tools:node="remove"` so the FREE artifact provably cannot
+> gain it at merge time, and `src/pro` declares it explicitly with its
+> purpose comment. The earlier "add to main" recipe would have given the
+> free flavor a permission we promise it doesn't have — kept retired
+> here as the record. Owner ruling D (2026-11-12: "fix before Sunday")
+> is satisfied by this doc-to-reality sync; no manifest change needed,
+> re-run the verification recipe below against both release artifacts.
 
 ## Permissions actually held (merged manifest, free + pro debug, dcf8c39)
 
@@ -49,11 +50,11 @@ Requested at install/runtime by the app or a library it links:
 | `RECEIVE_BOOT_COMPLETED` | `workmanager` | Re-schedules the daily bill-materialization tick after a reboot so reminders survive restarts. No data read at boot. |
 | `WAKE_LOCK` | `workmanager` | Lets the scheduled day-tick finish when the device is idle. |
 | `FOREGROUND_SERVICE` (+`SHORT_SERVICE`) | `workmanager` | Keeps the day-tick alive long enough to complete on low-RAM devices. |
-| `ACCESS_NETWORK_STATE` | plugins (workmanager/billing probes) | State check only; the app itself never transacts on the network in release. |
+| `ACCESS_NETWORK_STATE` | plugins (workmanager/billing probes) | State check only; the app opens no connections by itself — every connection in release is user-initiated (FX rate, Pro backup; see the INTERNET row below). |
 | `VIBRATE` | Flutter framework default | Haptic tick on save/correction/error (§4.5 acceptance). |
 | `com.android.vending.BILLING` | billing plugin (compiled into both flavors; purchase UI only live in pro) | One-time unlock purchase + tips via Play Billing. Purchase tokens go to Play, nothing else. |
 | `com.google.android.gms.version`, `com.google.android.aicore` | `google_mlkit_text_recognition` / `google_mlkit_document_scanner` | Bind to on-device Google services: OCR and the document scanner run **on-device** in Google's own Vision/AI runtime; the image never leaves the phone and is not stored by the scanner. |
-| `INTERNET` | **debug/profile overlay today; must move to `main` at release prep** (see blocker above) | User-initiated FX rate lookup + Pro WebDAV backup to the user's own server. Never used by a background job. |
+| `INTERNET` | `src/pro` only (explicit, purpose comment); `src/free` removes it at merge (`tools:node="remove"`, V-D26); debug/profile overlays for dev tooling | User-initiated FX rate lookup + Pro WebDAV backup to the user's own server. Never a background job. Free artifact cannot ship with it. |
 
 Notably **absent**: `CAMERA`, `READ_MEDIA_*`/storage, `ACCESS_FINE_LOCATION`,
 any ad or analytics SDK permission. The scanner does not request CAMERA

@@ -15,9 +15,9 @@ approximated. `<…>` marks owner decisions to fill before publishing._
 
 ## Short description (80 max)
 
-> Budget by hand, keep every receipt — your data never leaves your phone.
+> Budget by hand, keep every receipt — nothing leaves unless you send it.
 
-(73 chars. Leads with the two things we are actually best at: honest
+(71 chars. Custody wording — the old absolute read "your data never leaves your phone," which two bullets of the same description (your-cloud backup, your WebDAV) disprove; same fix class as the live-site rewrite, site MR history 2026-11-12. Leads with the two things we are actually best at: honest
 manual capture with proof attached, and literal local-only storage.)
 
 ## Full description (Play, 4000 max)
@@ -25,8 +25,8 @@ manual capture with proof attached, and literal local-only storage.)
 > Most budgeting apps want your bank login, your cloud, or your
 > attention. Steiner Budget wants nothing. You type what you spent —
 > or photograph the receipt and tap the numbers it found — and it all
-> stays on your phone. No account. No analytics. No ads. Uninstalling
-> removes every byte.
+> stays on your phone — unless you send it somewhere yourself. No account. No analytics. No ads. Uninstalling
+> removes every byte the app wrote (your own backups stay where you put them — they're yours).
 >
 > **Capture that respects your time**
 > · Quick-add a coffee in four taps, keypad first like a calculator
