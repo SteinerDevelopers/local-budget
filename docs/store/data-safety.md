@@ -49,7 +49,7 @@ Requested at install/runtime by the app or a library it links:
 | `RECEIVE_BOOT_COMPLETED` | `workmanager` | Re-schedules the daily bill-materialization tick after a reboot so reminders survive restarts. No data read at boot. |
 | `WAKE_LOCK` | `workmanager` | Lets the scheduled day-tick finish when the device is idle. |
 | `FOREGROUND_SERVICE` (+`SHORT_SERVICE`) | `workmanager` | Keeps the day-tick alive long enough to complete on low-RAM devices. |
-| `ACCESS_NETWORK_STATE` | plugins (workmanager/billing probes) | State check only; the app itself never transacts on the network in release. |
+| `ACCESS_NETWORK_STATE` | plugins (workmanager/billing probes) | State check only; the app opens no connections by itself — every connection in release is user-initiated (FX rate, Pro backup; see the INTERNET row below). |
 | `VIBRATE` | Flutter framework default | Haptic tick on save/correction/error (§4.5 acceptance). |
 | `com.android.vending.BILLING` | billing plugin (compiled into both flavors; purchase UI only live in pro) | One-time unlock purchase + tips via Play Billing. Purchase tokens go to Play, nothing else. |
 | `com.google.android.gms.version`, `com.google.android.aicore` | `google_mlkit_text_recognition` / `google_mlkit_document_scanner` | Bind to on-device Google services: OCR and the document scanner run **on-device** in Google's own Vision/AI runtime; the image never leaves the phone and is not stored by the scanner. |
