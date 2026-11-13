@@ -803,7 +803,7 @@ extension LedgerE1 on LedgerRepository {
       (rows) => [
         for (final row in rows)
           () {
-            final t = row.readTable(tx);  // one lookup, not eight
+            final t = row.readTable(tx); // one lookup, not eight
             return LedgerEntryData(
               id: t.id,
               // Epoch days are calendar days: rebuild local wall-clock so day
