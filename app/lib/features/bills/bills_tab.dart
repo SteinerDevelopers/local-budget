@@ -30,6 +30,7 @@ import '../../design/tokens.dart';
 import '../capture/capture_intake.dart';
 import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
+import '../capture/scanner_consent.dart';
 import '../manage/icon_registry.dart';
 import 'bill_detail_sheet.dart';
 import 'bill_editor_sheet.dart';
@@ -230,6 +231,15 @@ class _AddFromDocumentButtonState extends State<_AddFromDocumentButton> {
     );
     if (choice == null || choice == CaptureChoice.screenshot || !mounted) {
       return;
+    }
+    if (choice == CaptureChoice.camera) {
+      // #56: same consent gate as the receipt flow — one answer, app-wide.
+      await gateScannerConsent(
+        context,
+        widget.capture.intake,
+        read: () => widget.repository.setting(kScannerConsentKey),
+        write: (v) => widget.repository.setSetting(kScannerConsentKey, v),
+      );
     }
     CapturePick? pick;
     try {

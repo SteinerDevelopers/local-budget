@@ -28,6 +28,7 @@ import '../bills/bill_editor_sheet.dart';
 import '../capture/capture_intake.dart';
 import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
+import '../capture/scanner_consent.dart';
 import '../manage/io.dart';
 
 /// What the wizard is importing (E5 §4; E11 §5 adds documents). The three
@@ -266,6 +267,15 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
     );
     if (choice == null || choice == CaptureChoice.screenshot || !mounted) {
       return;
+    }
+    if (choice == CaptureChoice.camera) {
+      // #56: same consent gate as the receipt flow — one answer, app-wide.
+      await gateScannerConsent(
+        context,
+        capture.intake,
+        read: () => widget.repository.setting(kScannerConsentKey),
+        write: (v) => widget.repository.setSetting(kScannerConsentKey, v),
+      );
     }
     CapturePick? pick;
     try {

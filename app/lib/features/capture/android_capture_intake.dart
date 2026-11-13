@@ -50,6 +50,12 @@ class AndroidCaptureIntake implements CaptureIntake {
   @override
   bool get hasScreenshotRow => _screenshot != null;
 
+  /// #56 consent gate: set before every pick by `gateScannerConsent`; false
+  /// skips the GMS scanner entirely (its first use may download Google's
+  /// module) and opens the plain camera directly.
+  @override
+  bool allowScanner = true;
+
   Future<void> _probeScreenshot() async {
     try {
       _screenshot = await _channel.invokeMethod<Uint8List>('latestScreenshot');
@@ -70,27 +76,31 @@ class AndroidCaptureIntake implements CaptureIntake {
   /// missing, old device) or cancelled, the plain camera takes over --
   /// "still one image out". Multi-page scans keep page 1: the receipt face.
   Future<CapturePick?> _camera() async {
-    try {
-      final scanner = DocumentScanner(
-        options: DocumentScannerOptions(
-          documentFormats: const {DocumentFormat.jpeg},
-          pageLimit: 1,
-        ),
-      );
-      final result = await scanner.scanDocument();
-      final images = result.images;
-      final path = (images == null || images.isEmpty) ? null : images.first;
-      if (path != null) {
-        return CapturePick(
-          bytes: await File(path).readAsBytes(),
-          choice: CaptureChoice.camera,
+    // #56: a declined consent skips the scanner construction entirely —
+    // instantiating it is what may trigger Google's module download.
+    if (allowScanner) {
+      try {
+        final scanner = DocumentScanner(
+          options: DocumentScannerOptions(
+            documentFormats: const {DocumentFormat.jpeg},
+            pageLimit: 1,
+          ),
         );
+        final result = await scanner.scanDocument();
+        final images = result.images;
+        final path = (images == null || images.isEmpty) ? null : images.first;
+        if (path != null) {
+          return CapturePick(
+            bytes: await File(path).readAsBytes(),
+            choice: CaptureChoice.camera,
+          );
+        }
+        // A null/empty result means the user cancelled the scanner; section
+        // 2.2's fallback chain continues into the plain camera rather than
+        // dead-ending.
+      } catch (_) {
+        // PlatformException / MissingPluginException -- scanner unavailable.
       }
-      // A null/empty result means the user cancelled the scanner; section
-      // 2.2's fallback chain continues into the plain camera rather than
-      // dead-ending.
-    } catch (_) {
-      // PlatformException / MissingPluginException -- scanner unavailable.
     }
     return _image(ImageSource.camera, CaptureChoice.camera);
   }

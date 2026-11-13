@@ -70,6 +70,8 @@ final Uint8List _png = base64Decode(
 
 class _GoldIntake implements CaptureIntake {
   @override
+  bool allowScanner = true;
+  @override
   bool get hasScreenshotRow => true;
   @override
   Future<CapturePick?> pick(CaptureChoice choice) async =>
@@ -369,6 +371,12 @@ void main() {
           await tester.tap(find.byKey(const ValueKey('receipt-add-document')));
           await tester.pumpAndSettle();
           await tester.tap(find.byKey(const Key('capture-camera')));
+          await tester.pumpAndSettle();
+          // §6.1 (issue #56): a first camera pick now meets the scanner
+          // consent dialog. Accept "photo only" — the frame under test stays
+          // the review sheet, and the tap itself is the E5 §6 proof that the
+          // dialog sits between the pick and any network-bearing scanner.
+          await tester.tap(find.byKey(const Key('scanner-consent-photo')));
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(BottomSheet),

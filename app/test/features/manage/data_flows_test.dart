@@ -80,6 +80,8 @@ class FakeIo implements Io {
 /// is faked — routing, parsing, preview and commit are the real path.
 class DocIntake implements CaptureIntake {
   @override
+  bool allowScanner = true;
+  @override
   bool get hasScreenshotRow => false;
 
   @override
@@ -134,6 +136,7 @@ void main() {
     final db = AppDatabase.openFile('${docs.path}/localbudget.sqlite');
     final repo = LedgerRepository(db);
     await repo.ensureDefaults();
+    await repo.setSetting('scannerConsent', 'fast'); // #56 gate: seeded answer
     return (db: db, docs: docs, repo: repo);
   }
 
@@ -1021,6 +1024,7 @@ void main() {
     final db = AppDatabase.inMemory();
     final repo = LedgerRepository(db);
     await repo.ensureDefaults();
+    await repo.setSetting('scannerConsent', 'fast'); // #56 gate: seeded answer
     try {
       await pumpManage(tester, repo: repo);
       for (final (key, what) in [

@@ -53,6 +53,8 @@ class _FakeExtractor implements TextExtractor {
 }
 
 class _FakeIntake implements CaptureIntake {
+  @override
+  bool allowScanner = true;
   _FakeIntake({this.cancel = false, this.showScreenshot = true});
   final bool cancel;
   final bool showScreenshot;
@@ -129,11 +131,16 @@ void main() {
 
   Future<({AppDatabase db, LedgerRepository repo})> pumpCapture(
     WidgetTester tester,
-    CaptureServices capture,
-  ) async {
+    CaptureServices capture, {
+    // #56: camera now gates on scanner consent; flows seed the answer so
+    // each test tests its own subject. `consent: null` leaves the gate
+    // unasked — only the consent test itself does that.
+    String? consent = 'fast',
+  }) async {
     final db = AppDatabase.inMemory();
     final repo = LedgerRepository(db);
     await repo.ensureDefaults();
+    if (consent != null) await repo.setSetting('scannerConsent', consent);
     await tester.pumpWidget(LocalBudgetApp(repository: repo, capture: capture));
     await tester.pumpAndSettle();
     return (db: db, repo: repo);
@@ -545,5 +552,45 @@ void main() {
         await ctx2.db.close();
       }
     });
+  });
+
+  testWidgets('camera asks scanner consent once, then never again (#56)', (
+    tester,
+  ) async {
+    final capture = services();
+    final pump = await pumpCapture(tester, capture, consent: null);
+    try {
+      await openSourceSheet(tester);
+      await tester.tap(find.byKey(const Key('capture-camera')));
+      await tester.pumpAndSettle();
+      // The gate stands between the camera row and Review — owner-approved
+      // words, decline rung truthfully capable of reading the receipt.
+      expect(
+        find.text('Fast scanning uses Google\u2019s scanner'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('still reads the text on your device'),
+        findsOne,
+      );
+      await tester.tap(find.byKey(const Key('scanner-consent-fast')));
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureReviewSheet), findsOneWidget);
+      expect(await pump.repo.setting('scannerConsent'), 'fast');
+      // Second camera trip: remembered, no dialog. Exit via Discard — the
+      // sheet's own clean teardown.
+      await tester.tap(find.widgetWithText(TextButton, 'Discard'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('receipt-add-document')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('capture-camera')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('scanner-consent-fast')), findsNothing);
+      expect(find.byType(CaptureReviewSheet), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Discard'));
+      await tester.pumpAndSettle();
+    } finally {
+      await pump.db.close();
+    }
   });
 }
