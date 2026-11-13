@@ -83,5 +83,13 @@ abstract interface class CaptureIntake {
   /// dead-end tap.
   bool get hasScreenshotRow => false;
 
+  /// Scanner consent (#56, owner ruling 2026-11-13): false means the user
+  /// declined Google's scanner module — the camera choice falls straight to
+  /// the plain-camera rung (bundled OCR still runs; decline is never a
+  /// promise of manual typing). The gate that sets it lives in
+  /// `scanner_consent.dart`; fakes just carry the field.
+  bool get allowScanner => true;
+  set allowScanner(bool value);
+
   Future<CapturePick?> pick(CaptureChoice choice);
 }

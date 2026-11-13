@@ -32,6 +32,7 @@ import '../budgets/home_panel.dart';
 import '../capture/capture_intake.dart';
 import '../capture/capture_services.dart';
 import '../capture/capture_source_sheet.dart';
+import '../capture/scanner_consent.dart';
 import '../capture/review_sheet.dart';
 import 'package:local_budget/features/cloud/cloud_hub.dart';
 import '../help/help_screen.dart';
@@ -442,6 +443,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
       showScreenshotRow: services.intake.hasScreenshotRow,
     );
     if (choice == null || !mounted) return;
+    if (choice == CaptureChoice.camera) {
+      // #56: the scanner module is asked about once, never assumed.
+      await gateScannerConsent(
+        context,
+        services.intake,
+        read: () => widget.repository.setting(kScannerConsentKey),
+        write: (v) => widget.repository.setSetting(kScannerConsentKey, v),
+      );
+    }
     CapturePick? pick;
     try {
       pick = await services.intake.pick(choice);

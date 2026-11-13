@@ -37,6 +37,8 @@ import 'package:sqlite3/open.dart' as sqlite3_open;
 
 class _DocIntake implements CaptureIntake {
   @override
+  bool allowScanner = true;
+  @override
   bool get hasScreenshotRow => false;
 
   @override
@@ -83,6 +85,7 @@ void main() {
     final db = AppDatabase.openFile('${docs.path}/localbudget.sqlite');
     final repo = LedgerRepository(db);
     await repo.ensureDefaults();
+    await repo.setSetting('scannerConsent', 'fast'); // #56 gate: seeded answer
 
     await tester.pumpWidget(
       LocalBudgetApp(

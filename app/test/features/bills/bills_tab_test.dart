@@ -447,6 +447,8 @@ DateTime _addDays(DateTime d, int n) => DateTime(d.year, d.month, d.day + n);
 /// out — routing and drafting are the real path.
 class DocIntake implements CaptureIntake {
   @override
+  bool allowScanner = true;
+  @override
   bool get hasScreenshotRow => false;
 
   @override

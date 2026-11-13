@@ -67,6 +67,8 @@ class _FakeExtractor implements TextExtractor {
 }
 
 class _FakeIntake implements CaptureIntake {
+  @override
+  bool allowScanner = true;
   _FakeIntake({this.showScreenshot = true});
   final bool showScreenshot;
   @override
@@ -99,6 +101,7 @@ void main() {
     final db = AppDatabase.inMemory();
     final repo = LedgerRepository(db);
     await repo.ensureDefaults();
+    await repo.setSetting('scannerConsent', 'fast'); // #56 gate: seeded answer
     await tester.pumpWidget(
       LocalBudgetApp(
         repository: repo,
