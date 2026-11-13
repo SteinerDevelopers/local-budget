@@ -59,7 +59,14 @@ class ManageScreen extends StatefulWidget {
     this.transfer,
     this.cloud,
     this.kdfIterations = backupDefaultKdfIterations,
+    // E5 §6 x V-D26: the live-rates promise is only honest where a network
+    // exists — the free release provably has none, so it must not offer a
+    // toggle that could never fetch (owner ruling 2026-11-13). Build-time
+    // default; the seam lets both flavors' renders be tested.
+    this.liveFxVisible = FeatureFlags.proTrio,
   });
+
+  final bool liveFxVisible;
 
   final LedgerRepository repository;
 
@@ -324,7 +331,7 @@ class _ManageScreenState extends State<ManageScreen> {
             subtitle: const Text('CSV or OFX from your bank'),
             onTap: _importStatement,
           ),
-          if (widget.fx != null)
+          if (widget.fx != null && widget.liveFxVisible)
             SwitchListTile(
               key: const Key('live-fx'),
               secondary: const Icon(Icons.currency_exchange),

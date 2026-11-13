@@ -152,6 +152,7 @@ void main() {
     Io? io,
     CaptureServices? capture,
     FxService? fx,
+    bool liveFxVisible = false,
     Future<void> Function(Backup backup)? restore,
   }) async {
     await tester.pumpWidget(
@@ -163,6 +164,7 @@ void main() {
           io: io ?? FakeIo(),
           capture: capture,
           fx: fx,
+          liveFxVisible: liveFxVisible,
           restore: restore,
           kdfIterations: 1000,
         ),
@@ -535,7 +537,14 @@ void main() {
       client: MockClient((_) async => http.Response('no', 500)),
     );
     try {
-      await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
+      await pumpManage(
+        tester,
+        repo: r.repo,
+        db: r.db,
+        docs: r.docs,
+        fx: fx,
+        liveFxVisible: true,
+      );
       // Pro adds paid-pack rows above; mount the tile before reading it.
       await revealRow(tester, 'live-fx');
       // Default is off (opt-in, owner ruling 2026-11-11): a tap asks
@@ -571,7 +580,14 @@ void main() {
         isTrue,
       );
 
-      await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
+      await pumpManage(
+        tester,
+        repo: r.repo,
+        db: r.db,
+        docs: r.docs,
+        fx: fx,
+        liveFxVisible: true,
+      );
       await revealRow(tester, 'live-fx');
       expect(
         tester.widget<SwitchListTile>(find.byKey(const Key('live-fx'))).value,
@@ -1020,6 +1036,22 @@ void main() {
       }
     } finally {
       await db.close();
+    }
+  });
+
+  testWidgets('free builds do not offer a fetch they can never make (V-D26)', (
+    tester,
+  ) async {
+    final r = await liveDb();
+    final fx = FxService(r.db, client: MockClient((_) async => http.Response('no', 500)));
+    try {
+      await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
+      // Default liveFxVisible == FeatureFlags.proTrio == false in free
+      // builds: the service is still wired (offline twin, stored rates),
+      // but the toggle — and its promise — are not shown.
+      expect(find.byKey(const Key('live-fx')), findsNothing);
+    } finally {
+      await r.db.close();
     }
   });
 }
