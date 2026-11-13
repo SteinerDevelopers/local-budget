@@ -958,6 +958,11 @@ class _MonthPageState extends State<_MonthPage> {
   /// support/fully_drawn.dart); adjacent months must not double-report.
   bool _fullyDrawnReported = false;
 
+  // Perf C flatten cache (2026-11-13): source list identity + its derived
+  // day-flattening. See the memo in build for the identity rule.
+  List<LedgerEntryData> _flatSrc = const <LedgerEntryData>[];
+  List<Object>? _flatItems;
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<LedgerEntryData>>(
@@ -975,6 +980,14 @@ class _MonthPageState extends State<_MonthPage> {
           );
         }
         final rows = snapshot.data ?? const <LedgerEntryData>[];
+        // Perf C (2026-11-13): day-flattening is pure over the row list,
+        // and watchMonth re-emits the SAME list identity when a save lands
+        // in another month's page. Memo on identity so an unrelated write
+        // never pays the O(month) flatten again; a real change to this
+        // month's rows always arrives as a fresh list.
+        final items = _flatItems != null && identical(rows, _flatSrc)
+            ? _flatItems!
+            : (_flatItems = _flattenDays(_flatSrc = rows));
         return Column(
           children: [
             BalanceStrip(
@@ -986,7 +999,7 @@ class _MonthPageState extends State<_MonthPage> {
               child: rows.isEmpty
                   ? const EmptyMonth()
                   : _DayList(
-                      rows: rows,
+                      items: items,
                       baseCode: widget.currency.code,
                       onDelete: widget.onDelete,
                       onOpen: widget.onOpen,
@@ -1001,20 +1014,21 @@ class _MonthPageState extends State<_MonthPage> {
 
 class _DayList extends StatelessWidget {
   const _DayList({
-    required this.rows,
+    required this.items,
     required this.baseCode,
     required this.onDelete,
     required this.onOpen,
   });
 
-  final List<LedgerEntryData> rows;
+  /// Days and rows interleaved, newest first — computed once per row-list
+  /// identity by the page (perf C memo), not once per list build.
+  final List<Object> items;
   final String baseCode;
   final Future<void> Function(int id) onDelete;
   final void Function(LedgerEntryData row) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final items = _flattenDays(rows);
     // Owner standardization, 2026-11-05 (tester note): Receipts wears the
     // Bills list's hairline between rows so the two panels read as one
     // family. The line sits between two transactions only — a day header

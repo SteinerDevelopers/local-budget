@@ -38,6 +38,10 @@ class TransactionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final amountColor = tile.isExpense ? scheme.onSurface : scheme.primary;
+    // Perf C (2026-11-13): the amount string is needed twice per row frame
+    // (TalkBack label + visible Text). Format once per build instead of
+    // twice — same string, half the work.
+    final amountText = tile.amountDisplay();
 
     return Semantics(
       // TalkBack: ONE node, "Coffee, Lunch, 12 dollars 40 cents, Oct 29" (§5);
@@ -48,7 +52,7 @@ class TransactionRow extends StatelessWidget {
       label:
           '${tile.title}'
           '${tile.memo == null || tile.memo!.isEmpty ? '' : ', ${tile.memo}'}'
-          ', ${tile.amountDisplay()}, ${DayLabel.of(tile.day)}'
+          ', $amountText, ${DayLabel.of(tile.day)}'
           '${tile.missingRate ? ', no exchange rate' : ''}',
       child: SizedBox(
         // #48 (E3 audit, bench Flip6 2026-11-09): a hard 64 dp box overflowed
