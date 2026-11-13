@@ -42,8 +42,8 @@ Future<void> gateScannerConsent(
       content: const Text(
         'Fast scanning finds the receipt\u2019s edges for you; its first '
         'use may download Google\u2019s scanning component through Google '
-        'Play services. It runs on your device and nothing is sent to '
-        'Google.\n\n'
+        'Play services. It runs on your device \u2014 your photos are '
+        'never sent anywhere.\n\n'
         'Without it, take the photo yourself \u2014 the app still reads '
         'the text on your device.',
       ),
