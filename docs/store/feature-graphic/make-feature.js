@@ -1,3 +1,7 @@
+// v1 — SUPERSEDED for free flavor by make-feature-v2.js (decision-14 brand,
+// owner-approved 2026-11-13). KEPT because it remains the only generator for
+// the STALE -pro.png until the Pro differentiation ruling lands; do not use
+// its free output. The SHORT2 line below is the retired absolute wording.
 const sharp=require('/workspace/Workspace/tmp/svgwork/node_modules/sharp');
 const STEEL='#37474F',PAPER='#F4F1EA',DEEP='#263238',AMBER='#F9A825';
 const NAME='Steiner Budget';
