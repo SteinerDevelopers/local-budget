@@ -20,6 +20,14 @@ this page only says where the code stands before that gate._
 
 ## Process commitments
 
+- **License audits at the three checkpoints** (owner ruling 2026-11-13; law: agent-playbook
+  `docs/license-audit.md`): baseline before the first full APK test — **done 2026-11-13**
+  (138 third-party packages from resolved LICENSE files; permissive/file-weak only; the one
+  flag, `dbus`, closed empirically: MPL-2.0 file, zero bytes in the shipped APK); **pre-RC
+  delta** before any RC build leaves the sandbox (changed deps + re-scan of license files,
+  not labels); **release final gate** re-derives the table from the shipping artifact and
+  files it with the release record. No table, no RC; no table, no release.
+
 - **Usability gates at MVP and RC (5 testers each)** — MVP round done
   during E1–E3 dogfood; **RC round not scheduled** — needs the release
   build first (fastlane + signing exist only as scaffolding:
