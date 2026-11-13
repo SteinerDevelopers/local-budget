@@ -37,6 +37,8 @@ const AppFlavor appFlavor = appFlavorName == 'pro'
 
 abstract final class FeatureFlags {
   /// The decision-9 trio (cloud sync / widgets / insights): these features
-  /// ship *inside the Pro SKU* — this flag is a build fact, not an entitlement.
-  static bool get proTrio => appFlavor == AppFlavor.pro;
+  /// ship *inside the Pro SKU* — this flag is a build fact, not an
+  /// entitlement. Const so flavor-gated widgets can use it as a default
+  /// argument (E5 §6 live-FX tile, owner ruling 2026-11-13).
+  static const bool proTrio = appFlavor == AppFlavor.pro;
 }
