@@ -118,15 +118,19 @@ or e2e-junk is in frame; dark mode `<pick one and stay consistent>`.
 
 ## Feature graphic + icon
 
-- **Icon: FINAL** — Vault-house geometry + fat `$` coin (row-2 winner,
-  device-verified 260/420 dpi). Production assets:
-  `app/android/app/src/{main,pro}/res` (adaptive layers all densities);
-  decision trail in `docs/store/icon.md`.
-- **Feature graphic: APPROVED by owner 2026-11-06** (“I am good with the feature graphics”) —
-  `docs/store/feature-graphic-free.png` / `-pro.png` (1024×500 PNG,
-  ~40 KB, one amber on Pro, short description repeated at legible
-  size per spec). Generator: `docs/store/feature-graphic/make-feature.js`
-  (sharp + SVG, FONTCONFIG_FILE=`icon-candidates6/fonts.conf`).
+- **Icon (ships): decision 14 — “minted sprout”** (commit 39264f9, measurement
+  winner over 24 AI concepts + 8 hand candidates). Production assets:
+  `app/android/app/src/{main,pro}/res` (adaptive layers all densities, flavors
+  unified); Play 512 at `docs/brand/icon-play-512.png`. The vault-house era in
+  `docs/store/icon.md` is history, not spec.
+- **Feature graphic: v2 APPROVED by owner 2026-11-13** — `feature-graphic-free.png`
+  rebuilt on the decision-14 brand (tile = shipped `docs/brand/icon-play-512.png`,
+  echo = real foreground layer, copy = custody-correct short line). Generator:
+  `feature-graphic/make-feature-v2.js` (sharp, single SVG,
+  FONTCONFIG_FILE=`icon-candidates6/fonts.conf`). The old v1 (2026-11-06) carried
+  the out-generation house icon and the superseded “never leaves your phone”
+  absolute. `-pro.png` is STALE pending the Pro differentiation ruling (decision 14
+  unified the flavor icons; v1’s “one amber on Pro” grammar died with the old design).
 
 ## Release notes template (each Play rollout)
 
