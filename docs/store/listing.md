@@ -54,6 +54,12 @@ manual capture with proof attached, and literal local-only storage.)
 > · Pro is a one-time unlock, not a subscription: detailed insights,
 >   PDF reports, home-screen widgets, encrypted backup to your own
 >   cloud, and cloud sync of your ledger to a WebDAV server you run.
+> · **Fast scan is optional, and honest about its one dependency:** the
+>   first fast scan may download Google\u2019s edge-finding component via
+>   Google Play services \u2014 your photos are never sent anywhere, and if
+>   you decline (or your device has no Play services), you take the photo
+>   yourself and the app still reads the text on your device. Purchases
+>   go through the Play Store.
 > · **Paid only ever adds.** Nothing free becomes paid — the free app
 >   budgets a whole household forever. Buying Pro can't move, hide or
 >   gate anything that was already there.
