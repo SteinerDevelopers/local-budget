@@ -968,7 +968,11 @@ publish-downloads:
   resource_group: publish-downloads
   timeout: 30m
   variables:
+    # YAML <<: merges mappings SHALLOWLY: declaring `variables` here would
+    # drop the template's GRADLE_USER_HOME (job 8819 died in before_script
+    # as `mkdir -p ''`). Redefine the template key alongside our own.
     CLOUDFLARE_ACCOUNT_ID: "6498bf06952468d6dadb4351d8fb7ea8"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   script:
     - |
       set -e
