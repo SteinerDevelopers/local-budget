@@ -917,6 +917,14 @@ mirror-github:
   stage: release
   image: alpine
   tags: [SteinerRunner]
+  # needs:[] is load-bearing, not style: a plain-stage manual job sits
+  # 'created'/Unplayable while ANY earlier-stage manual job (runner-probe,
+  # bake-e2e) stays pending — which is forever by design. needs (even empty)
+  # switches the job to DAG scheduling: eligible the moment the pipeline
+  # exists, exactly how kit-release becomes playable. Found empirically on
+  # pipelines 792/795: API play = 400 'Unplayable Job' for the plain-stage
+  # variant, while needs-based jobs promote to manual and play fine.
+  needs: []
   rules:
     - if: '$CI_COMMIT_REF_PROTECTED != "true"'
       when: never
