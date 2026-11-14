@@ -1016,8 +1016,8 @@ publish-downloads:
       export PATH="/opt/node/bin:$PATH" CLOUDFLARE_API_TOKEN="$LB_CF_R2_TOKEN"
       npx -y wrangler@4 r2 object put "budget-releases/releases/steiner-budget-$VERSION-free-release.apk" \
         --file "$APK" --content-type application/vnd.android.package-archive \
-        --http-metadata "cache-control=public, max-age=31536000, immutable"
+        --cache-control "public, max-age=31536000, immutable"
       npx -y wrangler@4 r2 object put "budget-releases/releases/steiner-budget-$VERSION-manifest.txt" \
         --file "$CI_PROJECT_DIR/manifest.txt" --content-type text/plain \
-        --http-metadata "cache-control=public, max-age=31536000, immutable"
+        --cache-control "public, max-age=31536000, immutable"
       echo "PUBLISHED https://dl.steinerdevelopers.dev/releases/steiner-budget-$VERSION-free-release.apk sha256=$SHA"
