@@ -991,7 +991,16 @@ publish-downloads:
       VERSION=$(grep -m1 '^version:' pubspec.yaml | cut -d+ -f1 | cut -d: -f2 | tr -d ' ')
       SHA=$(sha256sum "$APK" | cut -d' ' -f1)
       SIZE=$(stat -c%s "$APK")
-      FP=$(apksigner verify --print-certs "$APK" | grep 'SHA-256 digest' | head -1 | awk '{print $NF}')
+      # apksigner is not on PATH in the build image - it lives under the
+      # SDK's build-tools (job 8874: build SUCCEEDED, this line alone died,
+      # costing a good signed APK). Best-effort: a reporting tool must
+      # never kill a release act; blank means "verify from the artifact".
+      APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+      FP=""
+      if [ -n "$APKSIGNER" ]; then
+        FP=$("$APKSIGNER" verify --print-certs "$APK" 2>/dev/null | grep 'SHA-256 digest' | head -1 | awk '{print $NF}') || true
+      fi
+      [ -n "$FP" ] || FP="(compute from artifact: apksigner verify --print-certs)"
       { echo "Steiner Budget free - release-signed direct-install channel"
         echo "version=$VERSION commit=$CI_COMMIT_SHA"
         echo "file=steiner-budget-$VERSION-free-release.apk size=$SIZE"
