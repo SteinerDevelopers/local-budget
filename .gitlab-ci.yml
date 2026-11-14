@@ -954,3 +954,57 @@ mirror-github:
       CONFIRM=$(git -c http.extraHeader="$AUTH" ls-remote "$GH" refs/heads/main | cut -f1)
       [ "$SHA" = "$CONFIRM" ] && echo "mirror main == GitLab main == $SHA"
       [ "$SHA" = "$CONFIRM" ]
+
+# Manual (protected): publish the release-SIGNED free APK + SHA-256 manifest
+# to the R2 download bucket (dl.steinerdevelopers.dev, Cloudflare CDN in
+# front, zero egress cost at spike). Direct-install channel per decision
+# 13-prime: this APK carries Steiner Developers' own key, not Play's.
+# Objects are versioned+immutable by filename: a revoked release is
+# unlinked from pages, never overwritten. Needs LB_CF_R2_TOKEN (masked,
+# scoped: Account|R2 and D1 Storage|Edit, resource bucket=budget-releases).
+publish-downloads:
+  <<: *package-apk-base
+  stage: release
+  resource_group: publish-downloads
+  timeout: 30m
+  variables:
+    CLOUDFLARE_ACCOUNT_ID: "6498bf06952468d6dadb4351d8fb7ea8"
+  script:
+    - |
+      set -e
+      : "${LB_CF_R2_TOKEN:?Add CI variable LB_CF_R2_TOKEN (masked; R2 Edit scoped to budget-releases).}"
+      if [ -z "${SIGNING_KEYSTORE:-}" ] || [ ! -f "$SIGNING_KEYSTORE" ] || [ -z "${SIGNING_KEYSTORE_PASSWORD:-}" ]; then
+        echo "RELEASE SIGNING SECRETS MISSING (same kit package-aab-release-free uses)."; exit 1
+      fi
+      mkdir -p "$CI_PROJECT_DIR/.signing"
+      base64 -d "$SIGNING_KEYSTORE" > "$CI_PROJECT_DIR/.signing/release.p12"
+      export SIGNING_KEYSTORE="$CI_PROJECT_DIR/.signing/release.p12"
+      cd app
+      flutter pub get
+      flutter test test/flavor_guard_test.dart --dart-define=APP_FLAVOR=free
+      flutter build apk --release --flavor free --dart-define=APP_FLAVOR=free
+      APK=build/app/outputs/flutter-apk/app-free-release.apk
+      VERSION=$(grep -m1 '^version:' pubspec.yaml | cut -d+ -f1 | cut -d: -f2 | tr -d ' ')
+      SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+      SIZE=$(stat -c%s "$APK")
+      FP=$(apksigner verify --print-certs "$APK" | grep 'SHA-256 digest' | head -1 | awk '{print $NF}')
+      { echo "Steiner Budget free - release-signed direct-install channel"
+        echo "version=$VERSION commit=$CI_COMMIT_SHA"
+        echo "file=steiner-budget-$VERSION-free-release.apk size=$SIZE"
+        echo "sha256=$SHA"
+        echo "signing_cert_sha256=$FP"
+        echo "url=https://dl.steinerdevelopers.dev/releases/steiner-budget-$VERSION-free-release.apk"
+      } > "$CI_PROJECT_DIR/manifest.txt"
+      cat "$CI_PROJECT_DIR/manifest.txt"
+      # wrangler rides the CF API (no S3 creds in CI); node bootstrapped
+      # fresh into the flutter image - job is ephemeral, nothing persists.
+      curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz -o /tmp/node.tar.xz
+      mkdir -p /opt/node && tar -xJf /tmp/node.tar.xz -C /opt/node --strip-components=1
+      export PATH="/opt/node/bin:$PATH" CLOUDFLARE_API_TOKEN="$LB_CF_R2_TOKEN"
+      npx -y wrangler@4 r2 object put "budget-releases/releases/steiner-budget-$VERSION-free-release.apk" \
+        --file "$APK" --content-type application/vnd.android.package-archive \
+        --http-metadata "cache-control=public, max-age=31536000, immutable"
+      npx -y wrangler@4 r2 object put "budget-releases/releases/steiner-budget-$VERSION-manifest.txt" \
+        --file "$CI_PROJECT_DIR/manifest.txt" --content-type text/plain \
+        --http-metadata "cache-control=public, max-age=31536000, immutable"
+      echo "PUBLISHED https://dl.steinerdevelopers.dev/releases/steiner-budget-$VERSION-free-release.apk sha256=$SHA"
