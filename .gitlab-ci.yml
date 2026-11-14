@@ -903,3 +903,46 @@ history-scan:
       - secret-scan.json
     expire_in: 4 weeks
 
+
+# mirror-github — refresh the read-only public mirror (decision-18 era companion).
+# The AGPL source sentence in the Play listing promises "including this build":
+# the mirror must never lag main past a release. Manual by design — a release
+# act on store-adjacent ground (Law 4). MIRROR_GITHUB_PAT is a write-only masked
+# variable (fine-grained PAT, single repo, contents:write); it travels as a
+# Basic header, never inside a URL that could persist in .git/config. The
+# divergence guard refuses to overwrite mirror-side history (there should be
+# none: issues/PRs are off upstream) unless the human triggering the job sets
+# FORCE_MIRROR=1 — an unscheduled destructive is never the default path.
+mirror-github:
+  stage: release
+  image: alpine
+  tags: [SteinerRunner]
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED != "true"'
+      when: never
+    - when: manual
+  timeout: 10m
+  script:
+    - |
+      set -e
+      apk add --no-cache git curl >/dev/null
+      GH=https://github.com/SteinerDevelopers/local-budget.git
+      PUSH_ARGS=""
+      AUTH="Authorization: Basic $(printf 'x-access-token:%s' "$MIRROR_GITHUB_PAT" | base64 -w0)"
+      git clone --quiet --mirror "$CI_REPOSITORY_URL" mirror.git
+      cd mirror.git
+      REMOTE_SHA=$(git -c http.extraHeader="$AUTH" ls-remote "$GH" refs/heads/main | cut -f1 || true)
+      if [ -n "$REMOTE_SHA" ] && ! git merge-base --is-ancestor "$REMOTE_SHA" refs/heads/main; then
+        echo "mirror diverged: remote main $REMOTE_SHA is not an ancestor of GitLab main"
+        echo "refusing to overwrite; trigger again with FORCE_MIRROR=1 if that is intended"
+        [ "$FORCE_MIRROR" = "1" ] || exit 1
+        PUSH_ARGS="--force"
+      fi
+      REFS="refs/heads/main:refs/heads/main"
+      [ -n "$(git tag -l | head -n1)" ] && REFS="$REFS refs/tags/*:refs/tags/*"
+      # shellcheck disable=SC2086
+      git -c http.extraHeader="$AUTH" push --quiet $PUSH_ARGS "$GH" $REFS
+      SHA=$(git rev-parse refs/heads/main)
+      CONFIRM=$(git -c http.extraHeader="$AUTH" ls-remote "$GH" refs/heads/main | cut -f1)
+      [ "$SHA" = "$CONFIRM" ] && echo "mirror main == GitLab main == $SHA"
+      [ "$SHA" = "$CONFIRM" ]
