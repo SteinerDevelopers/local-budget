@@ -13,6 +13,19 @@ same gap the process grade recorded under its Release dimension.
 that comes with it. Nothing here pre-empts that; the `kit/*` namespace is for
 build snapshots, `v*` for the app release.
 
+## 0.1.2+3 (beta line)
+
+### Play scorecard — R8 shrinking on, OCR memory released
+- Release builds now minify/shrink via R8 (Play DEX-optimization scorecard
+  read 0% obfuscation on release 1). The ML Kit soft-reference wall of
+  2026-11-07 is answered by named `-dontwarn` lines in
+  `app/android/app/proguard-rules.pro`, each carrying its artifact and day.
+- The OCR recognizer now lives for one document instead of the whole app
+  run (Play memory "bad behavior" flag): native OCR memory returns to the
+  OS when a scan ends, including the failure paths.
+- Rollout gate: R8 passing the build is necessary, not sufficient —
+  capture E2E on a real device must pass before this line ships.
+
 ## 0.1.1+2 (beta line)
 
 ### income entry — 2026-11-15
