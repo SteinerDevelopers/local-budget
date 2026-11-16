@@ -628,30 +628,46 @@ package-apk-free:
   script:
     - |
       set -e
+      # THE SIDELOAD RAIL IS A RELEASE RAIL (owner law, 2026-11-15).
+      # apksigner proved the 0.1.0 kit carries the decision-13 key
+      # (CN=LocalBudget, OU=Release Signing, SHA-256 5307b51e…3719c) —
+      # the same identity as the Play AAB. A debug-signed kit would
+      # collide with every installed release build: Android refuses the
+      # upgrade, "fixing" it means uninstall, uninstall kills the local
+      # ledger — the one thing this app may never cost a tester.
+      # So this job mirrors package-aab-release-free: same signing
+      # secrets, same early refusal (a debug-signed apk must die HERE,
+      # not on a phone), same flavor pin. Universal (not --split-per-abi):
+      # the release universal is far under the coordinator's body limit
+      # (the 413 that forced splitting was the 205 MB debug fat build).
+      if [ -z "${SIGNING_KEYSTORE:-}" ] || [ ! -f "$SIGNING_KEYSTORE" ] || [ -z "${SIGNING_KEYSTORE_PASSWORD:-}" ]; then
+        echo "RELEASE SIGNING SECRETS MISSING."
+        echo "Add the secret file SIGNING_KEYSTORE (keystore) and the masked"
+        echo "variable SIGNING_KEYSTORE_PASSWORD under Settings → CI/CD."
+        exit 1
+      fi
+      # SIGNING_KEYSTORE is a File variable holding base64 of the PKCS12;
+      # decode into a real keystore gradle can open. Ephemeral runner
+      # container — the plaintext dies with the job.
+      mkdir -p "$CI_PROJECT_DIR/.signing"
+      base64 -d "$SIGNING_KEYSTORE" > "$CI_PROJECT_DIR/.signing/release.p12"
+      export SIGNING_KEYSTORE="$CI_PROJECT_DIR/.signing/release.p12"
       cd app
       flutter pub get
-      # Split per ABI: the all-ABI debug APK (~205 MB) exceeds the GitLab
-      # coordinator's request body limit (job 595 died with 413 uploading
-      # artifacts). The limit applies to the upload as a whole, so each
-      # flavor uploads exactly its arm64 sideload ride; the other ABIs
-      # still build (they keep every variant compiling) and stay in the
-      # job dir.
-      flutter build apk --debug --flavor free --split-per-abi
+      # FREE pairing pinned one line before the build that must carry it.
+      flutter test test/flavor_guard_test.dart --dart-define=APP_FLAVOR=free
+      flutter build apk --release --flavor free --dart-define=APP_FLAVOR=free
       mkdir -p "$CI_PROJECT_DIR/out"
-      cp -v build/app/outputs/flutter-apk/app-arm64-v8a-free-debug.apk "$CI_PROJECT_DIR/out/"
-      # Hash the bytes this job produced, by name, before they leave the job. The
-      # filename carries the flavor because kit-release downloads BOTH jobs'
-      # artifacts into one workspace: two jobs writing one digest filename means
-      # the later download silently replaces the earlier, and the surviving file
-      # attests to one flavor while looking like it covers the pair (vault shipped
-      # exactly that in 989e35c3 and fixed it in 31d5cf7). `*.apk` is also the
-      # wrong subject: --split-per-abi leaves several ABIs in the build dir, and
-      # out/ holds the one arm64 ride this job is responsible for.
-      cd "$CI_PROJECT_DIR/out" && sha256sum app-arm64-v8a-free-debug.apk | tee KIT-SHA256SUMS-free.txt
+      cp -v build/app/outputs/flutter-apk/app-free-release.apk "$CI_PROJECT_DIR/out/"
+      # Hash the bytes this job produced, by name, before they leave the
+      # job (flavor-named digest file: two jobs sharing one filename let a
+      # later download silently replace the earlier attestation — the
+      # 989e35c3 lesson, fixed in 31d5cf7).
+      cd "$CI_PROJECT_DIR/out" && sha256sum app-free-release.apk | tee KIT-SHA256SUMS-free.txt
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
-      - out/app-arm64-v8a-free-debug.apk
+      - out/app-free-release.apk
       - out/KIT-SHA256SUMS-free.txt
     expire_in: 4 weeks
 
