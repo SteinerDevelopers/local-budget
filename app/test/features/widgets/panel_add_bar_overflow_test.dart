@@ -89,9 +89,9 @@ void main() {
       try {
         await openHome(tester, repo);
         // No capture services: the scanner half is *hidden* (never a dead
-        // button), so the lone "Add receipt" must be present and live.
-        expect(find.byKey(const ValueKey('receipt-add')), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('receipt-add')));
+        // button), so the kind pair must be present and live.
+        expect(find.byKey(const ValueKey('expense-add')), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('expense-add')));
         await tester.pumpAndSettle();
         expect(find.text('Save'), findsOneWidget); // QuickAdd is open
         expect(tester.takeException(), isNull);

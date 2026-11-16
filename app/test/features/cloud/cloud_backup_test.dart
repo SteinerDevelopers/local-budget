@@ -329,7 +329,7 @@ void main() {
   Future<void> openManage(WidgetTester tester, Widget app) async {
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('receipt-add')));
+    await tester.tap(find.byKey(const ValueKey('expense-add')));
     await tester.pumpAndSettle();
     await tester.dragUntilVisible(
       find.text('Manage'),

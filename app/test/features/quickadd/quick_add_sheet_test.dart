@@ -26,6 +26,7 @@ import 'package:local_budget/features/quickadd/quick_add_sheet.dart';
 const _cats = [
   CategoryOption(1, 'Food', Icons.local_cafe_outlined),
   CategoryOption(2, 'Rent', Icons.home_outlined),
+  CategoryOption(3, 'Salary', Icons.south_west, isIncome: true),
 ];
 final _usd = Currency.resolve('USD');
 
@@ -144,16 +145,37 @@ void main() {
       await openSheet(
         tester,
         initialKind: EntryKind.income,
+        initialCategoryId: 3,
+      );
+      final seg = tester.widget<SegmentedButton<EntryKind>>(
+        find.byType(SegmentedButton<EntryKind>),
+      );
+      expect(seg.selected, {EntryKind.income});
+      final salaryChip = tester.widget<FilterChip>(
+        find.ancestor(
+          of: find.text('Salary'),
+          matching: find.byType(FilterChip),
+        ),
+      );
+      expect(salaryChip.selected, isTrue);
+    });
+
+    testWidgets('cross-kind warm pair drops the stale chip (0.1.1)', (
+      tester,
+    ) async {
+      // Pre-0.1.1 warm state could carry Income + an expense category; the
+      // kind survives, the mismatched selection never rides into a save.
+      await openSheet(
+        tester,
+        initialKind: EntryKind.income,
         initialCategoryId: 2,
       );
       final seg = tester.widget<SegmentedButton<EntryKind>>(
         find.byType(SegmentedButton<EntryKind>),
       );
       expect(seg.selected, {EntryKind.income});
-      final rentChip = tester.widget<FilterChip>(
-        find.ancestor(of: find.text('Rent'), matching: find.byType(FilterChip)),
-      );
-      expect(rentChip.selected, isTrue);
+      expect(find.text('Rent'), findsNothing); // filtered out of income row
+      expect(find.text('Salary'), findsOneWidget);
     });
 
     testWidgets('backspace edits, gear chip jumps to Manage', (tester) async {
@@ -361,7 +383,7 @@ void main() {
           amount: '12.34',
           currencyCode: 'USD',
           kind: EntryKind.income,
-          categoryId: 2,
+          categoryId: 3,
           day: DateTime(2026, 11, 9),
           note: 'cafe',
         ),
@@ -377,7 +399,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(result!.amount.minorUnits, 1234);
       expect(result!.kind, EntryKind.income);
-      expect(result!.categoryId, 2);
+      expect(result!.categoryId, 3);
       expect(result!.note, 'cafe');
       expect(result!.day, DateTime(2026, 11, 9));
     });

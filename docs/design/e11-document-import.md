@@ -211,6 +211,11 @@ New pure-Dart module `packages/data/lib/src/statement_lines.dart`:
   `fab-quickadd`/`fab-capture`; Bills keeps `bill-add`/`bill-add-document`
   inside the same widget. The scanner half follows the no-dead-end rule:
   rendered only when `CaptureServices` exists.
+- **Income entry (2026-11-15, 0.1.1):** `receipt-add` split into
+  `income-add`/`expense-add` (each pre-sets the QuickAdd kind — first user
+  feedback said income had no door); the scanner stays
+  `receipt-add-document`, now an `IconButton` whose tooltip carries the
+  verb. Category chips are kind-scoped everywhere.
 - While the document is being read: existing wizard frame shows the E2
   spinner state; failure states mirror E2 review-sheet copy ("couldn't read
   text — try CSV or OFX instead" for `other`/refusals).

@@ -2,7 +2,7 @@ name: local_budget
 description: "Steiner Budget — privacy-first, on-device budgeting. Bills and receipts never leave the phone."
 publish_to: 'none'
 
-version: 0.1.0+1
+version: 0.1.1+2
 
 environment:
   # CI validates against the supported floor (Flutter 3.44 / Dart 3.12 via

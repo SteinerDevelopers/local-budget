@@ -34,10 +34,14 @@ import 'quick_add_draft.dart';
 /// drift; the sheet only consumes the list.
 @immutable
 class CategoryOption {
-  const CategoryOption(this.id, this.name, this.icon);
+  const CategoryOption(this.id, this.name, this.icon, {this.isIncome = false});
   final int id;
   final String name;
   final IconData icon;
+
+  /// Drives the kind-filtered chip rows (Ravn feedback, 2026-11-15): the
+  /// sheet shows income chips only while Income is selected, and vice versa.
+  final bool isIncome;
 }
 
 /// Result of a QuickAdd save — everything #17's repository insert needs.
@@ -145,6 +149,18 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       if (draft.note.isNotEmpty) {
         _note.text = draft.note;
         _noteActive = true;
+      }
+    }
+    // A (kind, category) pair can arrive cross-kind only from a pre-0.1.1
+    // warm state or draft; the kind wins and the stale selection drops —
+    // the same guard onSelectionChanged applies to live flips.
+    final initId = _categoryId;
+    if (initId != null) {
+      for (final c in widget.categories) {
+        if (c.id == initId && c.isIncome != (_kind == EntryKind.income)) {
+          _categoryId = null;
+          break;
+        }
       }
     }
     // Every edit re-emits the draft; the caller debounces and owns storage.
@@ -337,8 +353,20 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
         ButtonSegment(value: EntryKind.income, label: Text('Income')),
       ],
       selected: {_kind},
-      showSelectedIcon: false,
-      onSelectionChanged: (s) => setState(() => _kind = s.first),
+      onSelectionChanged: (s) => setState(() {
+        _kind = s.first;
+        // A kind flip drops a selection that belongs to the other kind —
+        // a Salary id must never ride along on an Expense save.
+        final id = _categoryId;
+        if (id != null) {
+          for (final c in widget.categories) {
+            if (c.id == id && c.isIncome != (_kind == EntryKind.income)) {
+              _categoryId = null;
+              break;
+            }
+          }
+        }
+      }),
     ),
   );
 
@@ -352,7 +380,10 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   );
 
   Widget _chips() => CategoryChips(
-    categories: widget.categories,
+    // Kind-filtered: Income shows income categories, Expense expense ones.
+    categories: widget.categories
+        .where((c) => c.isIncome == (_kind == EntryKind.income))
+        .toList(),
     selectedId: _categoryId,
     onSelect: (id) => setState(() => _categoryId = id),
     onManage: widget.onManageCategories,

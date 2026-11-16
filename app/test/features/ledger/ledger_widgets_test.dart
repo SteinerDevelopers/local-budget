@@ -236,7 +236,10 @@ void main() {
   testWidgets('EmptyMonth shows the hint pair', (tester) async {
     await tester.pumpWidget(_host(const EmptyMonth()));
     expect(find.text('No transactions yet'), findsOneWidget);
-    expect(find.text('Tap + to add your first one'), findsOneWidget);
+    expect(
+      find.text('Tap “Add income” or “Add expense” below'),
+      findsOneWidget,
+    );
     expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
   });
 }

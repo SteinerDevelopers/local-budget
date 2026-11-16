@@ -920,7 +920,7 @@ void main() {
 
   group('QuickAdd rate stamp (§6)', () {
     Future<void> openQuickAddInEur(WidgetTester tester) async {
-      await tester.tap(find.byKey(const ValueKey('receipt-add')));
+      await tester.tap(find.byKey(const ValueKey('expense-add')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('currency-button')));
       await tester.pumpAndSettle();
