@@ -947,17 +947,20 @@ mirror-github:
   # guards the AGPL "including this build" sentence, and a manual job
   # waiting for a human let that promise lag 28 commits across two
   # releases — the duty-roster fix for a duty nobody can be on is
-  # automation. Deliberately NO needs: so the mirror runs only after every
-  # real stage above went green — main reaches the public mirror through
-  # its pipeline's own evidence. (Manual pendings like runner-probe do not
-  # block stage progression; proven nightly by e2e-android.)
-  # History kept from pipelines 792/795: a plain-stage MANUAL job sits
-  # Unplayable while earlier-stage manuals pend; the old form carried
-  # needs:[] to dodge that. If a mirror ever needs hand-triggering off
-  # main, re-add needs:[] for that one run rather than racing every
-  # main pipeline with it. Divergence guard below is unchanged: a
-  # non-ancestor remote main refuses to be overwritten without
-  # FORCE_MIRROR=1 — automation of the sync, never of the destruction.
+  # automation. Needs e2e-android EXPLICITLY (measured on pipeline 929:
+  # the needs-less ladder NEVER promoted — the e2e-stage kit drawers are
+  # needs-based manuals with allow_failure:false, so GitLab treats the
+  # stage as unfinished forever and the on_success job sat 'created'
+  # 30+ minutes while e2e-android was already green). The explicit edge
+  # IS the semantic: mirror main the moment the last real test vouches
+  # for it, drawers pending or not.
+  # History kept from pipelines 792/795: plain-stage manuals sit
+  # Unplayable; needs-based ones promote fine — this job rides that same
+  # lesson. Divergence guard below is unchanged: a non-ancestor remote
+  # main refuses to be overwritten without FORCE_MIRROR=1 — automation
+  # of the sync, never of the destruction.
+  needs:
+    - job: e2e-android
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true"'
       when: on_success
