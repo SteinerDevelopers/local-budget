@@ -19,7 +19,10 @@ Free tier is feature-complete. A one-time unlock sells own-cloud backup, widgets
 > ledgers, and images never move unless you point them at your own server.
 > [steinerdevelopers.dev/privacy](https://steinerdevelopers.dev/privacy)
 
-## Install — latest release (0.1.1)
+## Install — direct APK (0.1.1) or Play (0.1.2+3)
+
+> Channels move at their own speed: this direct-APK rail currently serves
+> **0.1.1**; the Google Play closed-testing rail carries **0.1.2+3**.
 
 - **Direct APK — no Google account or Play required:**
   [steiner-budget-0.1.1-free-release.apk](https://dl.steinerdevelopers.dev/releases/steiner-budget-0.1.1-free-release.apk)
