@@ -34,8 +34,15 @@ import 'package:path_provider/path_provider.dart';
 /// path (missing plugin, engine hiccup, unreadable temp file) collapses to
 /// `const []` and Review opens with empty fields for typing.
 class MlKitTextExtractor implements TextExtractor {
-  /// One recognizer per app run: creating it is not free on device and the
-  /// flow is strictly one document at a time (decision 5).
+  /// The recognizer lives for ONE document, not for the app run.
+  /// (Memory pass 2026-11-16: Play vitals flagged "bad behavior" memory on
+  /// release 1. The old per-run lifetime pinned tens of MB of native OCR
+  /// memory from the first scan until process death — on low-RAM devices
+  /// that is exactly the pattern the store measures. The flow is still
+  /// strictly one document at a time (decision 5), so the recreate cost
+  /// on the next scan is a fraction of a second inside a pipeline that
+  /// already spends seconds per document; releasing the bytes when the
+  /// document is done is the honest trade.)
   TextRecognizer? _recognizer;
 
   /// Debug-build trace of the assembled lines the heuristics will read.
@@ -99,6 +106,21 @@ class MlKitTextExtractor implements TextExtractor {
     } catch (_) {
       return const [];
     } finally {
+      // Release the native recognizer after EVERY document — success,
+      // empty result, or collapse to []. Memory that only leaves with a
+      // happy path is memory that leaks through the failure states
+      // testers actually hit (blurry receipts are the product's own
+      // "states, not errors").
+      final recognizer = _recognizer;
+      _recognizer = null;
+      if (recognizer != null) {
+        try {
+          await recognizer.close();
+        } catch (_) {
+          // Close is best effort; the OS reclaims native memory at process
+          // death, and nothing about the extraction result depends on it.
+        }
+      }
       if (tmp != null) {
         try {
           await tmp.delete();
