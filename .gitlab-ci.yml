@@ -72,6 +72,11 @@ commit-lint:
           || { echo "NOT conventional-commits: $subject"; exit 1; }
       done
       echo "commit subjects OK"
+      # Report-only guard (owner order 2026-11-16): house style carries no
+      # co-author trailers; models have reproduced tool-vendor ones from
+      # training data. WARN, never fail (report-only law).
+      COAUTH=$(git log --no-merges --pretty=%B $RANGE | grep -c '^Co-Authored-By:' || true)
+      [ "$COAUTH" -gt 0 ] && echo "WARN: $COAUTH Co-Authored-By trailer line(s) in range (house style: none)" || echo "co-author trailers: none"
 
 core-test:
   <<: *test-junit
