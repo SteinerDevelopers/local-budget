@@ -961,7 +961,9 @@ mirror-github:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true"'
       when: on_success
-    - when: manual
+    - if: '$CI_COMMIT_REF_PROTECTED == "true"'
+      when: manual
+    - when: never
   timeout: 10m
   script:
     - |
