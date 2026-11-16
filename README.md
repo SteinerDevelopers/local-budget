@@ -19,6 +19,18 @@ Free tier is feature-complete. A one-time unlock sells own-cloud backup, widgets
 > ledgers, and images never move unless you point them at your own server.
 > [steinerdevelopers.dev/privacy](https://steinerdevelopers.dev/privacy)
 
+## Install — latest release (0.1.1)
+
+- **Direct APK — no Google account or Play required:**
+  [steiner-budget-0.1.1-free-release.apk](https://dl.steinerdevelopers.dev/releases/steiner-budget-0.1.1-free-release.apk)
+  (release-key signed; the free flavor carries **no INTERNET permission**).
+  Verify the binary against its published checksum before installing:
+  [SHA-256 manifest](https://dl.steinerdevelopers.dev/releases/steiner-budget-0.1.1-manifest.txt).
+- **Google Play (closed testing):**
+  [opt-in page](https://play.google.com/apps/testing/dev.steiner.local_budget) —
+  then install "Steiner Budget" from the Store. Play and direct-APK channels
+  sign differently and can't upgrade over each other; pick one per device.
+
 ## License
 
 Copyright (C) 2026 Steiner Developers, L.L.C.
