@@ -256,7 +256,7 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.byKey(const ValueKey('receipt-add')));
+          await tester.tap(find.byKey(const ValueKey('expense-add')));
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(BottomSheet),
@@ -274,7 +274,7 @@ void main() {
         try {
           await repo.ensureDefaults();
           await pumpFullApp(tester, brightness, repo);
-          await tester.tap(find.byKey(const ValueKey('receipt-add')));
+          await tester.tap(find.byKey(const ValueKey('expense-add')));
           await tester.pumpAndSettle();
           for (final key in ['1', '2', 'dot', '4', '0']) {
             await tester.tap(find.byKey(Key('keypad-$key')));
