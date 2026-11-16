@@ -745,10 +745,16 @@ package-aab-release-free:
       flutter build appbundle --release --flavor free --dart-define=APP_FLAVOR=free
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/bundle/freeRelease/app-free-release.aab "$CI_PROJECT_DIR/out/"
+      # R8 mapping for Play Console crash symbolication (owner upload,
+      # private side — never ships to users). Plain cp on purpose: with
+      # minify on, a MISSING mapping means the build shape changed, and
+      # this job should say so loudly, not shrug.
+      cp -v build/app/outputs/mapping/freeRelease/mapping.txt "$CI_PROJECT_DIR/out/app-free-release-mapping.txt"
       ls -l "$CI_PROJECT_DIR/out/"
   artifacts:
     paths:
       - out/app-free-release.aab
+      - out/app-free-release-mapping.txt
     expire_in: 8 weeks
 
 # Kept for re-running when the runner box changes (manual, never automatic).
