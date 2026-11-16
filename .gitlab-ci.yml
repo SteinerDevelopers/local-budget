@@ -927,30 +927,43 @@ history-scan:
 
 
 # mirror-github — refresh the read-only public mirror (decision-18 era companion).
-# The AGPL source sentence in the Play listing promises "including this build":
-# the mirror must never lag main past a release. Manual by design — a release
-# act on store-adjacent ground (Law 4). MIRROR_GITHUB_PAT is a write-only masked
-# variable (fine-grained PAT, single repo, contents:write); it travels as a
-# Basic header, never inside a URL that could persist in .git/config. The
-# divergence guard refuses to overwrite mirror-side history (there should be
-# none: issues/PRs are off upstream) unless the human triggering the job sets
-# FORCE_MIRROR=1 — an unscheduled destructive is never the default path.
+# The AGPL source sentence in the Play listing promises "including this
+# build": the mirror must never lag main past a release. AUTO on protected
+# main since 2026-11-16 (owner ruling after the manual form let the promise
+# lag 28 commits across releases 0.1.1/0.1.2 — manual-on-release was Law 4
+# caution that became the failure mode; the guard against destructive is
+# kept, the guard against sync was the bug). MIRROR_GITHUB_PAT is a
+# write-only masked variable (fine-grained PAT, single repo, contents:write);
+# it travels as a Basic header, never inside a URL that could persist in
+# .git/config. The divergence guard refuses to overwrite mirror-side
+# history (there should be none: issues/PRs are off upstream) unless the
+# human triggering the job sets FORCE_MIRROR=1 — an unscheduled destructive
+# is never the default path.
 mirror-github:
   stage: release
   image: alpine
   tags: [SteinerRunner]
-  # needs:[] is load-bearing, not style: a plain-stage manual job sits
-  # 'created'/Unplayable while ANY earlier-stage manual job (runner-probe,
-  # bake-e2e) stays pending — which is forever by design. needs (even empty)
-  # switches the job to DAG scheduling: eligible the moment the pipeline
-  # exists, exactly how kit-release becomes playable. Found empirically on
-  # pipelines 792/795: API play = 400 'Unplayable Job' for the plain-stage
-  # variant, while needs-based jobs promote to manual and play fine.
-  needs: []
+  # Scheduling (owner ruling 2026-11-16): AUTO on protected main. The mirror
+  # guards the AGPL "including this build" sentence, and a manual job
+  # waiting for a human let that promise lag 28 commits across two
+  # releases — the duty-roster fix for a duty nobody can be on is
+  # automation. Deliberately NO needs: so the mirror runs only after every
+  # real stage above went green — main reaches the public mirror through
+  # its pipeline's own evidence. (Manual pendings like runner-probe do not
+  # block stage progression; proven nightly by e2e-android.)
+  # History kept from pipelines 792/795: a plain-stage MANUAL job sits
+  # Unplayable while earlier-stage manuals pend; the old form carried
+  # needs:[] to dodge that. If a mirror ever needs hand-triggering off
+  # main, re-add needs:[] for that one run rather than racing every
+  # main pipeline with it. Divergence guard below is unchanged: a
+  # non-ancestor remote main refuses to be overwritten without
+  # FORCE_MIRROR=1 — automation of the sync, never of the destruction.
   rules:
-    - if: '$CI_COMMIT_REF_PROTECTED != "true"'
-      when: never
-    - when: manual
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true"'
+      when: on_success
+    - if: '$CI_COMMIT_REF_PROTECTED == "true"'
+      when: manual
+    - when: never
   timeout: 10m
   script:
     - |
