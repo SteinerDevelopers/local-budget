@@ -368,8 +368,11 @@ class _BillEditorSheetState extends State<_BillEditorSheet> {
         CategoryChips(
           key: const Key('bill-categories'),
           categories: [
+            // Bills are expense-only in the model; income categories must
+            // not haunt the bill editor (same kind-scope fix as QuickAdd).
             for (final c in widget.categories)
-              CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name)),
+              if (!c.isIncome)
+                CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name)),
           ],
           selectedId: _categoryId,
           onSelect: (id) => setState(() => _categoryId = id),

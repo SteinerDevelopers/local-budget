@@ -40,7 +40,10 @@ class EmptyMonth extends StatelessWidget {
           const SizedBox(height: Tokens.space3),
           Text('No transactions yet', style: Tokens.body(context)),
           const SizedBox(height: Tokens.space1),
-          Text('Tap + to add your first one', style: Tokens.labelCaps(context)),
+          Text(
+            'Tap “Add income” or “Add expense” below',
+            style: Tokens.labelCaps(context),
+          ),
         ],
       ),
     );

@@ -446,7 +446,10 @@ class _CaptureReviewSheetState extends State<CaptureReviewSheet> {
   );
 
   Widget _chips() => CategoryChips(
-    categories: widget.categories,
+    // Scanned documents are expenses here; income categories stay out of
+    // the review row (kind-scope parity with QuickAdd and bills).
+    categories:
+        widget.categories.where((c) => !c.isIncome).toList(),
     selectedId: _categoryId,
     onSelect: (id) => setState(() => _categoryId = id),
     onManage: widget.onManageCategories,

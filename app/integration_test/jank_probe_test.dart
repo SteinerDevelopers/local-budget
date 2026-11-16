@@ -73,7 +73,7 @@ void main() {
 
     // Eight full QuickAdd saves — sheet animation, keypad, stream rebuild.
     for (var i = 0; i < 8; i++) {
-      final add = find.byKey(const ValueKey('receipt-add'));
+      final add = find.byKey(const ValueKey('expense-add'));
       await tester.ensureVisible(add);
       await tester.tap(add);
       await _settle(tester);

@@ -13,6 +13,28 @@ same gap the process grade recorded under its Release dimension.
 that comes with it. Nothing here pre-empts that; the `kit/*` namespace is for
 build snapshots, `v*` for the app release.
 
+## 0.1.1+2 (beta line)
+
+### income entry — 2026-11-15
+
+First external user feedback (owner relay, Ravn, 2026-11-15): adding
+income "is not intuitive". Root cause measured in code: after the
+2026-11-05 panel standardization the manual-entry sheet was labeled
+"Add receipt" and no surface anywhere named income; the QuickAdd
+category chips also ignored the Income/Expense kind (and the bill
+editor listed income categories although bills are expense-only).
+
+- Ledger add bar: "Add income" and "Add expense" are separate named
+  buttons that pre-set the sheet's kind; the scanner keeps its verb
+  ("Scan a receipt") as a compact icon with tooltip.
+- QuickAdd chips are kind-filtered and swap live with the toggle; the
+  toggle shows its selected-state icon; a kind flip drops a
+  cross-kind category selection so a Salary id can never ride an
+  Expense save.
+- Bill editor chips: expense categories only.
+- Empty-month hint now names the real buttons (was "Tap +", retired
+  2026-11-05).
+
 ## 0.1.0+1 (beta line)
 
 ### kit/v0.1.0-beta-2026-11-09 — `dc81d2b2`, 2026-11-09

@@ -80,7 +80,7 @@ void main() {
     expect(byX.map((e) => e.$1), ['Receipts', 'Bills', 'Budgets', 'Goals']);
     // Receipts is the ledger, and it adds through the shared bar. Without
     // capture services the scanner half is *hidden*, never a dead end.
-    expect(find.byKey(const ValueKey('receipt-add')), findsOneWidget);
+    expect(find.byKey(const ValueKey('expense-add')), findsOneWidget);
     expect(find.byKey(const ValueKey('receipt-add-document')), findsNothing);
     await db.close();
   });
@@ -95,7 +95,7 @@ void main() {
     await settle(tester);
     expect(find.text('No bills yet'), findsOneWidget);
     expect(find.byKey(const Key('home-tab-bills')), findsOneWidget);
-    expect(find.byKey(const ValueKey('receipt-add')), findsNothing);
+    expect(find.byKey(const ValueKey('expense-add')), findsNothing);
     expect(find.byKey(const Key('bill-add-empty')), findsOneWidget);
 
     await tester.tap(find.text('Goals'));
@@ -115,7 +115,7 @@ void main() {
 
     await tester.tap(find.text('Receipts'));
     await settle(tester);
-    expect(find.byKey(const ValueKey('receipt-add')), findsOneWidget);
+    expect(find.byKey(const ValueKey('expense-add')), findsOneWidget);
     expect(find.byKey(const Key('home-budget-prev')), findsNothing);
     await db.close();
   });

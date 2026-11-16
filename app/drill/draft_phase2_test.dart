@@ -57,7 +57,7 @@ void main() {
       () => Future<void>.delayed(const Duration(seconds: 6)),
     );
     await tester.pumpAndSettle();
-    await _tapHittable(tester, find.byKey(const ValueKey('receipt-add')));
+    await _tapHittable(tester, find.byKey(const ValueKey('expense-add')));
     // The sheet opens only after two REAL drift reads (categories,
     // draft) — real time first, then settle frames, before asserting.
     await tester.runAsync(

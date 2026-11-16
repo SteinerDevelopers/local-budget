@@ -344,7 +344,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  Future<void> _openQuickAdd() async {
+  Future<void> _openQuickAdd({EntryKind? kindHint}) async {
     final cats = await widget.repository.categories();
     if (!mounted) return;
     final stored = QuickAddDraft.decode(
@@ -363,10 +363,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       context,
       categories: [
         for (final c in cats)
-          CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name)),
+          CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name),
+              isIncome: c.isIncome),
       ],
       currency: _currency,
-      initialKind: _warmKind,
+      initialKind: kindHint ?? _warmKind,
       initialCategoryId: _warmCategoryId,
       draft: draft,
       onDraftChanged: _stageDraft,
@@ -540,7 +541,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ),
       categories: [
         for (final c in cats)
-          CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name)),
+          CategoryOption(c.id, c.name, ManageIcons.of(c.icon, c.name),
+              isIncome: c.isIncome),
       ],
       warmCategoryId: _warmCategoryId,
       onManageCategories: _openManage,
@@ -748,21 +750,37 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   // retired. The scanner button follows the Bills rule:
                   // present where capture exists, hidden where it doesn't.
                   PanelAddBar(
-                    primary: TextButton.icon(
-                      key: const ValueKey('receipt-add'),
-                      icon: const Icon(Icons.add, size: 20),
-                      label: const Text('Add receipt'),
-                      onPressed: _openQuickAdd,
+                    // Ravn feedback (owner relay, 2026-11-15): income had no
+                    // door — the only named add here was "Add receipt". The
+                    // two kinds now say their own name and pre-set the sheet;
+                    // the scanner keeps its verb as a compact icon (tooltip
+                    // names it for TalkBack per E5; IconButton is 48dp per E1).
+                    primary: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton.icon(
+                          key: const ValueKey('income-add'),
+                          icon: const Icon(Icons.south_west, size: 20),
+                          label: const Text('Add income'),
+                          onPressed: () =>
+                              _openQuickAdd(kindHint: EntryKind.income),
+                        ),
+                        TextButton.icon(
+                          key: const ValueKey('expense-add'),
+                          icon: const Icon(Icons.add, size: 20),
+                          label: const Text('Add expense'),
+                          onPressed: () =>
+                              _openQuickAdd(kindHint: EntryKind.expense),
+                        ),
+                      ],
                     ),
                     secondary: widget.capture == null
                         ? null
-                        : TextButton.icon(
+                        : IconButton(
                             key: const ValueKey('receipt-add-document'),
-                            icon: const Icon(
-                              Icons.document_scanner_outlined,
-                              size: 20,
-                            ),
-                            label: const Text('Scan a receipt'),
+                            tooltip: 'Scan a receipt',
+                            icon:
+                                const Icon(Icons.document_scanner_outlined),
                             onPressed: _openCapture,
                           ),
                   ),

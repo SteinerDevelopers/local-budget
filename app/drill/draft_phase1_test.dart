@@ -72,7 +72,7 @@ void main() {
       () => Future<void>.delayed(const Duration(seconds: 6)),
     );
     await tester.pumpAndSettle();
-    await _tapHittable(tester, find.byKey(const ValueKey('receipt-add')));
+    await _tapHittable(tester, find.byKey(const ValueKey('expense-add')));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 800)),
     );

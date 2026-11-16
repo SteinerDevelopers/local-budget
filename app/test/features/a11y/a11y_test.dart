@@ -83,7 +83,7 @@ void main() {
   }
 
   Future<void> openQuickAdd(WidgetTester tester) async {
-    await tester.tap(find.byKey(const ValueKey('receipt-add')));
+    await tester.tap(find.byKey(const ValueKey('expense-add')));
     await tester.pumpAndSettle();
   }
 
@@ -255,8 +255,8 @@ void main() {
           // The standardized add bar replaced the E2 FABs (2026-11-05):
           // TextButtons announce their own labels — no tooltip needed.
           expect(
-            tester.getSemantics(find.byKey(const ValueKey('receipt-add'))),
-            isSemantics(label: 'Add receipt'),
+            tester.getSemantics(find.byKey(const ValueKey('expense-add'))),
+            isSemantics(label: 'Add expense'),
           );
 
           await openManage(tester);
