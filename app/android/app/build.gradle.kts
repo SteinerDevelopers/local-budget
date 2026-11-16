@@ -61,21 +61,25 @@ android {
 
     buildTypes {
         release {
-            // Signed with the self-held app signing key when CI provides
-            // it; debug keys as the local fallback so
-            // `flutter run --release` still works without secrets (the CI
-            // aab lane GATES on the env and never ships a debug-signed aab).
+            // R8 ON (2026-11-16, owner kickoff of the Play DEX/Memory
+            // scorecard work). The wall that forced this off — R8 tripping
+            // on ML Kit's optional language jars (2026-11-07, Steiner
+            // Vault) — is answered by the -dontwarn block in
+            // proguard-rules.pro: those are soft references to model
+            // bundles that intentionally do not ship in the free build.
+            // Release-kit law applies: an R8-passing build is NOT a
+            // working build — capture E2E on a real device gates 0.1.2
+            // rollout; CI e2e + goldens are necessary, not sufficient.
             signingConfig = if (System.getenv("SIGNING_KEYSTORE")?.isNotEmpty() == true)
                 signingConfigs.getByName("signing")
             else
                 signingConfigs.getByName("debug")
-            // AGP 9 (gradle 9.3 era) defaults shrinking ON, and R8 trips over
-            // ML Kit's optional language jars (referenced-but-absent classes)
-            // — the wall Steiner Vault hit on 2026-11-07 (no release build
-            // had ever run here either). Release-kit work re-enables with
-            // keep rules; permission merging does not depend on shrinking.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
