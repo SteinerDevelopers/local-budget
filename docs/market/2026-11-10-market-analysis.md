@@ -10,6 +10,17 @@ instrument: `python3 scripts/market_projection.py`. This is a planning
 document: pricing, store presence and promises remain owner-gated (Law 4);
 recommendations here are options, not decisions._
 
+> **Dated snapshot — source-policy lines superseded (owner ruling week of
+> 2026-11-09; public GitHub mirror created 2026-11-13).** The project is now
+> open source: **AGPL-3.0-or-later with an
+> additional permission** (see `LICENSE`, README §License), with a public
+> GitHub mirror. Every "closed source" assumption below — the trust-tax math
+> and the "No F-Droid" stance included — reflects the pre-ruling posture and
+> is kept for the record, not as current policy. What survives the flip
+> unchanged: the pricing analysis, the competitor table, and the core thesis
+> that trust is bought with receipts — open source is one of those receipts
+> now.
+
 ---
 
 ## 1. Demand

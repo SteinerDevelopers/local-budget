@@ -309,6 +309,15 @@ Net: this environment carries the unit/widget tiers and Android builds; CI suppl
 | 12 | Paid delivery mechanism | **Separate paid app on the store — no unlock IAP; coffee tip is the only IAP; free→paid upgrade must migrate data smoothly** (owner amendment 2026-11-02, §3 header) | Two flavors one codebase (`free` complete / `pro` = free + decision-9 pack); same signing key; data hand-off via signature-level ContentProvider transfer or the existing encrypted-backup path; `docs/design/e6-monetization.md` is the mechanic contract |
 | 13 | Document import (owner request 2026-11-04) | **Bills and bank statements import from image / PDF / photo** — routed through the two existing machines, no new pipeline | E11 (`docs/design/e11-document-import.md`): classified on-device (`DocType` heuristics exist), statements → `CsvPreview` rows on the E5 wizard Preview (bulk, dedupe, `statementImport`), bills → `BillPrefill` into the E3 editor (1:1, decision 5 respected); parsing stays pure Dart — the LLM tiers never produce statement rows; multi-page text **is** v1 here, superseding the §6 "multi-page statements = v2" note (that line predates decision 5's review-first pattern making bulk rows safe) |
 
+**Policy delta (owner ruling, week of 2026-11-09; public GitHub mirror
+created 2026-11-13 — after this table was frozen):** the source is
+**published** — AGPL-3.0-or-later with an additional permission,
+public GitHub mirror — superseding the "closed source" working assumption
+carried in `docs/market/2026-11-10-market-analysis.md`. Decision 12 itself
+stands unchanged on monetization (separate paid listing, coffee-only IAP);
+distribution stays Play-first, while F-Droid moves from "forfeited" to an
+open option to weigh post-launch.
+
 Remaining open questions (non-blocking, resolve during design phase):
 
 1. **Fast-follow ordering** for the remaining paid-menu rows (§3.4): scan queue, tags/custom fields + bulk tools, multi-profile, extra themes/icons, v2 line-items "paid gets it first" — sequence by beta feedback after launch.
