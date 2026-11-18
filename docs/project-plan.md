@@ -7,7 +7,8 @@
 
 ## 1. Elevator spec
 
-Offline-first, zero-data receipt-scanning budget app. **Android launches publicly; iOS is built continuously from day 1 and *activated* when the traction trigger fires (decision 11).** Free tier is feature-complete; a one-time $7.99–$12.99 unlock sells value-adds (own-cloud backup, widgets, analytics pack — decision 9); no ads, ever (decision 4). The UI quality bar (§4.5 of the feasibility doc) is binding (decision 10).
+Offline-first, zero-data receipt-scanning budget app. **Android launches publicly; iOS is built continuously from day 1 and *activated* when the traction trigger fires (decision 11).** Free tier is feature-complete; a one-time Pro unlock sells value-adds (own-cloud backup, widgets, analytics
+pack — decision 9; price per canonical `docs/pricing.md`, currently $5.99); no ads, ever (decision 4). The UI quality bar (§4.5 of the feasibility doc) is binding (decision 10).
 
 ## 2. Decision snapshot (full rationale in feasibility §7)
 

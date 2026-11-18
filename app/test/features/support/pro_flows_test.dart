@@ -125,7 +125,7 @@ void main() {
         expect(find.text('Personal cloud backup'), findsOneWidget);
         expect(find.text('Home-screen widgets'), findsOneWidget);
         expect(find.text('Advanced analytics'), findsOneWidget);
-        expect(find.textContaining(r'$7.99 one-time'), findsOneWidget);
+        expect(find.textContaining(r'$5.99 one-time'), findsOneWidget);
         expect(find.textContaining('not an unlock'), findsOneWidget);
         expect(find.text('Get it on Google Play'), findsOneWidget);
         // Decision 12: nothing inside the free app buys an unlock.

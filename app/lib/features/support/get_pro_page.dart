@@ -100,7 +100,7 @@ class _GetProPageState extends State<GetProPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            r'$7.99 one-time. A separate app, not an unlock: the free app '
+            r'$5.99 one-time. A separate app, not an unlock: the free app '
             'stays the complete free app it is today.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
