@@ -108,18 +108,18 @@ class _GetProPageState extends State<GetProPage> {
           ),
           const SizedBox(height: Tokens.space3),
           const _TrioCard(
-            icon: Icons.cloud_sync_outlined,
+            icon: Icons.cloud_upload_outlined,
             title: 'Personal cloud backup',
-            body: 'Your own encrypted bucket, synced on your terms.',
+            body: 'Backups to storage you own, on your terms.',
           ),
           const _TrioCard(
             icon: Icons.widgets_outlined,
             title: 'Home-screen widgets',
-            body: 'Balance and this month, at a glance.',
+            body: 'Spend, an envelope and a one-tap scan, at a glance.',
           ),
           const _TrioCard(
             icon: Icons.insights_outlined,
-            title: 'Advanced analytics',
+            title: 'Insights',
             body: 'Categories, trends and comparisons over time.',
           ),
           const SizedBox(height: Tokens.space3),
