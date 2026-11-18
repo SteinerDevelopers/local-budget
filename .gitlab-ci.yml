@@ -809,6 +809,49 @@ package-aab-release-pro:
       - out/app-pro-release-mapping.txt
     expire_in: 8 weeks
 
+# Release-mode SOAK pair (owner soak-kit word 2026-11-18): the exact release
+# shape — R8-minified, release-keystore-signed — as plain APKs, because a
+# soak must run what Play will serve (Pro: modulo Play's re-signing, which
+# changes only the signer, never the code or manifest; Free: exactly this
+# binary). Debug kits (pinned debug key) cannot re-prove the release
+# signature grant — same-key signer is what the transfer permission trusts.
+# Same secrets guard and flavor pinning as the AAB lanes; one job builds the
+# PAIR so the two flavors can never come from different pipelines.
+package-apk-soak-release:
+  <<: *package-apk-base
+  script:
+    - |
+      set -e
+      if [ -z "${SIGNING_KEYSTORE:-}" ] || [ ! -f "$SIGNING_KEYSTORE" ] || [ -z "${SIGNING_KEYSTORE_PASSWORD:-}" ]; then
+        echo "RELEASE SIGNING SECRETS MISSING."
+        echo "Add the secret file SIGNING_KEYSTORE (keystore) and the masked"
+        echo "variable SIGNING_KEYSTORE_PASSWORD under Settings → CI/CD."
+        exit 1
+      fi
+      mkdir -p "$CI_PROJECT_DIR/.signing"
+      base64 -d "$SIGNING_KEYSTORE" > "$CI_PROJECT_DIR/.signing/release.p12"
+      export SIGNING_KEYSTORE="$CI_PROJECT_DIR/.signing/release.p12"
+      cd app
+      flutter pub get
+      flutter test test/flavor_guard_test.dart --dart-define=APP_FLAVOR=free
+      flutter build apk --release --flavor free --dart-define=APP_FLAVOR=free
+      flutter test test/flavor_guard_test.dart --dart-define=APP_FLAVOR=pro
+      flutter build apk --release --flavor pro --dart-define=APP_FLAVOR=pro
+      mkdir -p "$CI_PROJECT_DIR/out"
+      cp -v build/app/outputs/flutter-apk/app-free-release.apk "$CI_PROJECT_DIR/out/"
+      cp -v build/app/outputs/flutter-apk/app-pro-release.apk "$CI_PROJECT_DIR/out/"
+      cd "$CI_PROJECT_DIR/out"
+      # Two lines, standard format — the bench verifies with
+      # `sha256sum -c SOAK-KIT-SHA256SUMS.txt` before installing a byte.
+      sha256sum *.apk | tee SOAK-KIT-SHA256SUMS.txt
+      [ "$(wc -l < SOAK-KIT-SHA256SUMS.txt)" = "2" ] || { echo "expected the free+pro pair"; exit 1; }
+  artifacts:
+    paths:
+      - out/app-free-release.apk
+      - out/app-pro-release.apk
+      - out/SOAK-KIT-SHA256SUMS.txt
+    expire_in: 4 weeks
+
 # Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
   stage: probe
