@@ -39,6 +39,11 @@ import 'package:local_budget/version.dart';
 import 'package:sqlite3/open.dart' as sqlite3_open;
 
 void main() {
+  // The copy-data button seals through createBackup; the fake clock cannot
+  // observe the production worker isolate (2026-11-18 ANR fix), so this
+  // file drives the same seal synchronously. Envelope bytes are identical
+  // either way — the round-trip assert below still proves the format.
+  backupSyncForTest = true;
   sqlite3_open.open.overrideFor(
     sqlite3_open.OperatingSystem.linux,
     () => DynamicLibrary.open('libsqlite3.so.0'),
@@ -166,7 +171,7 @@ void main() {
         expect(staged, isNotNull);
         // The provider hands these bytes out untouched; Pro opens them with
         // the compiled-in passphrase — assert that exact round trip here.
-        final backup = openBackup(
+        final backup = await openBackup(
           staged!,
           passphrase: transferPassphrase,
           currentSchemaVersion: r.db.schemaVersion,

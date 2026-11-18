@@ -121,6 +121,16 @@ CaptureServices docServices({
 );
 
 void main() {
+  // Production seals backup crypto on a worker isolate (2026-11-18 release-
+  // ANR fix); the fake clock here cannot observe a real isolate, so the
+  // whole file opts into the synchronous seam — same functions, same bytes,
+  // caller's thread only. The isolate path ships and is covered by the data
+  // package's backup_test.dart and the bench soak.
+  backupSyncForTest = true;
+  _main();
+}
+
+void _main() {
   sqlite3_open.open.overrideFor(
     sqlite3_open.OperatingSystem.linux,
     () => DynamicLibrary.open('libsqlite3.so.0'),
@@ -1047,7 +1057,10 @@ void main() {
     tester,
   ) async {
     final r = await liveDb();
-    final fx = FxService(r.db, client: MockClient((_) async => http.Response('no', 500)));
+    final fx = FxService(
+      r.db,
+      client: MockClient((_) async => http.Response('no', 500)),
+    );
     try {
       await pumpManage(tester, repo: r.repo, db: r.db, docs: r.docs, fx: fx);
       // Default liveFxVisible == FeatureFlags.proTrio == false in free

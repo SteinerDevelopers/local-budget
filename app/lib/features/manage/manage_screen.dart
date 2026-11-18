@@ -527,7 +527,7 @@ class _ManageScreenState extends State<ManageScreen> {
       if (passphrase == null || !mounted) return;
       final Backup backup;
       try {
-        backup = openBackup(
+        backup = await openBackup(
           picked.bytes,
           passphrase: passphrase,
           currentSchemaVersion: db.schemaVersion,
@@ -649,7 +649,7 @@ class _ManageScreenState extends State<ManageScreen> {
         );
         return;
       }
-      backup = openBackup(
+      backup = await openBackup(
         bytes,
         passphrase: transferPassphrase,
         currentSchemaVersion: db.schemaVersion,
