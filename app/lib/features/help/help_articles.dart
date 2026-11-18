@@ -167,7 +167,10 @@ const List<HelpArticle> kHelpArticles = [
           'reminders to save battery — an overdue bill always waits for '
           'you as a Due row in the list, and tapping Mark paid (or '
           'simply opening the app again) is what records the payment. '
-          'Nothing hinges on a reminder arriving on time.',
+          'Nothing hinges on a reminder arriving on time. A repeating '
+          'bill that has not come due in over a year quietly pauses '
+          'itself and says so once — open it on the Bills tab to '
+          'resume it, or leave it paused.',
     ],
   ),
   HelpArticle(
@@ -231,7 +234,7 @@ const List<HelpArticle> kHelpArticles = [
       'Pro is a separate app in the store, bought once — not a feature '
           'switch inside this one. It is the same app you know with '
           'three extras: a cloud backup to storage you own, home-screen '
-          'widgets and in-depth reports. The free app keeps everything '
+          'widgets and the Insights views in Reports. The free app keeps everything '
           'it does today; nothing is taken away when you upgrade.',
       'To move your data, first copy it out of the free app: open '
           'Manage → Get Pro → Copy my data to Pro. The app makes an '
@@ -329,7 +332,7 @@ const List<HelpArticle> kHelpArticles = [
           'statement the amount filled in is the minimum payment '
           'due — the figure you actually pay each month — not the '
           'balance sitting on the page. The document alone '
-          'never writes to your ledger or your bills.',
+          'never writes to your list or your bills.',
       'In a hurry, the Bills tab has its own “Scan a bill” '
           'button. It reads a bill the same way; if your photo turns '
           'out to be a full statement instead, it says so and points '
@@ -363,6 +366,11 @@ const List<HelpArticle> kHelpArticles = [
           'it anywhere. Changing phones is the simple case: back up on '
           'the old phone, restore on the new one, and the passphrase is '
           'the only thing that travels with you.',
+      'Manage → Export CSV makes a spreadsheet file of your entries — '
+          'it first asks which account, or all of them. The rows are '
+          'plain numbers without receipt photos, and the phone opens '
+          'its usual share sheet so the file can go wherever you '
+          'want: a spreadsheet, an accountant, your own files.',
       'If you turn on Pro’s cloud backups, the automatic copies are '
           'exactly this same encrypted file — read “Pro extras” for '
           'when they run. A manual backup before a big tidy-up is '
