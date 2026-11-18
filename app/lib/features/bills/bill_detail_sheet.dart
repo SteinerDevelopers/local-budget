@@ -217,7 +217,7 @@ class _BillDetailSheet extends StatelessWidget {
                   title: const Text('Delete this bill?'),
                   content: Text(
                     'The rule goes away. Payments already recorded stay '
-                    'in your ledger.',
+                    'in your list.',
                   ),
                   actions: [
                     TextButton(

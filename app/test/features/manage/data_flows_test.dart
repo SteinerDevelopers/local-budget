@@ -223,7 +223,7 @@ void main() {
   }
 
   group('export CSV (§3)', () {
-    testWidgets('All accounts shares a spreadsheet copy of the ledger', (
+    testWidgets('All accounts shares a spreadsheet copy of your entries', (
       tester,
     ) async {
       final r = await liveDb();
@@ -452,7 +452,7 @@ void main() {
 
         expect(find.byKey(const Key('restore-confirm')), findsOneWidget);
         expect(
-          find.textContaining('ledger and all attachment images'),
+          find.textContaining('entries and all receipt photos'),
           findsOneWidget,
         );
         await tester.tap(find.byKey(const Key('restore-go')));

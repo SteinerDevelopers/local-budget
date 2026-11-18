@@ -143,9 +143,9 @@ class _GetProPageState extends State<GetProPage> {
             label: const Text('Copy my data to Pro'),
           ),
           Text(
-            'One tap puts an encrypted copy of your ledger where the Pro '
-            'app can read it — on this device only. Open Pro and tap '
-            '"Transfer from free app" to finish.',
+            'One tap puts an encrypted copy of everything you have saved '
+            'where the Pro app can read it — on this device only. Open Pro '
+            'and tap "Transfer from free app" to finish.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

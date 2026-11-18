@@ -521,7 +521,7 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
           title: const Text('Replace everything?'),
           content: Text(
             'From ${d.label}, ${_stampLabel(o)}.\n\n'
-            'Restoring replaces your ledger and all attachment images with '
+            'Restoring replaces your entries and all receipt photos with '
             'the backup, then restarts the app. This cannot be undone.',
           ),
           actions: [

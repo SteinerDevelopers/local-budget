@@ -804,7 +804,7 @@ class _ImportWizardScreenState extends State<ImportWizardScreen> {
               Expanded(
                 child: Text(
                   '${preview.newCount} new'
-                  '${preview.duplicateCount > 0 ? ' · ${preview.duplicateCount} already in ledger' : ''}',
+                  '${preview.duplicateCount > 0 ? ' · ${preview.duplicateCount} already in your list' : ''}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
