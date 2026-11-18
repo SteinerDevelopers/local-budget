@@ -762,6 +762,53 @@ package-aab-release-free:
       - out/app-free-release-mapping.txt
     expire_in: 8 weeks
 
+# Play App Signing is law for NEW apps (owner ruling 2026-11-17), and Pro is
+# a new app: this AAB is an UPLOAD-key artifact — Google holds the app
+# signing key and re-signs everything (the Console's default path; see
+# docs/release/play-app-signing.md). The free app predates the ruling and
+# keeps decision-13 self-signing — its Console note above stays correct for
+# that already-created listing. The upload key is deliberately the SAME
+# keystore the free lane already guards (the existing custody plan covers it;
+# Console upload-key rotation stays available if a separate key is ever
+# wanted — no new ceremony today). The job prints the certificate SHA-256 so
+# the owner can confirm the Console's "upload key fingerprint" matches.
+package-aab-release-pro:
+  <<: *package-apk-base
+  script:
+    - |
+      set -e
+      if [ -z "${SIGNING_KEYSTORE:-}" ] || [ ! -f "$SIGNING_KEYSTORE" ] || [ -z "${SIGNING_KEYSTORE_PASSWORD:-}" ]; then
+        echo "RELEASE SIGNING SECRETS MISSING."
+        echo "Add the secret file SIGNING_KEYSTORE (keystore) and the masked"
+        echo "variable SIGNING_KEYSTORE_PASSWORD under Settings → CI/CD."
+        exit 1
+      fi
+      mkdir -p "$CI_PROJECT_DIR/.signing"
+      base64 -d "$SIGNING_KEYSTORE" > "$CI_PROJECT_DIR/.signing/release.p12"
+      export SIGNING_KEYSTORE="$CI_PROJECT_DIR/.signing/release.p12"
+      # Public material only: identifies the upload certificate, never the key.
+      keytool -list -v -keystore "$SIGNING_KEYSTORE" \
+        -storepass "$SIGNING_KEYSTORE_PASSWORD" \
+        -alias "${SIGNING_KEY_ALIAS:-signing}" | grep -i "SHA256:" | head -1
+      cd app
+      flutter pub get
+      # Pro-direction guard: the artifact name promises Pro; flavor_guard
+      # pro pairs with it, exactly as the free lane pins free.
+      flutter test test/flavor_guard_test.dart --dart-define=APP_FLAVOR=pro
+      flutter build appbundle --release --flavor pro --dart-define=APP_FLAVOR=pro
+      mkdir -p "$CI_PROJECT_DIR/out"
+      cp -v build/app/outputs/bundle/proRelease/app-pro-release.aab "$CI_PROJECT_DIR/out/"
+      # R8 mapping for crash symbolication (owner uploads to the private
+      # mapping section; never ships to users). Plain cp on purpose — a
+      # missing mapping means the build shape changed: fail loudly.
+      cp -v build/app/outputs/mapping/proRelease/mapping.txt "$CI_PROJECT_DIR/out/app-pro-release-mapping.txt"
+      ls -l "$CI_PROJECT_DIR/out/"
+  artifacts:
+    paths:
+      - out/app-pro-release.aab
+      - out/app-pro-release-mapping.txt
+    expire_in: 8 weeks
+
 # Kept for re-running when the runner box changes (manual, never automatic).
 runner-probe:
   stage: probe
