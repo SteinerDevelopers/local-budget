@@ -16,7 +16,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async';
-import 'dart:io' show Directory, Platform;
+import 'dart:io' show Directory, File, Platform;
 
 import 'package:billing/billing.dart' show TipService;
 import 'package:data/data.dart';
@@ -62,6 +62,7 @@ TipService? _tips;
 /// its subscription cancelled) on every boot, same lifecycle as [_tips].
 WidgetSnapshotService? _widgetService;
 _WidgetResumeObserver? _widgetObserver;
+_TransferRestageObserver? _transferObserver;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -168,6 +169,27 @@ Future<void> bootLocalBudget() async {
     _widgetObserver = _WidgetResumeObserver(widgets);
     WidgetsBinding.instance.addObserver(_widgetObserver!);
   }
+  // E6 §3: pause-staging is the free side's refresh of the transfer
+  // snapshot. Free-flavor only (Pro never stages), and opt-in by
+  // construction — the restager refuses until the *Copy my data* button
+  // has staged once. Replaced, never stacked, like every other observer.
+  final staleRestage = _transferObserver;
+  if (staleRestage != null) {
+    WidgetsBinding.instance.removeObserver(staleRestage);
+    _transferObserver = null;
+  }
+  final transfer = buildTransfer();
+  if (!FeatureFlags.proTrio && transfer != null) {
+    _transferObserver = _TransferRestageObserver(
+      TransferRestager(
+        transfer: transfer,
+        db: db,
+        attachments: AttachmentStore(dir),
+        dbFile: File('${dir.path}/localbudget.sqlite'),
+      ),
+    );
+    WidgetsBinding.instance.addObserver(_transferObserver!);
+  }
 }
 
 /// §7 passive check: `DbIntegrity.check` already never throws; the catch is
@@ -255,6 +277,23 @@ class _WidgetResumeObserver with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _widgets.onResume();
+  }
+}
+
+/// E6 §3: the free app re-stages its transfer snapshot when the user walks
+/// away — "opportunistically on app pause when anything changed since the
+/// last stage". Paused, not inactive: a shade pulled down or a permission
+/// dialog is not a walk-away. Opportunistic means silent: the restager
+/// swallows every failure and the previous snapshot keeps being served.
+class _TransferRestageObserver with WidgetsBindingObserver {
+  _TransferRestageObserver(this._restager);
+
+  final TransferRestager _restager;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.paused) return;
+    unawaited(_restager.restageIfStale());
   }
 }
 
