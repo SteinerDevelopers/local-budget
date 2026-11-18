@@ -17,7 +17,10 @@
 
 import 'dart:io';
 
+import 'package:data/data.dart';
 import 'package:flutter/services.dart';
+
+import '../../version.dart';
 
 /// E6 §3 free→paid transfer, Dart side of `dev.steiner.local_budget/transfer`.
 /// The free app *stages* an encrypted snapshot (its Dart writes bytes through
@@ -100,12 +103,21 @@ class ChannelFreeTransfer implements FreeTransfer {
 
 /// Widget-test/golden double: in-memory snapshot, switchable availability.
 class FakeFreeTransfer implements FreeTransfer {
-  FakeFreeTransfer({this.free = false, this.pro = false, this.snapshot});
+  FakeFreeTransfer({
+    this.free = false,
+    this.pro = false,
+    this.snapshot,
+    this.metaMs = 1762000000000,
+  });
 
   bool free;
   bool pro;
   Uint8List? snapshot;
   Uint8List? staged;
+
+  /// Staged-at stamp the fake reports; tests move it around the wal mtime
+  /// to drive the staleness probe.
+  final int metaMs;
 
   @override
   Future<bool> freeAvailable() async => free;
@@ -120,7 +132,72 @@ class FakeFreeTransfer implements FreeTransfer {
   Future<Uint8List?> pull() async => snapshot;
 
   @override
-  Future<({int size, int mtimeMs})?> snapshotMeta() async => snapshot == null
-      ? null
-      : (size: snapshot!.length, mtimeMs: 1762000000000);
+  Future<({int size, int mtimeMs})?> snapshotMeta() async =>
+      snapshot == null ? null : (size: snapshot!.length, mtimeMs: metaMs);
+}
+
+/// E6 §3 opportunistic pause-staging, the free side. The same envelope the
+/// *Copy my data* button stages, refreshed when the user walks away from the
+/// app — "again opportunistically on app pause when anything changed since
+/// the last stage" (§3). Opt-in by construction: it never stages for anyone
+/// who has not pressed the button at least once ([snapshotMeta] gate), and
+/// opportunistic by contract: every failure is swallowed and the previous,
+/// still-true snapshot keeps being served. A concurrent button stage racing
+/// this path is harmless — both bytes are valid snapshots, last write wins.
+class TransferRestager {
+  TransferRestager({
+    required this.transfer,
+    required this.db,
+    required this.attachments,
+    required this.dbFile,
+    this.kdfIterations = backupDefaultKdfIterations,
+  });
+
+  final FreeTransfer transfer;
+  final AppDatabase db;
+  final AttachmentStore attachments;
+  final File dbFile;
+  final int kdfIterations;
+
+  bool _inFlight = false;
+
+  Future<void> restageIfStale() async {
+    if (_inFlight) return;
+    _inFlight = true;
+    try {
+      if (!await transfer.proInstalled()) return;
+      final meta = await transfer.snapshotMeta();
+      if (meta == null) return; // the button remains the only entrance
+      if (!await _changedSince(meta.mtimeMs)) return;
+      final bytes = await createBackup(
+        db: db,
+        attachments: attachments,
+        passphrase: transferPassphrase,
+        appVersion: appVersion,
+        kdfIterations: kdfIterations,
+      );
+      await transfer.stage(bytes);
+    } catch (_) {
+      // Opportunistic: an old-but-true snapshot beats no snapshot, and the
+      // next pause retries while the staleness probe still says "changed".
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// SQLite writes through `…-wal` while WAL is live and the plain db file's
+  /// mtime trails, so both are probed. A false "changed" only re-stages
+  /// identical bytes; a missed change would need a write touching neither
+  /// file, which sqlite does not perform.
+  Future<bool> _changedSince(int mtimeMs) async {
+    final staged = DateTime.fromMillisecondsSinceEpoch(mtimeMs);
+    for (final path in [dbFile.path, '${dbFile.path}-wal']) {
+      try {
+        if ((await File(path).stat()).modified.isAfter(staged)) return true;
+      } on FileSystemException {
+        // Absent wal before the first write is normal.
+      }
+    }
+    return false;
+  }
 }
