@@ -97,7 +97,7 @@ void main() {
         await seed(2);
         final bytes = await makeBackup(passphrase: transferPassphrase);
         // Pro opens it with the compiled-in constant — no user prompt anywhere.
-        final backup = openBackup(
+        final backup = await openBackup(
           bytes,
           passphrase: transferPassphrase,
           currentSchemaVersion: db.schemaVersion,
@@ -112,8 +112,8 @@ void main() {
           await reopened.close();
         }
         // The envelope is still a real envelope: the constant is not a bypass.
-        expect(
-          () => openBackup(
+        await expectLater(
+          openBackup(
             bytes,
             passphrase: 'not-the-constant',
             currentSchemaVersion: db.schemaVersion,
@@ -139,7 +139,7 @@ void main() {
         cheapKdf,
       );
 
-      final backup = openBackup(
+      final backup = await openBackup(
         bytes,
         passphrase: 'correct horse',
         currentSchemaVersion: db.schemaVersion,
@@ -172,8 +172,8 @@ void main() {
     test('wrong passphrase fails the GCM tag', () async {
       await seed(1);
       final bytes = await makeBackup();
-      expect(
-        () => openBackup(
+      await expectLater(
+        openBackup(
           bytes,
           passphrase: 'wrong horse',
           currentSchemaVersion: db.schemaVersion,
@@ -188,8 +188,8 @@ void main() {
         await seed(1);
         final bytes = await makeBackup();
         bytes[backupHeaderBytes + 5] ^= 0x01;
-        expect(
-          () => openBackup(
+        await expectLater(
+          openBackup(
             bytes,
             passphrase: 'correct horse',
             currentSchemaVersion: db.schemaVersion,
@@ -203,8 +203,8 @@ void main() {
       'foreign, truncated, or version-mismatched files are format errors',
       () async {
         final junk = Uint8List.fromList(latin1.encode('NOT A BACKUP FILE' * 4));
-        expect(
-          () => openBackup(
+        await expectLater(
+          openBackup(
             junk,
             passphrase: 'x',
             currentSchemaVersion: db.schemaVersion,
@@ -213,8 +213,8 @@ void main() {
         );
         await seed(1);
         final bytes = await makeBackup();
-        expect(
-          () => openBackup(
+        await expectLater(
+          openBackup(
             bytes.sublist(0, 30),
             passphrase: 'x',
             currentSchemaVersion: db.schemaVersion,
@@ -222,8 +222,8 @@ void main() {
           throwsA(isA<BackupFormatException>()),
         );
         bytes[5] = 99; // unsupported container version, refused before KDF
-        expect(
-          () => openBackup(
+        await expectLater(
+          openBackup(
             bytes,
             passphrase: 'correct horse',
             currentSchemaVersion: db.schemaVersion,
@@ -238,8 +238,8 @@ void main() {
       () async {
         await seed(1);
         final bytes = await makeBackup();
-        expect(
-          () => openBackup(
+        await expectLater(
+          openBackup(
             bytes,
             passphrase: 'correct horse',
             currentSchemaVersion: db.schemaVersion - 1,
@@ -297,7 +297,7 @@ void main() {
         );
         await later.close();
 
-        final backup = openBackup(
+        final backup = await openBackup(
           bytes,
           passphrase: 'pw',
           currentSchemaVersion: db.schemaVersion,

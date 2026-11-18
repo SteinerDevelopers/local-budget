@@ -490,7 +490,7 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
       if (passphrase == null || !mounted) return;
       final Backup backup;
       try {
-        backup = openBackup(
+        backup = await openBackup(
           bytes,
           passphrase: passphrase,
           currentSchemaVersion: db.schemaVersion,
