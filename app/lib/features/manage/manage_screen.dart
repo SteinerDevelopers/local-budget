@@ -255,7 +255,7 @@ class _ManageScreenState extends State<ManageScreen> {
             key: const Key('export-csv'),
             leading: const Icon(Icons.upload_file_outlined),
             title: const Text('Export CSV'),
-            subtitle: const Text('Spreadsheet-friendly copy of the ledger'),
+            subtitle: const Text('Spreadsheet-friendly copy of your entries'),
             onTap: _exportCsv,
           ),
           ListTile(
@@ -559,7 +559,7 @@ class _ManageScreenState extends State<ManageScreen> {
           key: const Key('restore-confirm'),
           title: const Text('Replace everything?'),
           content: const Text(
-            'Restoring replaces your ledger and all attachment images with '
+            'Restoring replaces your entries and all receipt photos with '
             'the backup, then restarts the app. This cannot be undone.',
           ),
           actions: [
@@ -678,7 +678,7 @@ class _ManageScreenState extends State<ManageScreen> {
         key: const Key('transfer-confirm'),
         title: const Text('Replace everything?'),
         content: const Text(
-          'Transferring replaces your ledger and all attachment images with '
+          'Transferring replaces your entries and all receipt photos with '
           'the copy from the free app, then restarts the app. This cannot be '
           'undone.',
         ),
