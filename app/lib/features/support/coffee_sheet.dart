@@ -16,15 +16,18 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:billing/billing.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/tokens.dart';
 
 /// E6 §5 coffee sheet: three chips, one button, one thank-you. The copy is
 /// load-bearing — it says out loud that tips unlock nothing (§0 invariant),
 /// so nothing here may vary with purchase state beyond the receipt line.
+///
+/// 2026-11-19 (owner ruling, Google's Aug-2026 donation-validation tightening):
+/// the BuMeC browser-out row is REMOVED from the Play flavor — IAP tips are the
+/// only tip surface, everywhere. `SupportLinks.bmc` stays in the billing package
+/// for a future non-Play flavor; nothing in this app may open external URLs.
 Future<void> showCoffeeSheet(
   BuildContext context, {
   required TipService? tips,
@@ -59,7 +62,6 @@ class _CoffeeSheetState extends State<CoffeeSheet> {
   String? _selected;
   String _unavailableCopy = '';
   List<String> _receipts = const [];
-  bool _bmcVisible = false;
 
   @override
   void initState() {
@@ -77,16 +79,6 @@ class _CoffeeSheetState extends State<CoffeeSheet> {
       await tips.gateway.connect();
       final products = await tips.catalog();
       final receipts = await tips.tipsAcked();
-      // §7: the browser-out row only; the IAP chips are never gated.
-      var bmc = false;
-      try {
-        bmc = SupportPolicy.visible(
-          await tips.gateway.accountCountry(),
-          debug: kDebugMode,
-        );
-      } on Object {
-        bmc = false;
-      }
       if (!mounted) return;
       if (products.isEmpty) {
         setState(() {
@@ -99,7 +91,6 @@ class _CoffeeSheetState extends State<CoffeeSheet> {
         _products = products;
         _selected = products[products.length ~/ 2].id; // the middle coffee
         _receipts = receipts;
-        _bmcVisible = bmc;
         _phase = _Phase.ready;
       });
     } on Object {
@@ -139,14 +130,6 @@ class _CoffeeSheetState extends State<CoffeeSheet> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _openBmc() async {
-    // External browser only; the app itself never loads remote content.
-    await launchUrl(
-      Uri.parse(SupportLinks.bmc),
-      mode: LaunchMode.externalApplication,
-    );
   }
 
   @override
@@ -247,15 +230,6 @@ class _CoffeeSheetState extends State<CoffeeSheet> {
                 ),
               ),
             ),
-            if (_bmcVisible)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  key: const Key('coffee-bmc'),
-                  onPressed: _openBmc,
-                  child: const Text('Or buy me one at buymeacoffee.com'),
-                ),
-              ),
           ],
         ),
       },

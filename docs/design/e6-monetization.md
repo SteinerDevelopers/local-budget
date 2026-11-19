@@ -172,6 +172,15 @@ button exists here — buying happens on the store. (E7 replaces trio cards
 hidden for other countries, debug-visible when unknown. Tip **IAP** chips are
 not region-gated (IAP is always the compliant path).
 
+**Ruling 2026-11-19 (owner): the browser-out link is removed from the Play
+flavor entirely.** Google's Aug-2026 donation-validation enforcement (donation
+links restricted to "validated tax-exempt organizations"; AnkiDroid/Open
+Collective standoff) made a for-profit web-tip row an avoidable automated-flag
+risk. IAP tips (`lb_coffee_*`, §7 chips, never region-gated, locally priced by
+Play in every storefront) are now the only tip surface in the app.
+`SupportLinks.bmc` and `SupportPolicy` remain in the billing package, unused
+by the app, reserved for a possible future non-Play flavor.
+
 ## 8. Test & CI surface
 
 - **packages/billing** (pure Dart): tip happy path (buy→purchased→ack→badge),
