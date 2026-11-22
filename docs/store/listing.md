@@ -120,8 +120,10 @@ or e2e-junk is in frame; dark mode `<pick one and stay consistent>`.
 
 - **Icon (ships): decision 14 — “minted sprout”** (commit 39264f9, measurement
   winner over 24 AI concepts + 8 hand candidates). Production assets:
-  `app/android/app/src/{main,pro}/res` (adaptive layers all densities, flavors
-  unified); Play 512 at `docs/brand/icon-play-512.png`. The vault-house era in
+  `app/android/app/src/{main,pro}/res` (adaptive layers all densities; Pro
+  variant = gold coin ring `#FFC24D`, owner decision 2026-11-22 — sprout,
+  ground, geometry untouched, monochrome identical); Play 512
+  `docs/brand/icon-play-512.png` (free) + `icon-play-512-pro.png` (Pro). The vault-house era in
   `docs/store/icon.md` is history, not spec.
 - **Feature graphic: v2 APPROVED by owner 2026-11-13** — `feature-graphic-free.png`
   rebuilt on the decision-14 brand (tile = shipped `docs/brand/icon-play-512.png`,
