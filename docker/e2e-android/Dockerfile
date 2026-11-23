@@ -10,6 +10,12 @@
 # Rebuild when Flutter floor or system image changes; CI comment tracks it.
 FROM ghcr.io/cirruslabs/flutter:stable
 
+# stdlib python3 for tools/ci/widget_dex_gate.py (Glance dex gate, launch
+# blocker 2026-11-23). The wrapper can apt-install at runtime, but the
+# release jobs should not bet the pipeline on package mirrors.
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends python3 \
+ && rm -rf /var/lib/apt/lists/*
+
 # Emulator + x86_64 Google-APIs system image (boots under the KVM device the
 # runner passes into job containers) + platforms covering the 3.44 floor's
 # compileSdk through current stable.

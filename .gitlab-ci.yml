@@ -664,6 +664,15 @@ package-apk-free:
       flutter build apk --release --flavor free --dart-define=APP_FLAVOR=free
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-free-release.apk "$CI_PROJECT_DIR/out/"
+      # DEX GATE (launch blocker 2026-11-23): pipeline 1125's store artifacts
+      # carried widget call sites linked against provideContent(...Function0...)
+      # while glance-appwidget-1.1.1 only ships the Function2 (composable)
+      # signature — every Glance tile NoSuchMethodError'd at the launcher and
+      # no compiler/R8/test noticed. Every shipping artifact is dex-parsed
+      # here before it leaves the job. Compose Compiler plugin in
+      # app/android now makes builds emit the correct linkage; this gate is
+      # the tripwire that keeps it that way.
+      bash "$CI_PROJECT_DIR/tools/ci/widget-dex-gate.sh" "$CI_PROJECT_DIR/out/app-free-release.apk"
       # Hash the bytes this job produced, by name, before they leave the
       # job (flavor-named digest file: two jobs sharing one filename let a
       # later download silently replace the earlier attestation — the
@@ -703,6 +712,8 @@ package-apk-pro:
       flutter build apk --debug --flavor pro --dart-define=APP_FLAVOR=pro --split-per-abi
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-arm64-v8a-pro-debug.apk "$CI_PROJECT_DIR/out/"
+      # Dex gate — see the note in package-apk-free.
+      bash "$CI_PROJECT_DIR/tools/ci/widget-dex-gate.sh" "$CI_PROJECT_DIR/out/app-arm64-v8a-pro-debug.apk"
       # Per-flavor digest — see the note in package-apk-free.
       cd "$CI_PROJECT_DIR/out" && sha256sum app-arm64-v8a-pro-debug.apk | tee KIT-SHA256SUMS-pro.txt
       ls -l "$CI_PROJECT_DIR/out/"
@@ -750,6 +761,8 @@ package-aab-release-free:
       flutter build appbundle --release --flavor free --dart-define=APP_FLAVOR=free
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/bundle/freeRelease/app-free-release.aab "$CI_PROJECT_DIR/out/"
+      # Dex gate — see the note in package-apk-free. THE STORE RAIL.
+      bash "$CI_PROJECT_DIR/tools/ci/widget-dex-gate.sh" "$CI_PROJECT_DIR/out/app-free-release.aab"
       # R8 mapping for Play Console crash symbolication (owner upload,
       # private side — never ships to users). Plain cp on purpose: with
       # minify on, a MISSING mapping means the build shape changed, and
@@ -798,6 +811,8 @@ package-aab-release-pro:
       flutter build appbundle --release --flavor pro --dart-define=APP_FLAVOR=pro
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/bundle/proRelease/app-pro-release.aab "$CI_PROJECT_DIR/out/"
+      # Dex gate — see the note in package-apk-free. THE STORE RAIL.
+      bash "$CI_PROJECT_DIR/tools/ci/widget-dex-gate.sh" "$CI_PROJECT_DIR/out/app-pro-release.aab"
       # R8 mapping for crash symbolication (owner uploads to the private
       # mapping section; never ships to users). Plain cp on purpose — a
       # missing mapping means the build shape changed: fail loudly.
@@ -840,6 +855,8 @@ package-apk-soak-release:
       mkdir -p "$CI_PROJECT_DIR/out"
       cp -v build/app/outputs/flutter-apk/app-free-release.apk "$CI_PROJECT_DIR/out/"
       cp -v build/app/outputs/flutter-apk/app-pro-release.apk "$CI_PROJECT_DIR/out/"
+      # Dex gate on both soak binaries — see the note in package-apk-free.
+      bash "$CI_PROJECT_DIR/tools/ci/widget-dex-gate.sh" "$CI_PROJECT_DIR/out/app-free-release.apk" "$CI_PROJECT_DIR/out/app-pro-release.apk"
       cd "$CI_PROJECT_DIR/out"
       # Two lines, standard format — the bench verifies with
       # `sha256sum -c SOAK-KIT-SHA256SUMS.txt` before installing a byte.
