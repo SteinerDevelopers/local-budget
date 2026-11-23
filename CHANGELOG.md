@@ -1,7 +1,7 @@
 # Changelog — Steiner Budget
 
-The version source of truth is `app/pubspec.yaml` (`version: 0.1.0+1` →
-`versionName 0.1.0`, `versionCode 1`). This file is the second of the three
+The version source of truth is `app/pubspec.yaml` (`version: 1.0.0+4` →
+`versionName 1.0.0`, `versionCode 4`). This file is the second of the three
 bindings the playbook (`Steiner-Bot/agent-playbook`, `docs/version-discipline.md`)
 law 1 requires — human marker, changelog, VCS tag — and it exists so that a kit
 installed on a phone can be traced back to a commit without opening a job log.
@@ -12,6 +12,19 @@ same gap the process grade recorded under its Release dimension.
 `0.1.0+1 → 1.0.0+<N>` bump is a release-prep commit and `v1.0.0+N` is the tag
 that comes with it. Nothing here pre-empts that; the `kit/*` namespace is for
 build snapshots, `v*` for the app release.
+
+## 1.0.0+4 (Play launch line — release-prep commit 2026-11-23)
+
+- Bump `0.1.2+3 → 1.0.0+4` at owner instruction (launch decision D4,
+  2026-11-23): both flavors go to Play production from this line —
+  free `dev.steiner.local_budget` and new paid app Pro
+  `dev.steiner.local_budget.pro` at $5.99 one-time (ledger 2026-11-19).
+- Rail is clean: no versionCode from this app has ever been uploaded to
+  a Play track (the `0.1.2+3` kit note above records "no Play upload has
+  happened for this app"; every build since has been artifact-only CI).
+  The monotonic rail therefore starts at VC 4 with nothing to migrate.
+- `v1.0.0+4` (version-discipline law 1, third binding) is cut when the
+  store artifacts ship — not with this commit.
 
 ## 0.1.2+3 (beta line)
 
