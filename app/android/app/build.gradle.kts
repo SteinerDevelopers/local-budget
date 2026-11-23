@@ -2,6 +2,8 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Required for the Glance widget sources (widget/*.kt) — see settings.gradle.kts note.
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
