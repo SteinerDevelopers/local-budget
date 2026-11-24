@@ -11,10 +11,14 @@ kotlinc, D8, R8 and every unit/e2e test, fatal in production.
 
 Gate: open a built .aab/.apk, parse each dex method-id table (stdlib only),
 and FAIL if any method reference whose descriptor takes
-(GlanceAppWidget, Function0, Continuation) is present, or if the APK/AAB
-ships dev.steiner widget classes but no provideContent linkage at all.
-Class-name-keyed checks would miss R8-renamed owners, so the linkage key is
-the PARAMETER descriptor, not the declaring class or method name.
+(GlanceAppWidget, Function0, Continuation) is present, or if the artifact
+ships a Glance TILE (a concrete class extending GlanceAppWidget) with no
+provideContent(GlanceAppWidget, Function2, ...) linkage at all. The free
+flavor declares its widget receivers in the pro manifest only, so its R8-
+stripped artifacts ship no tiles and need no linkage — widget-package
+action classes alone are not tiles. Class-name-keyed checks would miss
+R8-renamed owners, so the linkage key is the PARAMETER descriptor, not the
+declaring class or method name.
 
 Usage: widget_dex_gate.py <artifact.aab|artifact.apk> [...]
 Exit 0 = ship-clean, 1 = violation, 2 = script/IO/parse error (a probe that
@@ -54,7 +58,7 @@ def _strings(b):
 
 
 def scan_dex(b):
-    """Return (bad_refs, good_refs, widget_classes) for one dex buffer."""
+    """Return (bad_refs, good_refs, tile_classes, pkg_classes) for one dex."""
     if b[:4] != b"dex\n":
         raise ValueError("not a dex file")
     header_size, = struct.unpack_from("<I", b, 0x24)
@@ -91,11 +95,25 @@ def scan_dex(b):
             good += 1
     widgets = {t for t in types if t.startswith(WIDGET_PKG)
                and "$" not in t}
-    return bad, good, widgets
+    # A launcher tile SHIPS only when a concrete class extending
+    # GlanceAppWidget survives into the dex. The free flavor declares no
+    # widget receivers (src/pro/AndroidManifest.xml is pro-only), so R8
+    # strips the whole tile chain there and requires zero linkage;
+    # widget-package action classes alone are not tiles. The base type
+    # keeps its name under R8 (consumer keep rules), so superclass
+    # identity survives obfuscation.
+    cdsz, cdoff = struct.unpack_from("<II", b, 96)
+    tiles = set()
+    for i in range(cdsz):
+        cidx, _fl, scidx = struct.unpack_from("<III", b, cdoff + 32 * i)
+        if types[scidx] == RECEIVER:
+            tiles.add(types[cidx])
+    return bad, good, tiles, widgets
 
 
 def scan_artifact(path):
     bad = good = 0
+    tiles = set()
     widgets = set()
     with zipfile.ZipFile(path) as z:
         dexes = [n for n in z.namelist()
@@ -103,11 +121,12 @@ def scan_artifact(path):
         if not dexes:
             raise ValueError(f"{path}: contains no dex entries")
         for name in dexes:
-            b, g, w = scan_dex(z.read(name))
+            b, g, t, w = scan_dex(z.read(name))
             bad += b
             good += g
+            tiles |= t
             widgets |= w
-    return bad, good, widgets, len(dexes)
+    return bad, good, tiles, widgets, len(dexes)
 
 
 def main(argv):
@@ -117,7 +136,7 @@ def main(argv):
     failed = False
     for path in argv[1:]:
         try:
-            bad, good, widgets, ndex = scan_artifact(path)
+            bad, good, tiles, widgets, ndex = scan_artifact(path)
         except Exception as exc:  # noqa: BLE001 - probe must name itself
             print(f"widget_dex_gate: ERROR {path}: {exc}", file=sys.stderr)
             return 2
@@ -127,16 +146,16 @@ def main(argv):
                   f" -- compiled against a Glance API that is NOT packaged"
                   f" (widgets crash with NoSuchMethodError at launch).")
             failed = True
-        elif widgets and not good:
-            print(f"widget_dex_gate: FAIL {path}: widget classes present "
-                  f"({sorted(widgets)[:3]}...) but zero "
+        elif tiles and not good:
+            print(f"widget_dex_gate: FAIL {path}: Glance tile classes ship "
+                  f"({sorted(tiles)[:3]}...) but zero "
                   f"provideContent(GlanceAppWidget, Function2, ...) linkage"
                   f" found in {ndex} dex file(s).")
             failed = True
         else:
             print(f"widget_dex_gate: OK {path} ({ndex} dex, "
-                  f"{good} good linkage, 0 bad, {len(widgets)} widget "
-                  f"class(es))")
+                  f"{good} good linkage, 0 bad, {len(tiles)} tile(s), "
+                  f"{len(widgets)} widget-pkg class(es))")
     return 1 if failed else 0
 
 
