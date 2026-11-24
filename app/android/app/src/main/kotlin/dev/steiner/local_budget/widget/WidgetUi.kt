@@ -2,6 +2,7 @@ package dev.steiner.local_budget.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -29,10 +30,22 @@ import java.util.Locale
  * parsed snapshot, never from the ledger (§4.2's contract).
  */
 internal object WidgetUi {
-    val InkDark: Int = 0xFF10131A.toInt()
-    val TextPrimary = ColorProvider(0xFFFFFFFF.toInt())
-    val TextMuted = ColorProvider(0xFF9AA3B2.toInt())
-    val TextOver = ColorProvider(0xFFFF6B6B.toInt())
+    // Two Color-API traps bit us on the Verge (2026-11-24), keep away from both:
+    // 1) The Int overloads of glance's background()/ColorProvider() are
+    //    @ColorRes resource-id lookups — passing raw ARGB there made the
+    //    launcher resolve 0xFF10131A as a color resource: "Can't load widget".
+    // 2) An ARGB hex literal with a 'u'/'UL' suffix binds to
+    //    `value class Color(val value: ULong)`'s raw packed ctor, NOT to the
+    //    ARGB factory: the blue byte lands in the 6-bit colorSpace slot
+    //    (value and 0x3f) → ArrayIndexOutOfBoundsException inside
+    //    getColorSpace/toArgb, tile shows "Can't show content" — reproducible
+    //    in a plain JVM test. The right call is the documented Color(Long)/
+    //    Color(Int) factory: plain unsuffixed hex (> Int.MAX binds to
+    //    Color(Long)). Guarded by WidgetUiColorsTest + glance-color-guard CI.
+    val Ink = Color(0xFF10131A)
+    val TextPrimary = ColorProvider(Color(0xFFFFFFFF))
+    val TextMuted = ColorProvider(Color(0xFF9AA3B2))
+    val TextOver = ColorProvider(Color(0xFFFF6B6B))
 
     fun money(minor: Long, currencyCode: String): String = try {
         val f = NumberFormat.getCurrencyInstance(Locale.getDefault())
@@ -78,7 +91,7 @@ internal fun WidgetCard(tap: Action, content: @Composable () -> Unit) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(WidgetUi.InkDark)
+            .background(WidgetUi.Ink)
             .padding(12.dp)
             .clickable(tap),
         verticalAlignment = Alignment.CenterVertically,
