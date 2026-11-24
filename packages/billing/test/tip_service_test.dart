@@ -49,7 +49,7 @@ void main() {
     test('three coffees with store prices', () async {
       final catalog = await tips.catalog();
       expect(catalog.map((p) => p.id), TipService.coffeeProducts);
-      expect(catalog.first.price, '\$2.99');
+      expect(catalog.first.price, '\$1.99');
     });
 
     test('store unreachable is the caller\'s §6 state', () async {

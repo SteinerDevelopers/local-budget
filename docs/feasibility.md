@@ -166,7 +166,7 @@ Readings: **$500/mo needs ~150–200k MAU** under this exact configuration; one 
 
 **Suggested v1 paid bundle:** off-device backup + widgets + analytics pack — three different felt-value levers (safety / visibility / depth) so nearly every buyer finds *their* reason. Rotate in the rest by demand. **In-app pitch matters more now:** with no ad-removal story, the paywall page should *demo* the value (interactive previews of widgets/reports beat greyed-out locks).
 
-**Still optional:** feature-free "Supporter" IAP tiers ($2.99/$6.99/$14.99) alongside the zero-gating BMC link (§3.2) — the compliant in-app tip channel.
+**Still optional:** feature-free "Supporter" IAP tiers ($1.99/$4.99/$9.99) alongside the zero-gating BMC link (§3.2) — the compliant in-app tip channel.
 
 **Pricing models:**
 
@@ -174,7 +174,7 @@ Readings: **$500/mo needs ~150–200k MAU** under this exact configuration; one 
 |---|---|---|
 | **One-time unlock (non-consumable): the power-user pack** (§3.4) | **$7.99–$12.99** — buyers pay for genuine added value (own-cloud backup, widgets, analytics), not to buy the app back; still cheap next to YNAB/EveryDollar *annual* fees | **Recommended.** Single StoreKit/Play Billing product, restorable from purchase history, no backend; price experiments free via consoles |
 | Subscription | $9.99–19.99/yr | Misfits the offline ethos; reserve *only* for hypothetical future sync/cloud |
-| "Supporter" feature-free tiers | $2.99–$14.99 | Optional companion, never the only path |
+| "Supporter" feature-free tiers | $1.99–$9.99 | Optional companion, never the only path |
 
 **Guardrails:** Paid features must pass the *"more, not less"* test — someone who never pays must be able to budget a household completely. This positioning is a review-and-reputation asset (privacy-first audiences reward it); revoking anything that was once free is the fastest way to lose it.
 

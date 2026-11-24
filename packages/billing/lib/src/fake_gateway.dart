@@ -37,11 +37,11 @@ class FakeBillingGateway implements BillingGateway {
 
   static const defaultCatalog = [
     BillingProduct(
-        id: 'lb_coffee_small', title: 'Small coffee', price: '\$2.99'),
+        id: 'lb_coffee_small', title: 'Small coffee', price: '\$1.99'),
     BillingProduct(
-        id: 'lb_coffee_medium', title: 'Large coffee', price: '\$6.99'),
+        id: 'lb_coffee_medium', title: 'Medium coffee', price: '\$4.99'),
     BillingProduct(
-        id: 'lb_coffee_large', title: 'Coffee for the team', price: '\$14.99'),
+        id: 'lb_coffee_large', title: 'Large coffee', price: '\$9.99'),
   ];
 
   final List<BillingProduct> _products;

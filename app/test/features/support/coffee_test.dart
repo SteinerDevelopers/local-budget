@@ -109,8 +109,8 @@ void main() {
       find.byKey(const Key('coffee-chip-lb_coffee_small')),
       findsOneWidget,
     );
-    expect(find.text('\$2.99'), findsOneWidget);
-    expect(find.text('\$14.99'), findsOneWidget);
+    expect(find.text('\$1.99'), findsOneWidget);
+    expect(find.text('\$9.99'), findsOneWidget);
     expect(find.byKey(const Key('coffee-receipts')), findsNothing);
 
     await tester.tap(find.byKey(const Key('coffee-buy')));
