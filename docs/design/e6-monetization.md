@@ -42,9 +42,9 @@ Play Billing remains in the tree for one purpose. Consumables, no entitlement:
 
 | id | price | grants |
 |---|---|---|
-| `lb_coffee_small` | $2.99 | nothing — thank-you badge + local receipt line |
-| `lb_coffee_medium` | $6.99 | nothing |
-| `lb_coffee_large` | $14.99 | nothing |
+| `lb_coffee_small` | $1.99 | nothing — thank-you badge + local receipt line |
+| `lb_coffee_medium` | $4.99 | nothing |
+| `lb_coffee_large` | $9.99 | nothing |
 
 A consumable tip is ack'd immediately on purchase (it is consumed by the act of
 thanking); pending tips surface §6 copy and, if they complete later, the
