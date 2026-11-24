@@ -349,6 +349,26 @@ manifest-guard:
         || { echo "every domain must stay excluded in BOTH cloud-backup and device-transfer"; exit 1; }
       echo "backup-lock law holds (no OS copy path carries the ledger)"
 
+# Glance color trap (Verge SL219A, 2026-11-24: whole tile died with
+# "Can't load widget"): glance's Int color overloads — background(Int) and
+# ColorProvider(int) — are RESOURCE-ID lookups (ColorProvider(int) builds a
+# ResourceColorProvider). A raw ARGB literal compiles, survives every unit
+# test and the emulator, then throws getColor() NotFound in the launcher and
+# the tile never inflates. Widget colors must go through Color(0x…u).
+glance-color-guard:
+  stage: test
+  image: alpine
+  tags: [SteinerRunner]
+  script:
+    - |
+      set -e
+      src=app/android/app/src/main/kotlin
+      test -d "$src" || { echo "widget source tree missing — guard would pass blind"; exit 1; }
+      grep -RnE 'ColorProvider\( *0x|background\( *0x|Color\( *0x[0-9A-Fa-f]+[uU]' "$src" \
+        && { echo "glance color trap: raw ARGB hit a resource-id overload, or a 'u'-suffixed hex literal bound to Color's raw value-class ctor — use unsuffixed Color(0x…)"; exit 1; } \
+        || true
+      echo "glance color law holds (no resId-overload or raw-packed-ULong call sites)"
+
 # Adoption rung 3 (playbook docs/adoption.md): secret-scan, REPORT-ONLY —
 # findings are printed, nothing fails. Escalation to blocking is an
 # owner-gate decision (Law 4 in AGENTS.md); flip REPORT_ONLY=false there
